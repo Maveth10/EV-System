@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export type Sector = { id: string; name: string; color: string; geometry?: any; };
 
 type SectorEditorProps = {
   isOpen: boolean; onClose: () => void; sectors: Sector[];
-  onStartDrawingNew: (techName: string, color: string, mode: 'insert' | 'append') => void;
+  onStartDrawingNew: (techName: string, color: string, mode: 'insert' | 'append' | 'update', sectorId?: string) => void;
   onEditExisting: (sector: Sector) => void; onDeleteSector: (id: string) => void;
   isDrawingActive: boolean; onSaveDrawing: () => Promise<boolean>; onCancelDrawing: () => void;
 };
@@ -24,13 +24,32 @@ export default function SectorEditor({ isOpen, onClose, sectors, onStartDrawingN
   const [newTechColor, setNewTechColor] = useState('#3b82f6');
   const [isSaving, setIsSaving] = useState(false);
 
+  // Inteligentna obsługa przycisku ESC
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        if (isDrawingActive) {
+          onCancelDrawing();
+        } else if (isCreatingNewTech) {
+          setIsCreatingNewTech(false);
+        } else if (selectedTech) {
+          setSelectedTech(null);
+        } else {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isDrawingActive, isCreatingNewTech, selectedTech, onClose, onCancelDrawing]);
+
   if (!isOpen) return null;
 
   const groupedSectors = sectors.reduce((acc, sector) => {
-    if (!acc[sector.name]) acc[sector.name] = { color: sector.color, zones: [] };
-    acc[sector.name].zones.push(sector);
+    if (!acc[sector.name]) acc[sector.name] = { id: sector.id, color: sector.color, zones: [] };
+    if (sector.geometry) acc[sector.name].zones.push(sector);
     return acc;
-  }, {} as Record<string, { color: string, zones: Sector[] }>);
+  }, {} as Record<string, { id: string, color: string, zones: Sector[] }>);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -43,7 +62,7 @@ export default function SectorEditor({ isOpen, onClose, sectors, onStartDrawingN
     return (
       <div className="absolute top-20 left-[96px] z-30 bg-white/95 backdrop-blur-md border border-slate-200 p-6 rounded-lg shadow-xl w-[320px]">
         <h3 className="font-semibold text-slate-800 text-sm mb-4 flex items-center gap-2"><IconDraw /> Tryb edycji strefy</h3>
-        <div className="bg-blue-50 border border-blue-100 p-3 rounded text-xs text-blue-800 mb-4">Użyj wskaźnika, aby wyznaczyć obszar. Zakończ podwójnym kliknięciem.</div>
+        <div className="bg-blue-50 border border-blue-100 p-3 rounded text-xs text-blue-800 mb-4">Użyj wskaźnika, aby wyznaczyć obszar. Zakończ podwójnym kliknięciem. ESC anuluje.</div>
         <div className="flex gap-2">
           <button onClick={onCancelDrawing} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 rounded text-sm transition-colors border border-slate-200">Anuluj</button>
           <button onClick={handleSave} disabled={isSaving} className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded text-sm transition-colors disabled:bg-slate-400"><IconSave /> {isSaving ? 'Zapis...' : 'Zapisz'}</button>
@@ -56,20 +75,19 @@ export default function SectorEditor({ isOpen, onClose, sectors, onStartDrawingN
     return (
       <div className="absolute top-20 left-[96px] z-30 bg-white/95 backdrop-blur-md border border-slate-200 p-6 rounded-lg shadow-xl w-[340px]">
          <div className="flex justify-between items-center mb-4">
-          <h3 className="font-semibold text-slate-800 text-sm">Nowy zasób techniczny</h3>
+          <h3 className="font-semibold text-slate-800 text-sm">Nowy technik operacyjny</h3>
           <button onClick={() => setIsCreatingNewTech(false)} className="text-slate-400 hover:text-slate-600"><IconClose /></button>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Identyfikator / Imię i nazwisko</label>
-            <input type="text" value={newTechName} onChange={(e) => setNewTechName(e.target.value)} className="w-full px-3 py-2 border rounded text-sm focus:outline-none focus:border-blue-500" />
+            <label className="block text-xs font-medium text-slate-500 mb-1">Identyfikator (Imię i nazwisko)</label>
+            <input type="text" autoFocus value={newTechName} onChange={(e) => setNewTechName(e.target.value)} className="w-full px-3 py-2 border rounded text-sm focus:outline-none focus:border-blue-500" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Kolor operacyjny</label>
-            <div className="flex gap-2">
-              {['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'].map(color => (
-                <button key={color} type="button" onClick={() => setNewTechColor(color)} style={{ backgroundColor: color }} className={`w-6 h-6 rounded ${newTechColor === color ? 'ring-2 ring-slate-800 scale-105' : 'opacity-70'}`} />
-              ))}
+            <label className="block text-xs font-medium text-slate-500 mb-1">Kolor strefy na mapie</label>
+            <div className="flex items-center gap-3">
+              <input type="color" value={newTechColor} onChange={(e) => setNewTechColor(e.target.value)} className="w-10 h-10 p-0.5 border border-slate-200 rounded cursor-pointer" />
+              <span className="text-xs text-slate-500 font-mono uppercase">{newTechColor}</span>
             </div>
           </div>
           <button onClick={() => {
@@ -77,7 +95,7 @@ export default function SectorEditor({ isOpen, onClose, sectors, onStartDrawingN
             setSelectedTech(newTechName);
             setIsCreatingNewTech(false);
             onStartDrawingNew(newTechName, newTechColor, 'insert');
-          }} className="w-full bg-blue-600 text-white font-medium py-2.5 rounded text-sm hover:bg-blue-700 transition-colors">Rozpocznij wyznaczanie</button>
+          }} className="w-full bg-blue-600 text-white font-medium py-2.5 rounded text-sm hover:bg-blue-700 transition-colors">Utwórz i narysuj strefę</button>
         </div>
       </div>
     );
@@ -96,20 +114,27 @@ export default function SectorEditor({ isOpen, onClose, sectors, onStartDrawingN
             <h3 className="font-semibold text-slate-800 text-sm">{selectedTech}</h3>
           </div>
         </div>
-        <button onClick={() => onStartDrawingNew(selectedTech, techData.color, 'append')} className="w-full bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 font-medium py-2 rounded text-sm mb-4 transition-colors flex items-center justify-center gap-2">
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Dodaj nowy fragment
-        </button>
-        <div className="overflow-y-auto space-y-2 pr-1">
-          {techData.zones.map((zone, index) => (
-            <div key={zone.id} className="flex justify-between items-center bg-white border border-slate-200 p-2.5 rounded hover:border-slate-300 transition-colors group">
-              <span className="text-xs font-medium text-slate-600 flex-1">Fragment {index + 1}</span>
-              <div className="flex gap-2">
-                <button onClick={() => onEditExisting(zone)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded transition-colors"><IconEdit /></button>
-                <button onClick={() => onDeleteSector(zone.id)} className="text-red-600 hover:bg-red-50 p-1.5 rounded transition-colors"><IconTrash /></button>
+
+        {techData.zones.length === 0 ? (
+          <div className="text-center bg-slate-50 border border-slate-200 p-4 rounded-lg mb-4">
+            <p className="text-xs text-slate-500 mb-3">Ten technik nie ma jeszcze przypisanego terytorium roboczego.</p>
+            <button onClick={() => onStartDrawingNew(selectedTech, techData.color, 'update', techData.id)} className="w-full bg-blue-600 text-white hover:bg-blue-700 font-medium py-2 rounded text-sm transition-colors flex items-center justify-center gap-2">
+              <IconDraw /> Narysuj pierwszą strefę
+            </button>
+          </div>
+        ) : (
+          <div className="overflow-y-auto space-y-2 pr-1">
+            {techData.zones.map((zone, index) => (
+              <div key={zone.id} className="flex justify-between items-center bg-white border border-slate-200 p-2.5 rounded hover:border-slate-300 transition-colors group">
+                <span className="text-xs font-medium text-slate-600 flex-1">Główny obszar operacyjny</span>
+                <div className="flex gap-2">
+                  <button onClick={() => onEditExisting(zone)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded transition-colors" title="Edytuj granice obszaru"><IconEdit /></button>
+                  <button onClick={() => onDeleteSector(zone.id)} className="text-red-600 hover:bg-red-50 p-1.5 rounded transition-colors" title="Wyczyść obszar technika"><IconTrash /></button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -117,15 +142,15 @@ export default function SectorEditor({ isOpen, onClose, sectors, onStartDrawingN
   return (
     <div className="absolute top-20 left-[96px] z-30 bg-white/95 backdrop-blur-md border border-slate-200 p-5 rounded-lg shadow-xl w-[340px] max-h-[80vh] flex flex-col">
       <div className="flex justify-between items-center mb-5">
-        <h3 className="font-semibold text-slate-800 text-sm flex items-center gap-2"><IconMap /> Zarządzanie strefami</h3>
+        <h3 className="font-semibold text-slate-800 text-sm flex items-center gap-2"><IconMap /> Obszary operacyjne</h3>
         <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><IconClose /></button>
       </div>
       <button onClick={() => setIsCreatingNewTech(true)} className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded text-sm transition-colors mb-5">
-        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Dodaj technika
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Utwórz nowego technika
       </button>
-      <h4 className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Przypisane zasoby ({Object.keys(groupedSectors).length})</h4>
+      <h4 className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Wszyscy technicy w bazie ({Object.keys(groupedSectors).length})</h4>
       {Object.keys(groupedSectors).length === 0 ? (
-        <p className="text-xs text-slate-500">Brak zdefiniowanych stref.</p>
+        <p className="text-xs text-slate-500">Brak techników. Dodaj kogoś do bazy.</p>
       ) : (
         <div className="overflow-y-auto space-y-2 pr-1">
           {Object.entries(groupedSectors).map(([name, data]) => (
@@ -134,7 +159,9 @@ export default function SectorEditor({ isOpen, onClose, sectors, onStartDrawingN
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: data.color }} />
                 <div>
                   <div className="text-xs font-medium text-slate-700">{name}</div>
-                  <div className="text-[10px] text-slate-400">{data.zones.length} {data.zones.length === 1 ? 'fragment' : 'fragmenty'}</div>
+                  <div className={`text-[10px] font-medium ${data.zones.length > 0 ? 'text-green-600' : 'text-slate-400'}`}>
+                    {data.zones.length > 0 ? '✓ Przypisano strefę' : 'Brak przypisanej strefy'}
+                  </div>
                 </div>
               </div>
               <svg className="w-4 h-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>

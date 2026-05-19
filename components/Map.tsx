@@ -11,6 +11,8 @@ import ContextMenu, { ContextMenuState } from './ContextMenu';
 import AddStationModal from './AddStationModal';
 import SectorEditor, { Sector } from './SectorEditor';
 import Sidebar, { ViewState } from './Sidebar';
+import StationsDatabase from './StationsDatabase';
+import TechniciansDatabase from './TechniciansDatabase';
 
 const DETAILED_POLAND_URL = 'https://raw.githubusercontent.com/ppatrzyk/polska-geojson/master/wojewodztwa/wojewodztwa-medium.geojson';
 
@@ -20,7 +22,6 @@ export default function ChargeMap() {
   const drawRef = useRef<MapboxDraw | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   
-  // NOWY STAN: Kontrola widoków aplikacji
   const [activeView, setActiveView] = useState<ViewState>('map');
 
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
@@ -56,8 +57,12 @@ export default function ChargeMap() {
     showSectorsRef.current = newState;
     
     if (map.current) {
-      if (map.current.getLayer('saved-sectors-layer')) map.current.setLayoutProperty('saved-sectors-layer', 'visibility', newState ? 'visible' : 'none');
-      if (map.current.getLayer('saved-sectors-outline')) map.current.setLayoutProperty('saved-sectors-outline', 'visibility', newState ? 'visible' : 'none');
+      if (map.current.getLayer('saved-sectors-layer')) {
+        map.current.setLayoutProperty('saved-sectors-layer', 'visibility', newState ? 'visible' : 'none');
+      }
+      if (map.current.getLayer('saved-sectors-outline')) {
+        map.current.setLayoutProperty('saved-sectors-outline', 'visibility', newState ? 'visible' : 'none');
+      }
     }
   };
 
@@ -118,6 +123,14 @@ export default function ChargeMap() {
     }
   }, []);
 
+  // SYNCHRONIZACJA WIDOKU MAPY: Odświeża dane z bazy zawsze po przełączeniu na zakładkę mapy
+  useEffect(() => {
+    if (activeView === 'map' && map.current) {
+      loadStations();
+      loadSavedSectors();
+    }
+  }, [activeView, loadStations, loadSavedSectors]);
+
   useEffect(() => {
     if (!mapContainer.current || map.current) return; 
 
@@ -148,13 +161,12 @@ export default function ChargeMap() {
     });
   }, [loadStations, loadSavedSectors]); 
 
-
-  const handleStartDrawingNew = (techName: string, color: string, mode: 'insert' | 'append') => {
+  const handleStartDrawingNew = (techName: string, color: string, mode: 'insert' | 'append' | 'update', sectorId?: string) => {
     if (!drawRef.current) return;
     drawRef.current.deleteAll(); 
     drawRef.current.changeMode('draw_polygon');
     setDrawingState(true);
-    setActiveDrawContext({ mode, techName, color });
+    setActiveDrawContext({ mode, techName, color, sectorId });
   };
 
   const handleEditExisting = useCallback((sector: Sector) => {
@@ -187,12 +199,14 @@ export default function ChargeMap() {
     if (selectedData.features.length === 0) { alert('Kształt jest pusty.'); return false; }
     const geometry = selectedData.features[0].geometry;
 
-    if (activeDrawContext.mode === 'insert' || activeDrawContext.mode === 'append') {
-      const { error } = await supabase.rpc('add_snapped_sector', { p_tech_name: activeDrawContext.techName, p_tech_color: activeDrawContext.color, p_new_geom: geometry });
-      if (error) { alert(`Błąd zapisu: ${error.message}`); return false; }
-    } else if (activeDrawContext.mode === 'update' && activeDrawContext.sectorId) {
+    if (activeDrawContext.mode === 'update' && activeDrawContext.sectorId) {
+      // Jeśli modyfikujemy kształt istniejącemu technikowi (lub dodajemy mu pierwszy kształt)
       const { error } = await supabase.from('technicians').update({ zone_geometry: geometry }).eq('id', activeDrawContext.sectorId);
       if (error) { alert(`Błąd aktualizacji: ${error.message}`); return false; }
+    } else {
+      // Stara ścieżka dla RPC, używana tylko jeśli tworzymy i rysujemy jednocześnie bez zapisu wstępnego
+      const { error } = await supabase.rpc('add_snapped_sector', { p_tech_name: activeDrawContext.techName, p_tech_color: activeDrawContext.color, p_new_geom: geometry });
+      if (error) { alert(`Błąd zapisu: ${error.message}`); return false; }
     }
 
     cancelDrawing(); 
@@ -200,23 +214,34 @@ export default function ChargeMap() {
     return true;
   };
 
+  // NAPRAWIONE USUWANIE: Zamiast kasować pracownika, czyścimy mu tylko pole geometrii
   const deleteSector = async (id: string) => {
-    if(!confirm('Usunąć ten obszar?')) return;
-    const { error } = await supabase.from('technicians').delete().eq('id', id);
-    if(error) alert('Błąd usuwania');
+    if(!confirm('Na pewno wyczyścić cały obszar roboczy z mapy dla tego technika? (Jego dane pozostaną w bazie)')) return;
+    const { error } = await supabase.from('technicians').update({ zone_geometry: null }).eq('id', id);
+    if(error) alert('Błąd usuwania strefy z bazy');
     else loadSavedSectors();
+  };
+
+  const flyToStation = (station: any) => {
+    setActiveView('map');
+    setSelectedStation(station);
+    
+    if (map.current && station.lat && station.lng) {
+      map.current.flyTo({
+        center: [station.lng, station.lat],
+        zoom: 17,
+        pitch: 0,
+        essential: true,
+        speed: 1.5
+      });
+    }
   };
 
   return (
     <div className="relative w-full h-full bg-slate-50 overflow-hidden">
-      
-      {/* MAPA DZIAŁA W TLE CAŁY CZAS */}
       <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
-
-      {/* NOWY PANEL BOCZNY */}
       <Sidebar activeView={activeView} onChangeView={setActiveView} />
 
-      {/* WARSTWY NAKŁADANE W ZALEŻNOŚCI OD WIDOKU */}
       {activeView === 'map' && (
         <>
           <ContextMenu 
@@ -237,7 +262,6 @@ export default function ChargeMap() {
             onStartDrawingNew={handleStartDrawingNew} onEditExisting={handleEditExisting} onSaveDrawing={handleSaveDrawing} onCancelDrawing={cancelDrawing} onDeleteSector={deleteSector}
           />
 
-          {/* PRZYCISKI - PRZESUNIĘTE NA LEWO, OBOK SIDEBARU (left-24) */}
           <div className="absolute top-6 left-[96px] z-20 flex gap-3">
             <button 
               onClick={() => setIsAddModalOpen(true)}
@@ -261,13 +285,15 @@ export default function ChargeMap() {
         </>
       )}
 
-      {/* ZAŚLEPKI DLA NOWYCH WIDOKÓW (Przykrywają mapę, zostawiając Sidebar) */}
-      {activeView !== 'map' && (
+      {activeView === 'stations' && <StationsDatabase onFocusStation={flyToStation} />}
+      {activeView === 'technicians' && <TechniciansDatabase />}
+      
+      {activeView === 'tickets' && (
         <div className="absolute inset-0 left-[72px] z-40 bg-slate-50/95 backdrop-blur-sm flex items-center justify-center">
           <div className="text-center bg-white p-10 rounded-2xl shadow-xl border border-slate-200">
             <h2 className="text-2xl font-bold text-slate-800 mb-2">Moduł w budowie</h2>
             <p className="text-slate-500">
-              Panel <b>{activeView === 'stations' ? 'Bazy stacji' : activeView === 'technicians' ? 'Zasobów technicznych' : 'Aktualnych zgłoszeń'}</b> zostanie wdrożony w kolejnym kroku.
+              Panel <b>Aktualnych zgłoszeń</b> zostanie wdrożony w kolejnym kroku.
             </p>
             <button 
               onClick={() => setActiveView('map')}

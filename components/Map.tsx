@@ -13,6 +13,7 @@ import SectorEditor, { Sector } from './SectorEditor';
 import Sidebar, { ViewState } from './Sidebar';
 import StationsDatabase from './StationsDatabase';
 import TechniciansDatabase from './TechniciansDatabase';
+import TicketsDatabase from './TicketsDatabase'; // Zaimportowany szablon ticketów
 import { LoadingScreen } from './EkoenLogo';
 
 const DETAILED_POLAND_URL = 'https://raw.githubusercontent.com/ppatrzyk/polska-geojson/master/wojewodztwa/wojewodztwa-medium.geojson';
@@ -23,7 +24,7 @@ export default function ChargeMap() {
   const drawRef = useRef<MapboxDraw | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   
-  // EKRAN ŁADOWANIA EKOEN
+  // Ekran ładowania systemu Ekoen
   const [isAppLoading, setIsAppLoading] = useState(true);
   
   const [activeView, setActiveView] = useState<ViewState>('map');
@@ -43,7 +44,7 @@ export default function ChargeMap() {
   const [showSectors, setShowSectors] = useState(false);
   const showSectorsRef = useRef(false);
 
-  // Symulacja ładowania danych, aby pokazać animowane logo
+  // Efekt startowego ładowania aplikacji (animacja logo)
   useEffect(() => {
     const timer = setTimeout(() => setIsAppLoading(false), 2000);
     return () => clearTimeout(timer);
@@ -84,7 +85,7 @@ export default function ChargeMap() {
 
       data.forEach((station: Station) => {
         if (!station.lat || !station.lng) return;
-        const markerColor = station.status === 'Awaria' ? '#ef4444' : '#58b347'; // Zielony kolor dla sprawnych stacji
+        const markerColor = station.status === 'Awaria' ? '#ef4444' : '#58b347';
         const el = document.createElement('div');
         el.className = 'w-4 h-4 border-2 border-white rounded-full shadow-sm hover:scale-110 transition-transform z-40';
         el.style.backgroundColor = markerColor;
@@ -133,7 +134,7 @@ export default function ChargeMap() {
     }
   }, []);
 
-  // SYNCHRONIZACJA WIDOKU MAPY
+  // Synchronizacja widoku mapy po przełączeniu widoków
   useEffect(() => {
     if (activeView === 'map' && map.current) {
       loadStations();
@@ -159,7 +160,6 @@ export default function ChargeMap() {
       loadSavedSectors();
 
       map.current.addSource('poland-data', { type: 'geojson', data: DETAILED_POLAND_URL });
-      // Jasnozielony cień nad Polską
       map.current.addLayer({ id: 'poland-fill', type: 'fill', source: 'poland-data', paint: { 'fill-color': '#58b347', 'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.04, 0.01] }});
       map.current.addLayer({ id: 'poland-outline', type: 'line', source: 'poland-data', paint: { 'line-color': '#cbd5e1', 'line-width': 1, 'line-dasharray': [3, 3] }});
 
@@ -247,12 +247,10 @@ export default function ChargeMap() {
 
   return (
     <div className="relative w-full h-full bg-slate-50 overflow-hidden">
-      {/* EKRAN ŁADOWANIA EKOEN (Renderowany na samym wierzchu, póki aplikacja się ładuje) */}
+      {/* Animowany Ekran Startowy Ekoen */}
       {isAppLoading && <LoadingScreen />}
 
       <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
-      
-      {/* Pasek Boczny z nowymi zakladkami */}
       <Sidebar activeView={activeView} onChangeView={setActiveView} />
 
       {activeView === 'map' && (
@@ -298,12 +296,13 @@ export default function ChargeMap() {
         </>
       )}
 
-      {/* Aktywne, działające moduły bazy */}
+      {/* Aktywne moduły zintegrowane */}
       {activeView === 'stations' && <StationsDatabase onFocusStation={flyToStation} />}
       {activeView === 'technicians' && <TechniciansDatabase />}
+      {activeView === 'tickets' && <TicketsDatabase />} {/* Podpięty nowy komponent */}
       
-      {/* Dynamiczna zaślepka dla modułów w budowie */}
-      {['tickets', 'equipment', 'analytics', 'clients', 'calendar'].includes(activeView) && (
+      {/* Zaślepka dla modułów w budowie */}
+      {['equipment', 'analytics', 'clients', 'calendar'].includes(activeView) && (
         <div className="absolute inset-0 left-[72px] z-40 bg-slate-50/95 backdrop-blur-sm flex items-center justify-center">
           <div className="text-center bg-white p-10 rounded-2xl shadow-xl border border-slate-200">
             <h2 className="text-2xl font-bold text-slate-800 mb-2">Moduł w budowie</h2>

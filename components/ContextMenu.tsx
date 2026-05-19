@@ -58,7 +58,7 @@ export default function ContextMenu({ menu, onClose, onAddStation, onEditSector 
           className="group flex items-center gap-3 w-full px-4 py-2.5 text-left text-slate-700 hover:bg-green-50 hover:text-[#58b347] transition-colors"
         >
           <IconAdd />
-          <span className="text-sm font-medium">Dodaj stację w tym miejscu</span>
+          <span className="text-sm font-medium"> Dodaj stację w tym miejscu</span>
         </button>
         
         <button

@@ -14,6 +14,9 @@ export type Station = {
   street: string | null;
   country: string | null;
   additional_info: string | null;
+  // Dodane brakujące typy współrzędnych, których szuka Vercel:
+  lat?: number;
+  lng?: number;
 };
 
 type StationPanelProps = {
@@ -104,7 +107,7 @@ export default function StationPanel({ station, onClose }: StationPanelProps) {
 
       </div>
 
-      {/* Stopka Panelu z przyciskiem akcji (Zielony Ekoen) */}
+      {/* Stopka Panelu z przyciskiem akcji */}
       <div className="p-6 border-t border-slate-100 bg-white">
         <button 
           className="w-full bg-[#58b347] hover:bg-[#499b3a] text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-green-500/20 transition-all flex items-center justify-center gap-2"

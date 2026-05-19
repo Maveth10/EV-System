@@ -10,30 +10,33 @@ import StationPanel, { Station } from './StationPanel';
 import ContextMenu, { ContextMenuState } from './ContextMenu';
 import AddStationModal from './AddStationModal';
 import SectorEditor, { Sector } from './SectorEditor';
+import Sidebar, { ViewState } from './Sidebar';
 
-const DETAILED_POLAND_URL =
-  'https://raw.githubusercontent.com/ppatrzyk/polska-geojson/master/wojewodztwa/wojewodztwa-medium.geojson';
+const DETAILED_POLAND_URL = 'https://raw.githubusercontent.com/ppatrzyk/polska-geojson/master/wojewodztwa/wojewodztwa-medium.geojson';
 
 export default function ChargeMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const drawRef = useRef<MapboxDraw | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
+  
+  // NOWY STAN: Kontrola widoków aplikacji
+  const [activeView, setActiveView] = useState<ViewState>('map');
 
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [modalLatLng, setModalLatLng] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
+  const [modalLatLng, setModalLatLng] = useState<{lat: number, lng: number} | null>(null);
   const [isSectorEditorOpen, setIsSectorEditorOpen] = useState(false);
-
+  
   const [savedSectorsList, setSavedSectorsList] = useState<Sector[]>([]);
   const sectorsListRef = useRef<Sector[]>([]);
 
   const [isDrawingActive, setIsDrawingActive] = useState(false);
   const isDrawingActiveRef = useRef(false);
+
+  const [showSectors, setShowSectors] = useState(false);
+  const showSectorsRef = useRef(false);
 
   const setDrawingState = (isActive: boolean) => {
     setIsDrawingActive(isActive);
@@ -47,25 +50,32 @@ export default function ChargeMap() {
     sectorId?: string;
   } | null>(null);
 
+  const toggleSectorsVisibility = (forceShow?: boolean) => {
+    const newState = forceShow !== undefined ? forceShow : !showSectors;
+    setShowSectors(newState);
+    showSectorsRef.current = newState;
+    
+    if (map.current) {
+      if (map.current.getLayer('saved-sectors-layer')) map.current.setLayoutProperty('saved-sectors-layer', 'visibility', newState ? 'visible' : 'none');
+      if (map.current.getLayer('saved-sectors-outline')) map.current.setLayoutProperty('saved-sectors-outline', 'visibility', newState ? 'visible' : 'none');
+    }
+  };
+
   const loadStations = useCallback(async () => {
     const { data } = await supabase.from('stations').select('*');
     if (data && map.current) {
-      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current.forEach(marker => marker.remove());
       markersRef.current = [];
 
       data.forEach((station: Station) => {
         if (!station.lat || !station.lng) return;
         const markerColor = station.status === 'Awaria' ? '#ef4444' : '#10b981';
         const el = document.createElement('div');
-        el.className =
-          'w-5 h-5 border-2 border-white rounded-full shadow-lg hover:scale-125 transition-transform z-40';
+        el.className = 'w-4 h-4 border-2 border-white rounded-full shadow-sm hover:scale-110 transition-transform z-40';
         el.style.backgroundColor = markerColor;
-        el.style.boxShadow = `0 0 10px ${markerColor}`;
         el.style.cursor = 'pointer';
 
-        const marker = new maplibregl.Marker({ element: el })
-          .setLngLat([station.lng, station.lat])
-          .addTo(map.current!);
+        const marker = new maplibregl.Marker({ element: el }).setLngLat([station.lng, station.lat]).addTo(map.current!);
         el.addEventListener('click', (e) => {
           e.stopPropagation();
           setSelectedStation(station);
@@ -77,77 +87,47 @@ export default function ChargeMap() {
   }, []);
 
   const loadSavedSectors = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('technicians')
-      .select('id, name, color, zone_geometry');
-    if (error) {
-      console.error(error);
-      return;
-    }
-
+    const { data, error } = await supabase.from('technicians').select('id, name, color, zone_geometry');
+    if (error) return;
+    
     if (data && map.current) {
-      const mappedSectors = data.map((d) => ({
-        id: d.id,
-        name: d.name,
-        color: d.color,
-        geometry: d.zone_geometry,
-      }));
+      const mappedSectors = data.map(d => ({ id: d.id, name: d.name, color: d.color, geometry: d.zone_geometry }));
       setSavedSectorsList(mappedSectors);
       sectorsListRef.current = mappedSectors;
 
-      if (map.current.getLayer('saved-sectors-layer'))
-        map.current.removeLayer('saved-sectors-layer');
-      if (map.current.getLayer('saved-sectors-outline'))
-        map.current.removeLayer('saved-sectors-outline');
-      if (map.current.getSource('saved-sectors'))
-        map.current.removeSource('saved-sectors');
+      if (map.current.getLayer('saved-sectors-layer')) map.current.removeLayer('saved-sectors-layer');
+      if (map.current.getLayer('saved-sectors-outline')) map.current.removeLayer('saved-sectors-outline');
+      if (map.current.getSource('saved-sectors')) map.current.removeSource('saved-sectors');
 
-      const features = data
-        .filter((tech) => tech.zone_geometry)
-        .map((tech) => ({
-          type: 'Feature',
-          geometry: tech.zone_geometry,
-          properties: { id: tech.id, name: tech.name, color: tech.color },
-        }));
+      const features = data.filter(tech => tech.zone_geometry).map(tech => ({
+        type: 'Feature', geometry: tech.zone_geometry, properties: { id: tech.id, name: tech.name, color: tech.color }
+      }));
 
-      map.current.addSource('saved-sectors', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features } as any,
-      });
+      map.current.addSource('saved-sectors', { type: 'geojson', data: { type: 'FeatureCollection', features } as any });
 
       map.current.addLayer({
-        id: 'saved-sectors-layer',
-        type: 'fill',
-        source: 'saved-sectors',
-        paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.15 },
+        id: 'saved-sectors-layer', type: 'fill', source: 'saved-sectors',
+        layout: { visibility: showSectorsRef.current ? 'visible' : 'none' },
+        paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.15 }
       });
-
       map.current.addLayer({
-        id: 'saved-sectors-outline',
-        type: 'line',
-        source: 'saved-sectors',
-        paint: { 'line-color': ['get', 'color'], 'line-width': 2.5 },
+        id: 'saved-sectors-outline', type: 'line', source: 'saved-sectors',
+        layout: { visibility: showSectorsRef.current ? 'visible' : 'none' },
+        paint: { 'line-color': ['get', 'color'], 'line-width': 2 }
       });
     }
   }, []);
 
   useEffect(() => {
-    if (!mapContainer.current || map.current) return;
+    if (!mapContainer.current || map.current) return; 
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-      center: [19.14, 51.91],
-      zoom: 5.5,
-      pitch: 0,
-      dragRotate: false,
-      doubleClickZoom: false,
+      center: [19.14, 51.91], zoom: 5.5, pitch: 0, dragRotate: false, doubleClickZoom: false,
     });
 
-    drawRef.current = new MapboxDraw({
-      displayControlsDefault: false,
-      controls: { polygon: false, trash: false },
-    });
+    drawRef.current = new MapboxDraw({ displayControlsDefault: false, controls: { polygon: false, trash: false }});
     map.current.addControl(drawRef.current as any);
 
     map.current.on('load', () => {
@@ -155,58 +135,23 @@ export default function ChargeMap() {
       loadStations();
       loadSavedSectors();
 
-      map.current.addSource('poland-data', {
-        type: 'geojson',
-        data: DETAILED_POLAND_URL,
-      });
-      map.current.addLayer({
-        id: 'poland-fill',
-        type: 'fill',
-        source: 'poland-data',
-        paint: {
-          'fill-color': '#3b82f6',
-          'fill-opacity': [
-            'case',
-            ['boolean', ['feature-state', 'hover'], false],
-            0.08,
-            0.01,
-          ],
-        },
-      });
-      map.current.addLayer({
-        id: 'poland-outline',
-        type: 'line',
-        source: 'poland-data',
-        paint: {
-          'line-color': '#cbd5e1',
-          'line-width': 1,
-          'line-dasharray': [3, 3],
-        },
-      });
+      map.current.addSource('poland-data', { type: 'geojson', data: DETAILED_POLAND_URL });
+      map.current.addLayer({ id: 'poland-fill', type: 'fill', source: 'poland-data', paint: { 'fill-color': '#3b82f6', 'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.04, 0.01] }});
+      map.current.addLayer({ id: 'poland-outline', type: 'line', source: 'poland-data', paint: { 'line-color': '#cbd5e1', 'line-width': 1, 'line-dasharray': [3, 3] }});
 
       map.current.on('contextmenu', (e) => {
-        e.preventDefault();
-        setContextMenu({
-          x: e.point.x,
-          y: e.point.y,
-          lng: e.lngLat.lng,
-          lat: e.lngLat.lat,
-        });
+        e.preventDefault(); 
+        setContextMenu({ x: e.point.x, y: e.point.y, lng: e.lngLat.lng, lat: e.lngLat.lat });
       });
 
       map.current.on('click', () => setContextMenu(null));
     });
-  }, [loadStations, loadSavedSectors]);
+  }, [loadStations, loadSavedSectors]); 
 
-  // --- LOGIKA EDYTORA STREF ---
 
-  const handleStartDrawingNew = (
-    techName: string,
-    color: string,
-    mode: 'insert' | 'append'
-  ) => {
+  const handleStartDrawingNew = (techName: string, color: string, mode: 'insert' | 'append') => {
     if (!drawRef.current) return;
-    drawRef.current.deleteAll();
+    drawRef.current.deleteAll(); 
     drawRef.current.changeMode('draw_polygon');
     setDrawingState(true);
     setActiveDrawContext({ mode, techName, color });
@@ -214,33 +159,15 @@ export default function ChargeMap() {
 
   const handleEditExisting = useCallback((sector: Sector) => {
     if (!drawRef.current || !sector.geometry) return;
-    drawRef.current.deleteAll();
-
-    const featureIds = drawRef.current.add({
-      type: 'Feature',
-      geometry: sector.geometry,
-      properties: {},
-    });
+    drawRef.current.deleteAll(); 
+    const featureIds = drawRef.current.add({ type: 'Feature', geometry: sector.geometry, properties: {} });
     drawRef.current.changeMode('direct_select', { featureId: featureIds[0] });
     setDrawingState(true);
-    setActiveDrawContext({
-      mode: 'update',
-      techName: sector.name,
-      color: sector.color,
-      sectorId: sector.id,
-    });
+    setActiveDrawContext({ mode: 'update', techName: sector.name, color: sector.color, sectorId: sector.id });
 
-    if (map.current?.getLayer('saved-sectors-layer')) {
-      map.current.setFilter('saved-sectors-layer', [
-        '!=',
-        ['get', 'id'],
-        sector.id,
-      ]);
-      map.current.setFilter('saved-sectors-outline', [
-        '!=',
-        ['get', 'id'],
-        sector.id,
-      ]);
+    if(map.current?.getLayer('saved-sectors-layer')) {
+      map.current.setFilter('saved-sectors-layer', ['!=', ['get', 'id'], sector.id]);
+      map.current.setFilter('saved-sectors-outline', ['!=', ['get', 'id'], sector.id]);
     }
   }, []);
 
@@ -248,7 +175,7 @@ export default function ChargeMap() {
     setDrawingState(false);
     setActiveDrawContext(null);
     drawRef.current?.deleteAll();
-    if (map.current?.getLayer('saved-sectors-layer')) {
+    if(map.current?.getLayer('saved-sectors-layer')) {
       map.current.setFilter('saved-sectors-layer', null);
       map.current.setFilter('saved-sectors-outline', null);
     }
@@ -256,107 +183,101 @@ export default function ChargeMap() {
 
   const handleSaveDrawing = async (): Promise<boolean> => {
     if (!drawRef.current || !activeDrawContext) return false;
-
     const selectedData = drawRef.current.getAll();
-    if (selectedData.features.length === 0) {
-      alert('Kształt jest pusty!');
-      return false;
-    }
-
+    if (selectedData.features.length === 0) { alert('Kształt jest pusty.'); return false; }
     const geometry = selectedData.features[0].geometry;
 
-    if (
-      activeDrawContext.mode === 'insert' ||
-      activeDrawContext.mode === 'append'
-    ) {
-      // Używamy naszej nowej funkcji RPC z PostGIS do klejenia i obcinania!
-      const { error } = await supabase.rpc('add_snapped_sector', {
-        p_tech_name: activeDrawContext.techName,
-        p_tech_color: activeDrawContext.color,
-        p_new_geom: geometry,
-      });
-
-      if (error) {
-        alert(`Błąd dodawania: ${error.message}`);
-        return false;
-      }
-    } else if (
-      activeDrawContext.mode === 'update' &&
-      activeDrawContext.sectorId
-    ) {
-      const { error } = await supabase
-        .from('technicians')
-        .update({ zone_geometry: geometry })
-        .eq('id', activeDrawContext.sectorId);
-
-      if (error) {
-        alert(`Błąd aktualizacji: ${error.message}`);
-        return false;
-      }
+    if (activeDrawContext.mode === 'insert' || activeDrawContext.mode === 'append') {
+      const { error } = await supabase.rpc('add_snapped_sector', { p_tech_name: activeDrawContext.techName, p_tech_color: activeDrawContext.color, p_new_geom: geometry });
+      if (error) { alert(`Błąd zapisu: ${error.message}`); return false; }
+    } else if (activeDrawContext.mode === 'update' && activeDrawContext.sectorId) {
+      const { error } = await supabase.from('technicians').update({ zone_geometry: geometry }).eq('id', activeDrawContext.sectorId);
+      if (error) { alert(`Błąd aktualizacji: ${error.message}`); return false; }
     }
 
-    cancelDrawing();
-    loadSavedSectors();
+    cancelDrawing(); 
+    loadSavedSectors(); 
     return true;
   };
 
   const deleteSector = async (id: string) => {
-    if (!confirm('Na pewno usunąć ten fragment terytorium?')) return;
+    if(!confirm('Usunąć ten obszar?')) return;
     const { error } = await supabase.from('technicians').delete().eq('id', id);
-    if (error) alert('Błąd usuwania');
+    if(error) alert('Błąd usuwania');
     else loadSavedSectors();
   };
 
   return (
-    <div className="relative w-full h-full bg-slate-50">
+    <div className="relative w-full h-full bg-slate-50 overflow-hidden">
+      
+      {/* MAPA DZIAŁA W TLE CAŁY CZAS */}
       <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
 
-      <ContextMenu
-        menu={contextMenu}
-        onClose={() => setContextMenu(null)}
-        onAddStation={(lat, lng) => {
-          setModalLatLng({ lat, lng });
-          setIsAddModalOpen(true);
-        }}
-        onEditSector={() => setIsSectorEditorOpen(true)}
-      />
+      {/* NOWY PANEL BOCZNY */}
+      <Sidebar activeView={activeView} onChangeView={setActiveView} />
 
-      <StationPanel
-        station={selectedStation}
-        onClose={() => setSelectedStation(null)}
-      />
+      {/* WARSTWY NAKŁADANE W ZALEŻNOŚCI OD WIDOKU */}
+      {activeView === 'map' && (
+        <>
+          <ContextMenu 
+            menu={contextMenu} 
+            onClose={() => setContextMenu(null)}
+            onAddStation={(lat, lng) => { setModalLatLng({ lat, lng }); setIsAddModalOpen(true); }}
+            onEditSector={() => {
+              setIsSectorEditorOpen(true);
+              if (!showSectorsRef.current) toggleSectorsVisibility(true);
+            }}
+          />
 
-      <AddStationModal
-        isOpen={isAddModalOpen}
-        onClose={() => {
-          setIsAddModalOpen(false);
-          setModalLatLng(null);
-        }}
-        initialLatLng={modalLatLng}
-        onSuccess={loadStations}
-      />
+          <StationPanel station={selectedStation} onClose={() => setSelectedStation(null)} />
+          <AddStationModal isOpen={isAddModalOpen} onClose={() => { setIsAddModalOpen(false); setModalLatLng(null); }} initialLatLng={modalLatLng} onSuccess={loadStations} />
+          
+          <SectorEditor 
+            isOpen={isSectorEditorOpen} onClose={() => { setIsSectorEditorOpen(false); cancelDrawing(); }} sectors={savedSectorsList} isDrawingActive={isDrawingActive}
+            onStartDrawingNew={handleStartDrawingNew} onEditExisting={handleEditExisting} onSaveDrawing={handleSaveDrawing} onCancelDrawing={cancelDrawing} onDeleteSector={deleteSector}
+          />
 
-      <SectorEditor
-        isOpen={isSectorEditorOpen}
-        onClose={() => {
-          setIsSectorEditorOpen(false);
-          cancelDrawing();
-        }}
-        sectors={savedSectorsList}
-        isDrawingActive={isDrawingActive}
-        onStartDrawingNew={handleStartDrawingNew}
-        onEditExisting={handleEditExisting}
-        onSaveDrawing={handleSaveDrawing}
-        onCancelDrawing={cancelDrawing}
-        onDeleteSector={deleteSector}
-      />
+          {/* PRZYCISKI - PRZESUNIĘTE NA LEWO, OBOK SIDEBARU (left-24) */}
+          <div className="absolute top-6 left-[96px] z-20 flex gap-3">
+            <button 
+              onClick={() => setIsAddModalOpen(true)}
+              className="bg-white/95 backdrop-blur-md shadow-lg border border-slate-200 px-4 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-slate-50 hover:text-blue-600 transition-all flex items-center gap-2 text-sm"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+              Dodaj stację
+            </button>
+            <button 
+              onClick={() => toggleSectorsVisibility()} 
+              className="bg-white/95 backdrop-blur-md shadow-lg border border-slate-200 px-4 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-slate-50 hover:text-blue-600 transition-all flex items-center gap-2 text-sm"
+            >
+              {showSectors ? (
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+              ) : (
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              )}
+              {showSectors ? 'Ukryj strefy' : 'Pokaż strefy'}
+            </button>
+          </div>
+        </>
+      )}
 
-      <button
-        onClick={() => setIsAddModalOpen(true)}
-        className="absolute top-6 left-6 z-20 bg-white shadow-xl border border-slate-200 px-5 py-3 rounded-full text-slate-700 font-bold hover:bg-slate-50 hover:text-blue-600 transition-all flex items-center gap-2 text-sm"
-      >
-        <span>➕</span> Dodaj stację po adresie
-      </button>
+      {/* ZAŚLEPKI DLA NOWYCH WIDOKÓW (Przykrywają mapę, zostawiając Sidebar) */}
+      {activeView !== 'map' && (
+        <div className="absolute inset-0 left-[72px] z-40 bg-slate-50/95 backdrop-blur-sm flex items-center justify-center">
+          <div className="text-center bg-white p-10 rounded-2xl shadow-xl border border-slate-200">
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">Moduł w budowie</h2>
+            <p className="text-slate-500">
+              Panel <b>{activeView === 'stations' ? 'Bazy stacji' : activeView === 'technicians' ? 'Zasobów technicznych' : 'Aktualnych zgłoszeń'}</b> zostanie wdrożony w kolejnym kroku.
+            </p>
+            <button 
+              onClick={() => setActiveView('map')}
+              className="mt-6 text-blue-600 font-medium hover:underline"
+            >
+              ← Wróć na mapę
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

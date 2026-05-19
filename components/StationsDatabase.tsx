@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../app/supabase';
 import AddStationModal from './AddStationModal';
+import StationAnalytics from './StationAnalytics';
 
 export type Station = {
   id: string;
@@ -26,6 +27,7 @@ const IconSort = () => <svg className="w-3 h-3 inline-block ml-1 opacity-50" vie
 const IconTrash = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
 const IconEdit = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
 const IconImport = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
+const IconMapPin = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>;
 
 const getDaysSince = (dateString: string | null) => {
   if (!dateString) return 'Brak zgłoszeń';
@@ -42,6 +44,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingStation, setEditingStation] = useState<Station | null>(null);
+  const [advancedDetailsStation, setAdvancedDetailsStation] = useState<Station | null>(null);
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [sheetUrl, setSheetUrl] = useState('');
@@ -57,7 +60,6 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
 
   useEffect(() => { fetchStations(); }, []);
 
-  // Zamykanie na ESC dla modalu importu
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isImportModalOpen && !isImporting) {
@@ -74,7 +76,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     setSortConfig({ key, direction });
   };
 
-  const sortedStations = React.useMemo(() => {
+  const sortedStations = useMemo(() => {
     if (!sortConfig) return stations;
     return [...stations].sort((a, b) => {
       const aVal = a[sortConfig.key] || '';
@@ -114,15 +116,13 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
 
     const candidates = ['stacje', 'stations', 'arkusz1', 'sheet1'];
     let csvText = '';
-    let foundTab = '';
-
     for (const tab of candidates) {
       try {
         const res = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`);
         if (res.ok) {
           const text = await res.text();
           if (text && !text.includes('<!DOCTYPE html>') && text.includes(',')) {
-            csvText = text; foundTab = tab; break;
+            csvText = text; break;
           }
         }
       } catch (err) {}
@@ -133,13 +133,13 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
         const res = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`);
         if (res.ok) {
           const text = await res.text();
-          if (text && !text.includes('<!DOCTYPE html>')) { csvText = text; foundTab = 'Domyślna (Pierwsza)'; }
+          if (text && !text.includes('<!DOCTYPE html>')) csvText = text;
         }
       } catch (err) {}
     }
 
     if (!csvText) {
-      alert('Nie udało się pobrać danych. Upewnij się, że arkusz jest udostępniony publicznie jako "Każdy mający link może wyświetlać".');
+      alert('Nie udało się pobrać danych z arkusza.');
       setIsImporting(false); setImportStatus(''); return;
     }
 
@@ -159,7 +159,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     const idxStreet = getColIndex(['ulica', 'street']);
 
     if (idxName === -1) {
-      alert('Nie odnaleziono kluczowej kolumny identyfikatora stacji (np. "Identyfikator" lub "Name").');
+      alert('Nie odnaleziono kolumny identyfikatora stacji.');
       setIsImporting(false); return;
     }
 
@@ -171,17 +171,13 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       const nameVal = vals[idxName];
       if (!nameVal) continue;
 
-      const cityVal = idxCity !== -1 ? vals[idxCity] : '';
-      const streetVal = idxStreet !== -1 ? vals[idxStreet] : '';
-      const countryVal = idxCountry !== -1 ? vals[idxCountry] : 'Polska';
-
       setImportStatus(`Import wiersza ${i + 1} z ${rows.length}: Lokalizowanie stacji "${nameVal}"...`);
 
       let lat = null, lng = null;
-      if (cityVal && streetVal) {
+      if (idxCity !== -1 && idxStreet !== -1 && vals[idxCity] && vals[idxStreet]) {
         try {
           await new Promise(r => setTimeout(r, 1000));
-          const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${streetVal}, ${cityVal}, ${countryVal}`)}`);
+          const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${vals[idxStreet]}, ${vals[idxCity]}, Polska`)}`);
           const geoData = await geoRes.json();
           if (geoData && geoData.length > 0) {
             lat = parseFloat(geoData[0].lat); lng = parseFloat(geoData[0].lon);
@@ -195,8 +191,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
         model: idxModel !== -1 && vals[idxModel] ? vals[idxModel] : null,
         inspection_date: idxDate !== -1 && vals[idxDate] ? vals[idxDate] : null,
         status: 'Działa',
-        country: countryVal, city: cityVal || null, street: streetVal || null,
-        additional_info: null
+        country: 'Polska', city: idxCity !== -1 ? vals[idxCity] : null, street: idxStreet !== -1 ? vals[idxStreet] : null
       };
       if (lat && lng) payload.location = `POINT(${lng} ${lat})`;
 
@@ -258,15 +253,37 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
               ) : (
                 sortedStations.map(station => (
                   <tr key={station.id} className={`hover:bg-slate-50/50 transition-colors ${selectedIds.includes(station.id) ? 'bg-blue-50/30' : ''}`}>
-                    <td className="p-4 flex items-center gap-4">
-                      <input type="checkbox" checked={selectedIds.includes(station.id)} onChange={() => toggleSelect(station.id)} className="rounded" />
-                      <button onClick={() => setEditingStation(station)} className="text-slate-400 hover:text-blue-600 transition-colors" title="Edytuj stację">
-                        <IconEdit />
-                      </button>
+                    
+                    {/* Zabezpieczony układ flex dla pierwszej komórki */}
+                    <td className="p-4">
+                      <div className="flex items-center gap-4">
+                        <input type="checkbox" checked={selectedIds.includes(station.id)} onChange={() => toggleSelect(station.id)} className="rounded" />
+                        <button onClick={() => setEditingStation(station)} className="text-slate-400 hover:text-blue-600 transition-colors" title="Edytuj sprzęt">
+                          <IconEdit />
+                        </button>
+                      </div>
                     </td>
-                    <td className="p-4 font-bold text-blue-600 hover:text-blue-800 text-sm cursor-pointer underline decoration-blue-200 underline-offset-4" onClick={() => onFocusStation(station)}>
-                      {station.name}
+                    
+                    {/* Zabezpieczony układ flex dla drugiej komórki */}
+                    <td className="p-4">
+                      <div className="flex items-center gap-2">
+                        <span 
+                          className="font-bold text-slate-800 text-sm cursor-pointer hover:text-blue-600 transition-colors" 
+                          onClick={() => setAdvancedDetailsStation(station)}
+                          title="Otwórz zaawansowaną analitykę stacji"
+                        >
+                          {station.name}
+                        </span>
+                        <button 
+                          onClick={() => onFocusStation(station)} 
+                          className="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-1.5 rounded-md transition-colors"
+                          title="Zlokalizuj na mapie"
+                        >
+                          <IconMapPin />
+                        </button>
+                      </div>
                     </td>
+
                     <td className="p-4 text-slate-600 text-sm font-medium">{station.client || '-'}</td>
                     <td className="p-4 text-slate-600 text-sm">{station.city ? `${station.city}, ${station.street}` : '-'}</td>
                     <td className="p-4 text-slate-600 text-sm">{station.model || '-'}</td>
@@ -299,15 +316,17 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
 
       <AddStationModal isOpen={isAddModalOpen || !!editingStation} onClose={() => { setIsAddModalOpen(false); setEditingStation(null); }} initialLatLng={null} onSuccess={fetchStations} editingStation={editingStation} />
 
+      {/* RENDEROWANIE NOWEGO KOMPONENTU ANALITYKI */}
+      {advancedDetailsStation && (
+        <StationAnalytics 
+          station={advancedDetailsStation} 
+          onClose={() => setAdvancedDetailsStation(null)} 
+        />
+      )}
+
       {isImportModalOpen && (
-        <div 
-          className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4"
-          onClick={() => !isImporting && setIsImportModalOpen(false)} // Zamykanie na kliknięcie w tło
-        >
-          <div 
-            className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden border border-slate-200"
-            onClick={(e) => e.stopPropagation()} // Blokada zamykania wewnątrz okna
-          >
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" onClick={() => !isImporting && setIsImportModalOpen(false)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden border border-slate-200" onClick={(e) => e.stopPropagation()}>
             <div className="bg-slate-50 px-5 py-4 border-b border-slate-200 flex justify-between items-center">
               <h3 className="text-sm font-semibold text-slate-800">Import stacji z Google Sheets</h3>
               <button onClick={() => !isImporting && setIsImportModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
@@ -316,17 +335,16 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 text-xs text-slate-600 space-y-2">
                 <p className="font-bold text-slate-700">Wymagane nagłówki w 1. wierszu:</p>
                 <p className="font-mono bg-white p-1.5 border rounded">Identyfikator, Klient, Model, Miasto, Ulica, Kraj, Przegląd</p>
-                <p className="text-[11px] leading-relaxed text-slate-500">Arkusz musi być publiczny. Aplikacja sprawdzi karty: <b>Stacje</b>, <b>Stations</b>, <b>Arkusz1</b>.</p>
               </div>
               <form onSubmit={handleImportStations} className="space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Link do Arkusza Google</label>
-                  <input required type="url" disabled={isImporting} value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..." className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500" />
+                  <input required type="url" disabled={isImporting} value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500" />
                 </div>
                 {importStatus && <p className="text-[11px] text-blue-600 font-medium bg-blue-50 p-2.5 rounded border border-blue-100 animate-pulse">{importStatus}</p>}
                 <div className="flex gap-2 pt-2">
                   <button type="button" disabled={isImporting} onClick={() => setIsImportModalOpen(false)} className="flex-1 bg-slate-100 text-slate-700 font-medium py-2.5 rounded text-sm hover:bg-slate-200">Anuluj</button>
-                  <button type="submit" disabled={isImporting} className="flex-1 bg-blue-600 text-white font-medium py-2.5 rounded text-sm hover:bg-blue-700 disabled:bg-slate-400">{isImporting ? 'Importowanie...' : 'Uruchom import'}</button>
+                  <button type="submit" disabled={isImporting} className="flex-1 bg-blue-600 text-white font-medium py-2.5 rounded text-sm hover:bg-blue-700 disabled:bg-slate-400">{isImporting ? 'Import...' : 'Uruchom'}</button>
                 </div>
               </form>
             </div>

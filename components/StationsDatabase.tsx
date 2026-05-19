@@ -154,7 +154,6 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     const idxClient = getColIndex(['klient', 'client']);
     const idxModel = getColIndex(['model']);
     const idxDate = getColIndex(['przegląd', 'data', 'inspection']);
-    const idxCountry = getColIndex(['kraj', 'country']);
     const idxCity = getColIndex(['miasto', 'city']);
     const idxStreet = getColIndex(['ulica', 'street']);
 
@@ -220,7 +219,8 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
           <button onClick={() => setIsImportModalOpen(true)} className="bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors">
             <IconImport /> Importuj
           </button>
-          <button onClick={() => setIsAddModalOpen(true)} className="bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2 shadow-sm transition-colors">
+          {/* PRZYCISK ZMIENIONY NA ZIELONY EKOEN */}
+          <button onClick={() => setIsAddModalOpen(true)} className="bg-[#58b347] text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-[#499b3a] flex items-center gap-2 shadow-sm transition-colors">
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
             Nowa stacja
           </button>
@@ -229,11 +229,12 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
 
       <div className="max-w-[1400px] mx-auto bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
+          {/* ZMIENIONO TŁO ZAZNACZENIA WIERSZA NA ZIELONE (bg-green-50/20) */}
           <table className="w-full text-left border-collapse whitespace-nowrap">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <th className="p-4 w-24 text-left">
-                  <input type="checkbox" checked={selectedIds.length === stations.length && stations.length > 0} onChange={toggleSelectAll} className="rounded" />
+                  <input type="checkbox" checked={selectedIds.length === stations.length && stations.length > 0} onChange={toggleSelectAll} className="rounded text-[#58b347] focus:ring-[#58b347]" />
                 </th>
                 <th onClick={() => handleSort('name')} className="p-4 cursor-pointer hover:bg-slate-100">Identyfikator <IconSort /></th>
                 <th onClick={() => handleSort('client')} className="p-4 cursor-pointer hover:bg-slate-100">Klient <IconSort /></th>
@@ -252,23 +253,22 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
                 <tr><td colSpan={9} className="p-8 text-center text-slate-400 text-sm">Brak stacji w bazie danych.</td></tr>
               ) : (
                 sortedStations.map(station => (
-                  <tr key={station.id} className={`hover:bg-slate-50/50 transition-colors ${selectedIds.includes(station.id) ? 'bg-blue-50/30' : ''}`}>
-                    
-                    {/* Zabezpieczony układ flex dla pierwszej komórki */}
+                  <tr key={station.id} className={`hover:bg-slate-50/50 transition-colors ${selectedIds.includes(station.id) ? 'bg-green-50/20' : ''}`}>
                     <td className="p-4">
                       <div className="flex items-center gap-4">
-                        <input type="checkbox" checked={selectedIds.includes(station.id)} onChange={() => toggleSelect(station.id)} className="rounded" />
-                        <button onClick={() => setEditingStation(station)} className="text-slate-400 hover:text-blue-600 transition-colors" title="Edytuj sprzęt">
+                        <input type="checkbox" checked={selectedIds.includes(station.id)} onChange={() => toggleSelect(station.id)} className="rounded text-[#58b347] focus:ring-[#58b347]" />
+                        {/* HOVER EDYCJI NA ZIELONO */}
+                        <button onClick={() => setEditingStation(station)} className="text-slate-400 hover:text-[#58b347] transition-colors" title="Edytuj sprzęt">
                           <IconEdit />
                         </button>
                       </div>
                     </td>
                     
-                    {/* Zabezpieczony układ flex dla drugiej komórki */}
                     <td className="p-4">
                       <div className="flex items-center gap-2">
+                        {/* ZMIENIONO HOVER IDENTYFIKATORA ORAZ IKONY PINEZKI NA BARWY EKOEN */}
                         <span 
-                          className="font-bold text-slate-800 text-sm cursor-pointer hover:text-blue-600 transition-colors" 
+                          className="font-bold text-slate-800 text-sm cursor-pointer hover:text-[#58b347] transition-colors" 
                           onClick={() => setAdvancedDetailsStation(station)}
                           title="Otwórz zaawansowaną analitykę stacji"
                         >
@@ -276,7 +276,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
                         </span>
                         <button 
                           onClick={() => onFocusStation(station)} 
-                          className="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-1.5 rounded-md transition-colors"
+                          className="text-slate-400 hover:text-[#58b347] hover:bg-green-50 p-1.5 rounded-md transition-colors"
                           title="Zlokalizuj na mapie"
                         >
                           <IconMapPin />
@@ -293,7 +293,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
                       {station.technicians_in_range && station.technicians_in_range !== 'Brak w zasięgu' ? (
                         <div className="flex flex-wrap gap-1">
                           {station.technicians_in_range.split(', ').map((tech, idx) => (
-                            <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                            <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-700 border border-green-100">
                               {tech}
                             </span>
                           ))}
@@ -302,7 +302,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
                     </td>
                     <td className="p-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${station.status === 'Awaria' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-green-50 text-green-700 border-green-100'}`}>
-                        <div className={`w-1.5 h-1.5 rounded-full ${station.status === 'Awaria' ? 'bg-red-500' : 'bg-green-500'}`} />
+                        <div className={`w-1.5 h-1.5 rounded-full ${station.status === 'Awaria' ? 'bg-red-500' : 'bg-[#58b347]'}`} />
                         {station.status}
                       </span>
                     </td>
@@ -316,12 +316,8 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
 
       <AddStationModal isOpen={isAddModalOpen || !!editingStation} onClose={() => { setIsAddModalOpen(false); setEditingStation(null); }} initialLatLng={null} onSuccess={fetchStations} editingStation={editingStation} />
 
-      {/* RENDEROWANIE NOWEGO KOMPONENTU ANALITYKI */}
       {advancedDetailsStation && (
-        <StationAnalytics 
-          station={advancedDetailsStation} 
-          onClose={() => setAdvancedDetailsStation(null)} 
-        />
+        <StationAnalytics station={advancedDetailsStation} onClose={() => setAdvancedDetailsStation(null)} />
       )}
 
       {isImportModalOpen && (
@@ -339,12 +335,14 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
               <form onSubmit={handleImportStations} className="space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Link do Arkusza Google</label>
-                  <input required type="url" disabled={isImporting} value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500" />
+                  {/* ZMIENIONO FOCUS INPUTU NA ZIELONY */}
+                  <input required type="url" disabled={isImporting} value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-[#58b347]" />
                 </div>
-                {importStatus && <p className="text-[11px] text-blue-600 font-medium bg-blue-50 p-2.5 rounded border border-blue-100 animate-pulse">{importStatus}</p>}
+                {importStatus && <p className="text-[11px] text-[#58b347] font-medium bg-green-50 p-2.5 rounded border border-green-100 animate-pulse">{importStatus}</p>}
                 <div className="flex gap-2 pt-2">
                   <button type="button" disabled={isImporting} onClick={() => setIsImportModalOpen(false)} className="flex-1 bg-slate-100 text-slate-700 font-medium py-2.5 rounded text-sm hover:bg-slate-200">Anuluj</button>
-                  <button type="submit" disabled={isImporting} className="flex-1 bg-blue-600 text-white font-medium py-2.5 rounded text-sm hover:bg-blue-700 disabled:bg-slate-400">{isImporting ? 'Import...' : 'Uruchom'}</button>
+                  {/* ZMIENIONO PRZYCISK URUCHOMIENIA IMPORTU NA ZIELONY */}
+                  <button type="submit" disabled={isImporting} className="flex-1 bg-[#58b347] text-white font-medium py-2.5 rounded text-sm hover:bg-[#499b3a] disabled:bg-slate-400">{isImporting ? 'Import...' : 'Uruchom'}</button>
                 </div>
               </form>
             </div>

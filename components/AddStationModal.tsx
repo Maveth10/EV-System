@@ -27,7 +27,6 @@ export default function AddStationModal({ isOpen, onClose, initialLatLng, onSucc
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCheckingZone, setIsCheckingZone] = useState(false);
 
-  // Zamykanie na ESC
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) onClose();
@@ -124,14 +123,8 @@ export default function AddStationModal({ isOpen, onClose, initialLatLng, onSucc
   };
 
   return (
-    <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4"
-      onClick={onClose} // Zamykanie po kliknięciu w tło
-    >
-      <div 
-        className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]"
-        onClick={(e) => e.stopPropagation()} // Blokada zamykania przy kliknięciu w okno
-      >
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
         <div className="bg-slate-50 px-5 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
           <h3 className="text-sm font-semibold text-slate-800">
             {isEditMode ? 'Edycja stacji' : 'Rejestracja nowej stacji'}
@@ -144,42 +137,42 @@ export default function AddStationModal({ isOpen, onClose, initialLatLng, onSucc
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2 sm:col-span-1">
                 <label className="block text-xs font-medium text-slate-600 mb-1">Identyfikator stacji *</label>
-                <input required type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-blue-500 outline-none" />
+                <input required type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-[#58b347] outline-none" />
               </div>
               <div className="col-span-2 sm:col-span-1">
                 <label className="block text-xs font-medium text-slate-600 mb-1">Klient / Partner</label>
-                <input type="text" value={client} onChange={(e) => setClient(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-blue-500 outline-none" />
+                <input type="text" value={client} onChange={(e) => setClient(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-[#58b347] outline-none" />
               </div>
               <div className="col-span-2 sm:col-span-1">
                 <label className="block text-xs font-medium text-slate-600 mb-1">Model ładowarki</label>
-                <input type="text" value={model} onChange={(e) => setModel(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-blue-500 outline-none" />
+                <input type="text" value={model} onChange={(e) => setModel(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-[#58b347] outline-none" />
               </div>
               <div className="col-span-2 sm:col-span-1">
                 <label className="block text-xs font-medium text-slate-600 mb-1">Data przeglądu</label>
-                <input type="date" value={inspectionDate} onChange={(e) => setInspectionDate(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-blue-500 outline-none" />
+                <input type="date" value={inspectionDate} onChange={(e) => setInspectionDate(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-[#58b347] outline-none" />
               </div>
             </div>
 
             <hr className="border-slate-100" />
 
             <div>
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Lokalizacja {initialLatLng && <span className="text-green-600 lowercase normal-case ml-2">(Pobrano z mapy)</span>}</h4>
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Lokalizacja {initialLatLng && <span className="text-[#58b347] lowercase normal-case ml-2">(Pobrano z mapy)</span>}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2 sm:col-span-1">
                   <label className="block text-xs font-medium text-slate-600 mb-1">Kraj</label>
-                  <input type="text" value={country} onChange={(e) => setCountry(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-blue-500 outline-none" />
+                  <input type="text" value={country} onChange={(e) => setCountry(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-[#58b347] outline-none" />
                 </div>
                 <div className="col-span-2 sm:col-span-1">
                   <label className="block text-xs font-medium text-slate-600 mb-1">Miasto *</label>
-                  <input required={!initialLatLng && !isEditMode} type="text" value={city} onChange={(e) => setCity(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-blue-500 outline-none" />
+                  <input required={!initialLatLng && !isEditMode} type="text" value={city} onChange={(e) => setCity(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-[#58b347] outline-none" />
                 </div>
                 <div className="col-span-2 sm:col-span-1">
                   <label className="block text-xs font-medium text-slate-600 mb-1">Ulica i numer *</label>
-                  <input required={!initialLatLng && !isEditMode} type="text" value={street} onChange={(e) => setStreet(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-blue-500 outline-none" />
+                  <input required={!initialLatLng && !isEditMode} type="text" value={street} onChange={(e) => setStreet(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-[#58b347] outline-none" />
                 </div>
                 <div className="col-span-2 sm:col-span-1">
                   <label className="block text-xs font-medium text-slate-600 mb-1">Dodatkowe info (np. kod bramy)</label>
-                  <input type="text" value={additionalInfo} onChange={(e) => setAdditionalInfo(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-blue-500 outline-none" />
+                  <input type="text" value={additionalInfo} onChange={(e) => setAdditionalInfo(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-[#58b347] outline-none" />
                 </div>
               </div>
             </div>
@@ -189,11 +182,11 @@ export default function AddStationModal({ isOpen, onClose, initialLatLng, onSucc
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2 sm:col-span-1 relative">
                 <label className="block text-xs font-medium text-slate-600 mb-1">Główny technik</label>
-                <input type="text" value={technician} onChange={(e) => setTechnician(e.target.value)} className={`w-full px-3 py-2 border rounded text-sm focus:border-blue-500 outline-none ${isCheckingZone ? 'bg-slate-100' : 'border-slate-200'}`} />
+                <input type="text" value={technician} onChange={(e) => setTechnician(e.target.value)} className={`w-full px-3 py-2 border rounded text-sm focus:border-[#58b347] outline-none ${isCheckingZone ? 'bg-slate-100' : 'border-slate-200'}`} />
               </div>
               <div className="col-span-2 sm:col-span-1">
                 <label className="block text-xs font-medium text-slate-600 mb-1">Status techniczny *</label>
-                <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-blue-500 outline-none bg-white">
+                <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-[#58b347] outline-none bg-white">
                   <option value="Działa">Działa</option>
                   <option value="Awaria">Awaria</option>
                 </select>
@@ -203,7 +196,7 @@ export default function AddStationModal({ isOpen, onClose, initialLatLng, onSucc
         </div>
 
         <div className="p-5 border-t border-slate-200 bg-slate-50 shrink-0">
-          <button form="station-form" disabled={isSubmitting || isCheckingZone} type="submit" className="w-full bg-blue-600 text-white font-medium py-2.5 rounded text-sm hover:bg-blue-700 transition-colors disabled:bg-slate-400 shadow-sm">
+          <button form="station-form" disabled={isSubmitting || isCheckingZone} type="submit" className="w-full bg-[#58b347] text-white font-medium py-2.5 rounded text-sm hover:bg-[#499b3a] transition-colors disabled:bg-slate-400 shadow-sm">
             {isSubmitting ? 'Przetwarzanie danych...' : (isEditMode ? 'Zapisz zmiany' : 'Zapisz do bazy')}
           </button>
         </div>

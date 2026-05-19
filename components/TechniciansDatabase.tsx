@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../app/supabase';
 
 export type Technician = {
@@ -44,7 +44,7 @@ export default function TechniciansDatabase() {
   const [importStatus, setImportStatus] = useState('');
   const [isImporting, setIsImporting] = useState(false);
 
-  const [newTech, setNewTech] = useState({ name: '', phone: '', car_plate: '', sep_expiry: '', color: '#3b82f6' });
+  const [newTech, setNewTech] = useState({ name: '', phone: '', car_plate: '', sep_expiry: '', color: '#58b347' });
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -70,7 +70,6 @@ export default function TechniciansDatabase() {
 
   useEffect(() => { fetchData(); }, []);
 
-  // Obsługa ESC dla wszystkich trzech okien
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -81,7 +80,7 @@ export default function TechniciansDatabase() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isAddModalOpen, activeTechDetails, isImportModalOpen, isImporting]);
+}, [isAddModalOpen, activeTechDetails, isImportModalOpen, isImporting]);
 
   const handleSort = (key: keyof Technician | 'stationCount') => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -89,7 +88,7 @@ export default function TechniciansDatabase() {
     setSortConfig({ key, direction });
   };
 
-  const sortedTechs = React.useMemo(() => {
+  const sortedTechs = useMemo(() => {
     if (!sortConfig) return technicians;
     return [...technicians].sort((a, b) => {
       const aVal = a[sortConfig.key] || '';
@@ -131,15 +130,11 @@ export default function TechniciansDatabase() {
   const handleAddTech = async (e: React.FormEvent) => {
     e.preventDefault();
     const { error } = await supabase.from('technicians').insert([{
-      name: newTech.name, 
-      phone: newTech.phone || null, 
-      car_plate: newTech.car_plate || null, 
-      sep_expiry: newTech.sep_expiry || null, 
-      color: newTech.color
+      name: newTech.name, phone: newTech.phone || null, car_plate: newTech.car_plate || null, sep_expiry: newTech.sep_expiry || null, color: newTech.color
     }]);
     
     if (error) alert('Błąd dodawania: ' + error.message);
-    else { setIsAddModalOpen(false); setNewTech({ name: '', phone: '', car_plate: '', sep_expiry: '', color: '#3b82f6' }); fetchData(); }
+    else { setIsAddModalOpen(false); setNewTech({ name: '', phone: '', car_plate: '', sep_expiry: '', color: '#58b347' }); fetchData(); }
   };
 
   const handleImportTechs = async (e: React.FormEvent) => {
@@ -154,14 +149,12 @@ export default function TechniciansDatabase() {
 
     const candidates = ['technicy', 'technicians', 'arkusz1', 'sheet1'];
     let csvText = '';
-    let foundTab = '';
-
     for (const tab of candidates) {
       try {
         const res = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`);
         if (res.ok) {
           const text = await res.text();
-          if (text && !text.includes('<!DOCTYPE html>') && text.includes(',')) { csvText = text; foundTab = tab; break; }
+          if (text && !text.includes('<!DOCTYPE html>') && text.includes(',')) { csvText = text; break; }
         }
       } catch (err) {}
     }
@@ -171,7 +164,7 @@ export default function TechniciansDatabase() {
         const res = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`);
         if (res.ok) {
           const text = await res.text();
-          if (text && !text.includes('<!DOCTYPE html>')) { csvText = text; foundTab = 'Domyślna (Pierwsza)'; }
+          if (text && !text.includes('<!DOCTYPE html>')) csvText = text;
         }
       } catch (err) {}
     }
@@ -194,7 +187,7 @@ export default function TechniciansDatabase() {
     const idxSep = getColIndex(['sep', 'ważność', 'expiry']);
 
     if (idxName === -1) {
-      alert('Nie odnaleziono kolumny z imieniem i nazwiskiem (np. "Imię i nazwisko" lub "Name").');
+      alert('Nie odnaleziono kolumny z imieniem i nazwiskiem.');
       setIsImporting(false); return;
     }
 
@@ -244,7 +237,8 @@ export default function TechniciansDatabase() {
           <button onClick={() => setIsImportModalOpen(true)} className="bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors">
             <IconImport /> Importuj
           </button>
-          <button onClick={() => setIsAddModalOpen(true)} className="bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2 shadow-sm transition-colors">
+          {/* PRZYCISK ZMIENIONY NA ZIELONY EKOEN */}
+          <button onClick={() => setIsAddModalOpen(true)} className="bg-[#58b347] text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-[#499b3a] flex items-center gap-2 shadow-sm transition-colors">
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
             Nowy technik
           </button>
@@ -253,10 +247,11 @@ export default function TechniciansDatabase() {
 
       <div className="max-w-[1400px] mx-auto bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
+          {/* ZMIENIONO TŁO ZAZNACZENIA WIERSZA NA ZIELONE (bg-green-50/20) */}
           <table className="w-full text-left border-collapse whitespace-nowrap">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                <th className="p-4 w-24 text-left"><input type="checkbox" checked={selectedIds.length === technicians.length && technicians.length > 0} onChange={toggleSelectAll} className="rounded" /></th>
+                <th className="p-4 w-24 text-left"><input type="checkbox" checked={selectedIds.length === technicians.length && technicians.length > 0} onChange={toggleSelectAll} className="rounded text-[#58b347] focus:ring-[#58b347]" /></th>
                 <th className="p-4 text-center w-16">Kolor</th>
                 <th onClick={() => handleSort('name')} className="p-4 cursor-pointer hover:bg-slate-100">Imię i nazwisko <IconSort /></th>
                 <th onClick={() => handleSort('phone')} className="p-4 cursor-pointer hover:bg-slate-100">Telefon kontaktowy <IconSort /></th>
@@ -274,16 +269,18 @@ export default function TechniciansDatabase() {
                 sortedTechs.map(tech => {
                   const sep = getSepStatus(tech.sep_expiry);
                   return (
-                    <tr key={tech.id} className={`hover:bg-slate-50/50 transition-colors ${selectedIds.includes(tech.id) ? 'bg-blue-50/30' : ''}`}>
+                    <tr key={tech.id} className={`hover:bg-slate-50/50 transition-colors ${selectedIds.includes(tech.id) ? 'bg-green-50/20' : ''}`}>
                       <td className="p-4 flex items-center gap-4">
-                        <input type="checkbox" checked={selectedIds.includes(tech.id)} onChange={() => toggleSelect(tech.id)} className="rounded" />
-                        <button onClick={() => setActiveTechDetails(tech)} className="text-slate-400 hover:text-blue-600 transition-colors" title="Zarządzaj technikiem"><IconEdit /></button>
+                        <input type="checkbox" checked={selectedIds.includes(tech.id)} onChange={() => toggleSelect(tech.id)} className="rounded text-[#58b347] focus:ring-[#58b347]" />
+                        {/* EDYCJA Z HOVEREM NA ZIELONO */}
+                        <button onClick={() => setActiveTechDetails(tech)} className="text-slate-400 hover:text-[#58b347] transition-colors" title="Zarządzaj technikiem"><IconEdit /></button>
                       </td>
                       <td className="p-4 text-center"><div className="w-4 h-4 rounded-full mx-auto shadow-sm" style={{ backgroundColor: tech.color }} /></td>
-                      <td className="p-4 font-bold text-blue-600 hover:text-blue-800 text-sm cursor-pointer underline decoration-blue-200 underline-offset-4" onClick={() => setActiveTechDetails(tech)}>{tech.name}</td>
+                      {/* IDENTYFIKATOR Z HOVEREM NA ZIELONO */}
+                      <td className="p-4 font-bold text-slate-800 hover:text-[#58b347] text-sm cursor-pointer underline decoration-green-200 underline-offset-4" onClick={() => setActiveTechDetails(tech)}>{tech.name}</td>
                       <td className="p-4 text-slate-600 text-sm font-mono">{tech.phone || '-'}</td>
                       <td className="p-4 text-slate-600 text-sm font-mono uppercase">{tech.car_plate || '-'}</td>
-                      <td className="p-4 text-center"><span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-blue-700 font-bold text-xs border border-blue-100">{tech.stationCount}</span></td>
+                      <td className="p-4 text-center"><span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-50 text-green-700 font-bold text-xs border border-green-100">{tech.stationCount}</span></td>
                       <td className="p-4"><span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-semibold border ${sep.bg} ${sep.color}`}>{sep.text}</span></td>
                     </tr>
                   );
@@ -294,16 +291,10 @@ export default function TechniciansDatabase() {
         </div>
       </div>
 
-      {/* MODAL DODAWANIA */}
+      {/* MODAL DOWADANIA */}
       {isAddModalOpen && (
-        <div 
-          className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4"
-          onClick={() => setIsAddModalOpen(false)}
-        >
-          <div 
-            className="bg-white rounded-lg shadow-xl w-full max-w-sm overflow-hidden border border-slate-200"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" onClick={() => setIsAddModalOpen(false)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm overflow-hidden border border-slate-200" onClick={(e) => e.stopPropagation()}>
             <div className="bg-slate-50 px-5 py-4 border-b border-slate-200 flex justify-between items-center">
               <h3 className="text-sm font-semibold text-slate-800">Nowy pracownik techniczny</h3>
               <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
@@ -311,55 +302,52 @@ export default function TechniciansDatabase() {
             <form onSubmit={handleAddTech} className="p-5 space-y-4">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Imię i nazwisko *</label>
-                <input required type="text" value={newTech.name} onChange={(e) => setNewTech({...newTech, name: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500" />
+                {/* MODAL Z FOCUS NA ZIELONO */}
+                <input required type="text" value={newTech.name} onChange={(e) => setNewTech({...newTech, name: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-[#58b347]" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Kolor operacyjny</label>
                 <div className="flex items-center gap-3">
-                  <input type="color" value={newTech.color} onChange={(e) => setNewTech({...newTech, color: e.target.value})} className="w-10 h-10 p-0.5 border border-slate-200 rounded cursor-pointer" />
+                  {/* PRÓBNIK Z OBRĘCZĄ EKOEN W FOCUSIE */}
+                  <input type="color" value={newTech.color} onChange={(e) => setNewTech({...newTech, color: e.target.value})} className="w-10 h-10 p-0.5 border border-slate-200 rounded cursor-pointer focus:outline-none focus:border-[#58b347]" />
                   <span className="text-xs text-slate-500 font-mono uppercase">{newTech.color}</span>
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Numer telefonu</label>
-                <input type="tel" value={newTech.phone} onChange={(e) => setNewTech({...newTech, phone: e.target.value})} placeholder="+48..." className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500" />
+                <input type="tel" value={newTech.phone} onChange={(e) => setNewTech({...newTech, phone: e.target.value})} placeholder="+48..." className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-[#58b347]" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Pojazd (Nr rejestracyjny)</label>
-                <input type="text" value={newTech.car_plate} onChange={(e) => setNewTech({...newTech, car_plate: e.target.value.toUpperCase()})} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500 uppercase" />
+                <input type="text" value={newTech.car_plate} onChange={(e) => setNewTech({...newTech, car_plate: e.target.value.toUpperCase()})} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-[#58b347] uppercase" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Ważność uprawnień SEP</label>
-                <input type="date" value={newTech.sep_expiry} onChange={(e) => setNewTech({...newTech, sep_expiry: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500" />
+                <input type="date" value={newTech.sep_expiry} onChange={(e) => setNewTech({...newTech, sep_expiry: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-[#58b347]" />
               </div>
               <div className="pt-3 flex gap-2">
                 <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 bg-slate-100 text-slate-700 font-medium py-2.5 rounded text-sm hover:bg-slate-200 transition-colors">Anuluj</button>
-                <button type="submit" className="flex-1 bg-blue-600 text-white font-medium py-2.5 rounded text-sm hover:bg-blue-700 transition-colors">Dodaj technika</button>
+                {/* PRZYCISK ZAPISU NA ZIELONO */}
+                <button type="submit" className="flex-1 bg-[#58b347] text-white font-medium py-2.5 rounded text-sm hover:bg-[#499b3a] transition-colors">Dodaj technika</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* MODAL SZCZEGÓŁÓW / EDYCJI */}
+      {/* MODAL DETALI / EDYCJI */}
       {activeTechDetails && (
-        <div 
-          className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4"
-          onClick={() => setActiveTechDetails(null)}
-        >
-          <div 
-            className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" onClick={() => setActiveTechDetails(null)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
             <div className="bg-slate-50 px-5 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2.5"><div className="w-3 h-3 rounded-full" style={{ backgroundColor: activeTechDetails.color }} /><h3 className="text-sm font-semibold text-slate-800">Karta zasobu: {activeTechDetails.name}</h3></div>
               <button onClick={() => setActiveTechDetails(null)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
             <div className="overflow-y-auto p-5 space-y-6 shrink">
               <form id="tech-edit-form" onSubmit={handleEditSave} className="grid grid-cols-2 gap-4">
-                <div className="col-span-2 sm:col-span-1"><label className="block text-xs font-medium text-slate-600 mb-1">Numer telefonu</label><input type="tel" value={activeTechDetails.phone || ''} onChange={(e) => setActiveTechDetails({...activeTechDetails, phone: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded text-sm" /></div>
-                <div className="col-span-2 sm:col-span-1"><label className="block text-xs font-medium text-slate-600 mb-1">Pojazd (Nr rejestracyjny)</label><input type="text" value={activeTechDetails.car_plate || ''} onChange={(e) => setActiveTechDetails({...activeTechDetails, car_plate: e.target.value.toUpperCase()})} className="w-full px-3 py-2 border border-slate-200 rounded text-sm uppercase" /></div>
-                <div className="col-span-2 sm:col-span-1"><label className="block text-xs font-medium text-slate-600 mb-1">Ważność uprawnień SEP</label><input type="date" value={activeTechDetails.sep_expiry || ''} onChange={(e) => setActiveTechDetails({...activeTechDetails, sep_expiry: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded text-sm" /></div>
+                <div className="col-span-2 sm:col-span-1"><label className="block text-xs font-medium text-slate-600 mb-1">Numer telefonu</label><input type="tel" value={activeTechDetails.phone || ''} onChange={(e) => setActiveTechDetails({...activeTechDetails, phone: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-[#58b347] outline-none" /></div>
+                <div className="col-span-2 sm:col-span-1"><label className="block text-xs font-medium text-slate-600 mb-1">Pojazd (Nr rejestracyjny)</label><input type="text" value={activeTechDetails.car_plate || ''} onChange={(e) => setActiveTechDetails({...activeTechDetails, car_plate: e.target.value.toUpperCase()})} className="w-full px-3 py-2 border border-slate-200 rounded text-sm uppercase focus:border-[#58b347] outline-none" /></div>
+                <div className="col-span-2 sm:col-span-1"><label className="block text-xs font-medium text-slate-600 mb-1">Ważność uprawnień SEP</label><input type="date" value={activeTechDetails.sep_expiry || ''} onChange={(e) => setActiveTechDetails({...activeTechDetails, sep_expiry: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-[#58b347] outline-none" /></div>
               </form>
               <hr className="border-slate-100" />
               <div>
@@ -374,21 +362,16 @@ export default function TechniciansDatabase() {
                 )}
               </div>
             </div>
-            <div className="p-5 border-t border-slate-200 bg-slate-50 shrink-0 flex gap-3 justify-end"><button type="button" onClick={() => setActiveTechDetails(null)} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-lg text-sm hover:bg-slate-50 transition-colors shadow-sm">Zamknij</button><button form="tech-edit-form" type="submit" className="px-5 py-2 bg-blue-600 text-white font-medium rounded-lg text-sm hover:bg-blue-700 transition-colors shadow-sm">Zapisz</button></div>
+            {/* PRZYCISK ZAPISU MODALU NA ZIELONO */}
+            <div className="p-5 border-t border-slate-200 bg-slate-50 shrink-0 flex gap-3 justify-end"><button type="button" onClick={() => setActiveTechDetails(null)} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-lg text-sm hover:bg-slate-50 transition-colors shadow-sm">Zamknij</button><button form="tech-edit-form" type="submit" className="px-5 py-2 bg-[#58b347] text-white font-medium rounded-lg text-sm hover:bg-[#499b3a] transition-colors shadow-sm">Zapisz</button></div>
           </div>
         </div>
       )}
 
-      {/* MODAL IMPORTU TECHNIKÓW */}
+      {/* MODAL IMPORTU */}
       {isImportModalOpen && (
-        <div 
-          className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4"
-          onClick={() => !isImporting && setIsImportModalOpen(false)}
-        >
-          <div 
-            className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden border border-slate-200"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" onClick={() => !isImporting && setIsImportModalOpen(false)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden border border-slate-200" onClick={(e) => e.stopPropagation()}>
             <div className="bg-slate-50 px-5 py-4 border-b border-slate-200 flex justify-between items-center">
               <h3 className="text-sm font-semibold text-slate-800">Import techników z Google Sheets</h3>
               <button onClick={() => setIsImportModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
@@ -397,17 +380,17 @@ export default function TechniciansDatabase() {
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 text-xs text-slate-600 space-y-2">
                 <p className="font-bold text-slate-700">Wymagane nagłówki w 1. wierszu:</p>
                 <p className="font-mono bg-white p-1.5 border rounded">Imię i nazwisko, Telefon, Pojazd, Ważność SEP</p>
-                <p className="text-[11px] leading-relaxed text-slate-500">Arkusz musi być publiczny. System sprawdzi karty: <b>Technicy</b>, <b>Technicians</b>, <b>Arkusz1</b>.</p>
               </div>
               <form onSubmit={handleImportTechs} className="space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Link do Arkusza Google</label>
-                  <input required type="url" disabled={isImporting} value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..." className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500" />
+                  <input required type="url" disabled={isImporting} value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-[#58b347]" />
                 </div>
-                {importStatus && <p className="text-[11px] text-blue-600 font-medium bg-blue-50 p-2.5 rounded border border-blue-100 animate-pulse">{importStatus}</p>}
+                {importStatus && <p className="text-[11px] text-[#58b347] font-medium bg-green-50 p-2.5 rounded border border-green-100 animate-pulse">{importStatus}</p>}
                 <div className="flex gap-2 pt-2">
                   <button type="button" disabled={isImporting} onClick={() => setIsImportModalOpen(false)} className="flex-1 bg-slate-100 text-slate-700 font-medium py-2.5 rounded text-sm hover:bg-slate-200">Anuluj</button>
-                  <button type="submit" disabled={isImporting} className="flex-1 bg-blue-600 text-white font-medium py-2.5 rounded text-sm hover:bg-blue-700 disabled:bg-slate-400">{isImporting ? 'Importowanie...' : 'Uruchom import'}</button>
+                  {/* PRZYCISK URUCHOMIENIA IMPORTU NA ZIELONO */}
+                  <button type="submit" disabled={isImporting} className="flex-1 bg-[#58b347] text-white font-medium py-2.5 rounded text-sm hover:bg-[#499b3a] disabled:bg-slate-400">{isImporting ? 'Importing...' : 'Uruchom import'}</button>
                 </div>
               </form>
             </div>

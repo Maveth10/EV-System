@@ -13,6 +13,7 @@ import SectorEditor, { Sector } from './SectorEditor';
 import Sidebar, { ViewState } from './Sidebar';
 import StationsDatabase from './StationsDatabase';
 import TechniciansDatabase from './TechniciansDatabase';
+import { LoadingScreen } from './EkoenLogo';
 
 const DETAILED_POLAND_URL = 'https://raw.githubusercontent.com/ppatrzyk/polska-geojson/master/wojewodztwa/wojewodztwa-medium.geojson';
 
@@ -21,6 +22,9 @@ export default function ChargeMap() {
   const map = useRef<maplibregl.Map | null>(null);
   const drawRef = useRef<MapboxDraw | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
+  
+  // EKRAN ŁADOWANIA EKOEN
+  const [isAppLoading, setIsAppLoading] = useState(true);
   
   const [activeView, setActiveView] = useState<ViewState>('map');
 
@@ -38,6 +42,12 @@ export default function ChargeMap() {
 
   const [showSectors, setShowSectors] = useState(false);
   const showSectorsRef = useRef(false);
+
+  // Symulacja ładowania danych, aby pokazać animowane logo
+  useEffect(() => {
+    const timer = setTimeout(() => setIsAppLoading(false), 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const setDrawingState = (isActive: boolean) => {
     setIsDrawingActive(isActive);
@@ -74,7 +84,7 @@ export default function ChargeMap() {
 
       data.forEach((station: Station) => {
         if (!station.lat || !station.lng) return;
-        const markerColor = station.status === 'Awaria' ? '#ef4444' : '#10b981';
+        const markerColor = station.status === 'Awaria' ? '#ef4444' : '#58b347'; // Zielony kolor dla sprawnych stacji
         const el = document.createElement('div');
         el.className = 'w-4 h-4 border-2 border-white rounded-full shadow-sm hover:scale-110 transition-transform z-40';
         el.style.backgroundColor = markerColor;
@@ -123,7 +133,7 @@ export default function ChargeMap() {
     }
   }, []);
 
-  // SYNCHRONIZACJA WIDOKU MAPY: Odświeża dane z bazy zawsze po przełączeniu na zakładkę mapy
+  // SYNCHRONIZACJA WIDOKU MAPY
   useEffect(() => {
     if (activeView === 'map' && map.current) {
       loadStations();
@@ -149,7 +159,8 @@ export default function ChargeMap() {
       loadSavedSectors();
 
       map.current.addSource('poland-data', { type: 'geojson', data: DETAILED_POLAND_URL });
-      map.current.addLayer({ id: 'poland-fill', type: 'fill', source: 'poland-data', paint: { 'fill-color': '#3b82f6', 'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.04, 0.01] }});
+      // Jasnozielony cień nad Polską
+      map.current.addLayer({ id: 'poland-fill', type: 'fill', source: 'poland-data', paint: { 'fill-color': '#58b347', 'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.04, 0.01] }});
       map.current.addLayer({ id: 'poland-outline', type: 'line', source: 'poland-data', paint: { 'line-color': '#cbd5e1', 'line-width': 1, 'line-dasharray': [3, 3] }});
 
       map.current.on('contextmenu', (e) => {
@@ -200,11 +211,9 @@ export default function ChargeMap() {
     const geometry = selectedData.features[0].geometry;
 
     if (activeDrawContext.mode === 'update' && activeDrawContext.sectorId) {
-      // Jeśli modyfikujemy kształt istniejącemu technikowi (lub dodajemy mu pierwszy kształt)
       const { error } = await supabase.from('technicians').update({ zone_geometry: geometry }).eq('id', activeDrawContext.sectorId);
       if (error) { alert(`Błąd aktualizacji: ${error.message}`); return false; }
     } else {
-      // Stara ścieżka dla RPC, używana tylko jeśli tworzymy i rysujemy jednocześnie bez zapisu wstępnego
       const { error } = await supabase.rpc('add_snapped_sector', { p_tech_name: activeDrawContext.techName, p_tech_color: activeDrawContext.color, p_new_geom: geometry });
       if (error) { alert(`Błąd zapisu: ${error.message}`); return false; }
     }
@@ -214,7 +223,6 @@ export default function ChargeMap() {
     return true;
   };
 
-  // NAPRAWIONE USUWANIE: Zamiast kasować pracownika, czyścimy mu tylko pole geometrii
   const deleteSector = async (id: string) => {
     if(!confirm('Na pewno wyczyścić cały obszar roboczy z mapy dla tego technika? (Jego dane pozostaną w bazie)')) return;
     const { error } = await supabase.from('technicians').update({ zone_geometry: null }).eq('id', id);
@@ -239,7 +247,12 @@ export default function ChargeMap() {
 
   return (
     <div className="relative w-full h-full bg-slate-50 overflow-hidden">
+      {/* EKRAN ŁADOWANIA EKOEN (Renderowany na samym wierzchu, póki aplikacja się ładuje) */}
+      {isAppLoading && <LoadingScreen />}
+
       <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
+      
+      {/* Pasek Boczny z nowymi zakladkami */}
       <Sidebar activeView={activeView} onChangeView={setActiveView} />
 
       {activeView === 'map' && (
@@ -265,14 +278,14 @@ export default function ChargeMap() {
           <div className="absolute top-6 left-[96px] z-20 flex gap-3">
             <button 
               onClick={() => setIsAddModalOpen(true)}
-              className="bg-white/95 backdrop-blur-md shadow-lg border border-slate-200 px-4 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-slate-50 hover:text-blue-600 transition-all flex items-center gap-2 text-sm"
+              className="bg-white/95 backdrop-blur-md shadow-lg border border-slate-200 px-4 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-green-50 hover:text-[#58b347] transition-all flex items-center gap-2 text-sm"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
               Dodaj stację
             </button>
             <button 
               onClick={() => toggleSectorsVisibility()} 
-              className="bg-white/95 backdrop-blur-md shadow-lg border border-slate-200 px-4 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-slate-50 hover:text-blue-600 transition-all flex items-center gap-2 text-sm"
+              className="bg-white/95 backdrop-blur-md shadow-lg border border-slate-200 px-4 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-green-50 hover:text-[#58b347] transition-all flex items-center gap-2 text-sm"
             >
               {showSectors ? (
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
@@ -285,19 +298,21 @@ export default function ChargeMap() {
         </>
       )}
 
+      {/* Aktywne, działające moduły bazy */}
       {activeView === 'stations' && <StationsDatabase onFocusStation={flyToStation} />}
       {activeView === 'technicians' && <TechniciansDatabase />}
       
-      {activeView === 'tickets' && (
+      {/* Dynamiczna zaślepka dla modułów w budowie */}
+      {['tickets', 'equipment', 'analytics', 'clients', 'calendar'].includes(activeView) && (
         <div className="absolute inset-0 left-[72px] z-40 bg-slate-50/95 backdrop-blur-sm flex items-center justify-center">
           <div className="text-center bg-white p-10 rounded-2xl shadow-xl border border-slate-200">
             <h2 className="text-2xl font-bold text-slate-800 mb-2">Moduł w budowie</h2>
             <p className="text-slate-500">
-              Panel <b>Aktualnych zgłoszeń</b> zostanie wdrożony w kolejnym kroku.
+              Ten moduł zostanie wdrożony w kolejnym kroku integracji.
             </p>
             <button 
               onClick={() => setActiveView('map')}
-              className="mt-6 text-blue-600 font-medium hover:underline"
+              className="mt-6 text-[#58b347] font-bold hover:underline"
             >
               ← Wróć na mapę
             </button>

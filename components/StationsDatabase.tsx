@@ -279,7 +279,10 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
 
     const nominateHeaders = { 'User-Agent': 'EkoenFSMDispatchSystem/6.0 (dispatch@ekoen.pl)' };
 
-    for (const [key, stList] of addressGroups.entries()) {
+    // FIX: Użycie Array.from() dla uniknięcia błędów ES5 Iterators podczas kompilacji Vercel
+    const addressGroupsEntries = Array.from(addressGroups.entries());
+
+    for (const [key, stList] of addressGroupsEntries) {
       processed++;
       setGeocodeStatus(`Szukanie adresu na mapie (${processed} z ${totalGroups} lokalizacji)...`);
 
@@ -321,8 +324,6 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
           const offsetLat = lat + (Math.random() - 0.5) * 0.0001;
           const offsetLng = lng + (Math.random() - 0.5) * 0.0001;
           
-          // UWAGA: Nie wysyłamy już ręcznie kolumny "location: 'POINT(...)'".
-          // Wysyłamy TYLKO liczby, a baza danych automatycznie zadba o geometrie (Dzięki triggerowi z kroku 1).
           const { error } = await supabase.from('stations')
             .update({ lat: offsetLat, lng: offsetLng })
             .eq('id', s.id);

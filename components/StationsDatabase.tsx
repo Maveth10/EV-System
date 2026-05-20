@@ -140,14 +140,13 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     let csvText = '';
     let isPrivate = false;
 
-    // Próba pobrania jako gviz/tq
     for (const tab of candidates) {
       try {
         const res = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`);
         if (res.ok) {
           const text = await res.text();
           if (text && text.includes('<html')) {
-            isPrivate = true; // Google wyrzuca stronę logowania (arkusz zablokowany)
+            isPrivate = true;
           } else if (text && text.includes(',')) {
             csvText = text; break;
           }
@@ -155,7 +154,6 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       } catch (err) {}
     }
 
-    // Próba pobrania całego eksportu
     if (!csvText && !isPrivate) {
       try {
         const res = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`);
@@ -188,14 +186,13 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
 
     const getColIndex = (names: string[]) => headers.findIndex(h => names.some(n => h.includes(n)));
     
-    // Mapowanie kolumn zgodne z Twoim plikiem
     const idxName = getColIndex(['identyfikator', 'nazwa', 'name']);
     const idxClient = getColIndex(['klient', 'client']);
     const idxModel = getColIndex(['model']);
     const idxCountry = getColIndex(['kraj', 'country']);
     const idxCity = getColIndex(['miasto', 'city']);
     const idxStreet = getColIndex(['ulica', 'street']);
-    const idxDate = getColIndex(['przegląd', 'data', 'inspection']); // Opcjonalne
+    const idxDate = getColIndex(['przegląd', 'data', 'inspection']);
 
     if (idxName === -1) {
       alert('Błąd: Nie odnaleziono głównej kolumny "Identyfikator" w arkuszu.');
@@ -219,7 +216,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
 
       if (cityVal && streetVal) {
         try {
-          await new Promise(r => setTimeout(r, 1000)); // Limit API (1 request na sekunde)
+          await new Promise(r => setTimeout(r, 1000));
           const searchString = encodeURIComponent(`${streetVal}, ${cityVal}, ${countryVal}`);
           const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${searchString}`);
           const geoData = await geoRes.json();
@@ -375,7 +372,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 text-xs text-slate-600 space-y-2">
                 <p className="font-bold text-slate-700">Wymagane kolumny w arkuszu:</p>
                 <p className="font-mono bg-white p-1.5 border rounded">Identyfikator, Model, Kraj, Miasto, Ulica, Klient</p>
-                <p className="text-red-500 font-medium pt-1">Pamiętaj o ustawieniu udostępniania arkusza na "Każdy, kto ma link"!</p>
+                <p className="text-red-500 font-medium pt-1">Pamiętaj o ustawieniu udostępniania arkusza na &quot;Każdy, kto ma link&quot;!</p>
               </div>
               <form onSubmit={handleImportStations} className="space-y-4">
                 <div>

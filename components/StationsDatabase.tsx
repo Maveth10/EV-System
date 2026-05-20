@@ -100,7 +100,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       .order('name', { ascending: true });
       
     if (error) {
-      alert(`Błąd pobierania danych: ${error.message}`);
+      alert(`Błąd pobierania danych z bazy: ${error.message}`);
     } else if (data) {
       setStations(data as Station[]);
     }
@@ -218,88 +218,132 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       setIsImporting(false); return;
     }
 
-    let successCount = 0;
     const rows = lines.slice(1);
-    const nominateHeaders = { 'User-Agent': 'EkoenFSMDispatchSystem/3.0 (dispatch@ekoen.pl)' };
+    const nominateHeaders = { 'User-Agent': 'EkoenFSMDispatchSystem/4.0 (dispatch@ekoen.pl)' };
+
+    // --- FAZA 1: Budowanie paczki i znajdowanie unikalnych lokalizacji ---
+    const recordsToProcess = [];
+    const uniqueAddresses = new Set<string>();
+    const addressCache = new Map<string, { lat: number, lng: number, found: boolean }>();
 
     for (let i = 0; i < rows.length; i++) {
       const vals = parseCSVLine(rows[i], delimiter);
       const nameVal = vals[idxName];
       if (!nameVal) continue;
 
-      setImportStatus(`Przetwarzanie: "${nameVal}" (${i + 1}/${rows.length})...`);
-
-      // DOMYŚLNE KOORDYNATY (Środek Polski: Geocentrum) na wypadek blokady serwera map
-      let lat = 52.0691; 
-      let lng = 19.4804;
-      let hasRealGps = false;
-
       let cityVal = idxCity !== -1 ? vals[idxCity] : '';
       let streetVal = idxStreet !== -1 ? vals[idxStreet] : '';
       let countryVal = idxCountry !== -1 ? vals[idxCountry] : 'Polska';
 
-      if (cityVal || streetVal) {
-        try {
-          // Opóźnienie 1.2 sekundy chroniące przed natychmiastowym banem IP
-          await new Promise(r => setTimeout(r, 1200)); 
-
-          const cleanStreet = (str: string) => {
-            return str.replace(/\b(MOP|Mop|mop|A2|A1|A4|S3|S5|Mop Chociszewo|MOP Rogoziniec)\b/g, '').replace(/\s+/g, ' ').trim();
-          };
-
-          const sClean = cleanStreet(streetVal);
-          const cClean = cityVal ? cityVal.trim() : '';
-
-          if (sClean && cClean) {
-            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${sClean}, ${cClean}, ${countryVal}`)}`, { headers: nominateHeaders });
-            if (res.ok) {
-              const data = await res.json();
-              if (data && data.length > 0) { 
-                lat = parseFloat(data[0].lat); lng = parseFloat(data[0].lon); hasRealGps = true; 
-              }
-            }
-          }
-
-          if (!hasRealGps && cClean) {
-            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${cClean}, ${countryVal}`)}`, { headers: nominateHeaders });
-            if (res.ok) {
-              const data = await res.json();
-              if (data && data.length > 0) { 
-                lat = parseFloat(data[0].lat); lng = parseFloat(data[0].lon); hasRealGps = true; 
-              }
-            }
-          }
-        } catch (e) {
-          console.error("Serwer map zablokował zapytanie, używam współrzędnych awaryjnych.");
-        }
+      const addressKey = `${streetVal}|${cityVal}|${countryVal}`;
+      if (streetVal || cityVal) {
+        uniqueAddresses.add(addressKey);
       }
 
-      // Jeżeli nie udało się namierzyć dokładnego adresu z powodu blokady, 
-      // generujemy małe mikro-przesunięcie wokół środka Polski, żeby ładowarki nie nałożyły się na siebie idealnie
-      if (!hasRealGps) {
-        lat = lat + (Math.random() - 0.5) * 2.5;
-        lng = lng + (Math.random() - 0.5) * 3.5;
-      }
-
-      const payload: any = {
-        name: nameVal,
-        client: idxClient !== -1 && vals[idxClient] ? vals[idxClient] : null,
-        model: idxModel !== -1 && vals[idxModel] ? vals[idxModel] : null,
-        inspection_date: idxDate !== -1 && vals[idxDate] ? vals[idxDate] : null,
-        status: 'Brak akcji',
-        country: countryVal,
-        city: cityVal,
-        street: streetVal,
-        lat: lat,
-        lng: lng,
-        location: `POINT(${lng} ${lat})`
-      };
-
-      const { error } = await supabase.from('stations').insert([payload]);
-      if (!error) successCount++;
+      recordsToProcess.push({ nameVal, vals, addressKey, cityVal, streetVal, countryVal });
     }
 
-    alert(`Sukces! Zaimportowano ${successCount} z ${rows.length} stacji. Wszystkie stacje zyskały pozycję i przypisały się do opiekunów.`);
+    // --- FAZA 2: Błyskawiczne geokodowanie TYLKO unikalnych adresów ---
+    let processedAddresses = 0;
+    for (const addrKey of uniqueAddresses) {
+      processedAddresses++;
+      setImportStatus(`Analiza lokalizacji na mapie (${processedAddresses}/${uniqueAddresses.size} MOP-ów)...`);
+      
+      const [street, city, country] = addrKey.split('|');
+      let lat = 52.0691, lng = 19.4804, found = false;
+
+      try {
+        await new Promise(r => setTimeout(r, 1100)); // Bezpieczny limit dla API
+
+        // Czyszczenie MOPów dla lepszej wyszukiwalności
+        const cleanStreet = (str: string) => str.replace(/\b(MOP|Mop|mop|A2|A1|A4|S3|S5|Mop Chociszewo|MOP Rogoziniec)\b/g, '').replace(/\s+/g, ' ').trim();
+        const sClean = cleanStreet(street);
+        const cClean = city ? city.trim() : '';
+
+        // Próba 1: Pełny adres
+        if (sClean && cClean) {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${sClean}, ${cClean}, ${country}`)}`, { headers: nominateHeaders });
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.length > 0 && !isNaN(parseFloat(data[0].lat))) { 
+              lat = parseFloat(data[0].lat); lng = parseFloat(data[0].lon); found = true; 
+            }
+          }
+        }
+
+        // Próba 2: Samo miasto
+        if (!found && cClean) {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${cClean}, ${country}`)}`, { headers: nominateHeaders });
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.length > 0 && !isNaN(parseFloat(data[0].lat))) { 
+              lat = parseFloat(data[0].lat); lng = parseFloat(data[0].lon); found = true; 
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Serwer odrzucił zapytanie:", e);
+      }
+
+      addressCache.set(addrKey, { lat, lng, found });
+    }
+
+    // --- FAZA 3: Składanie gotowych obiektów (Payloads) ---
+    setImportStatus(`Generowanie geometrii dla bazy danych...`);
+    const finalPayloads = recordsToProcess.map(rec => {
+      const cached = addressCache.get(rec.addressKey) || { lat: 52.0691, lng: 19.4804, found: false };
+      
+      let finalLat = cached.lat;
+      let finalLng = cached.lng;
+
+      // Zabezpieczenie przed nałożeniem się wtyczek w jeden punkt (dajemy losowy offset 5 metrów)
+      if (cached.found) {
+        finalLat += (Math.random() - 0.5) * 0.0001;
+        finalLng += (Math.random() - 0.5) * 0.0001;
+      } else {
+        // Jeśli nie znaleziono na GPS, zrzucamy losowo wokół centrum Polski z dużym rozstrzałem, żeby uniknąć błędu WKT
+        finalLat += (Math.random() - 0.5) * 2.5;
+        finalLng += (Math.random() - 0.5) * 3.5;
+      }
+
+      return {
+        name: rec.nameVal,
+        client: idxClient !== -1 && rec.vals[idxClient] ? rec.vals[idxClient] : null,
+        model: idxModel !== -1 && rec.vals[idxModel] ? rec.vals[idxModel] : null,
+        inspection_date: idxDate !== -1 && rec.vals[idxDate] ? rec.vals[idxDate] : null,
+        status: 'Brak akcji',
+        country: rec.countryVal,
+        city: rec.cityVal,
+        street: rec.streetVal,
+        lat: finalLat,
+        lng: finalLng,
+        location: `POINT(${finalLng} ${finalLat})` // Baza z automatu sama to sparsuje na GEOMETRY
+      };
+    });
+
+    // --- FAZA 4: Batch Insert do Supabase (Błyskawiczny zapis w paczkach) ---
+    let successCount = 0;
+    let lastError = '';
+
+    for (let i = 0; i < finalPayloads.length; i += 100) {
+      const chunk = finalPayloads.slice(i, i + 100);
+      setImportStatus(`Zapisywanie w bazie (${i + chunk.length}/${finalPayloads.length})...`);
+      
+      const { error } = await supabase.from('stations').insert(chunk);
+      if (error) {
+        console.error("Błąd zapisu Supabase:", error);
+        lastError = error.message;
+      } else {
+        successCount += chunk.length;
+      }
+    }
+
+    if (lastError) {
+      alert(`Wystąpił błąd w trakcie zapisu! Zapisano ${successCount} stacji. Błąd bazy: ${lastError}`);
+    } else {
+      alert(`Super! Zaimportowano wszystkie ${successCount} stacji w trybie Turbo.`);
+    }
+
     setIsImporting(false); setIsImportModalOpen(false); setSheetUrl(''); setImportStatus('');
     fetchStations();
   };

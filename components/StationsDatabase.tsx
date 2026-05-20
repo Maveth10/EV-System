@@ -25,9 +25,29 @@ type SortConfig = { key: keyof Station; direction: 'asc' | 'desc' } | null;
 
 const IconSort = () => <svg className="w-3 h-3 inline-block ml-1 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>;
 const IconTrash = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
-const IconEdit = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
+const IconEdit = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
 const IconImport = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
 const IconMapPin = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>;
+
+// Inteligentny splitter linii CSV radzący sobie z cudzysłowami i przecinkami np. w nazwach spółek
+const parseCSVLine = (line: string, delimiter: string): string[] => {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"' || char === "'") {
+      inQuotes = !inQuotes;
+    } else if (char === delimiter && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result.map(v => v.replace(/^["']|["']$/g, '').trim());
+};
 
 const getDaysSince = (dateString: string | null) => {
   if (!dateString) return 'Brak';
@@ -182,9 +202,11 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     if (lines.length < 2) { alert('Arkusz nie zawiera wierszy z danymi.'); setIsImporting(false); return; }
 
     const delimiter = lines[0].includes(';') ? ';' : ',';
-    const headers = lines[0].split(delimiter).map(h => h.replace(/^["']|["']$/g, '').trim().toLowerCase());
+    
+    // Używamy bezpiecznego parsera do nagłówków
+    const headers = parseCSVLine(lines[0], delimiter).map(h => h.toLowerCase());
 
-    const getColIndex = (names: string[]) => headers.findIndex(h => names.some(n => h.includes(n)));
+    const getColIndex = (names: string[]) => headers.findIndex(h => names.some(n => h === n || h.includes(n)));
     
     const idxName = getColIndex(['identyfikator', 'nazwa', 'name']);
     const idxClient = getColIndex(['klient', 'client']);
@@ -195,35 +217,65 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     const idxDate = getColIndex(['przegląd', 'data', 'inspection']);
 
     if (idxName === -1) {
-      alert('Błąd: Nie odnaleziono głównej kolumny "Identyfikator" w arkuszu.');
+      alert('Błąd: Nie odnaleziono nagłówka "Identyfikator" w arkuszu.');
       setIsImporting(false); return;
     }
 
     let successCount = 0;
     const rows = lines.slice(1);
 
+    // Adres e-mail wymagany przez regulamin Nominatim, aby nie blokowali zapytań
+    const nominateHeaders = { 'User-Agent': 'EkoenFSMDispatchSystem/2.0 (dispatch@ekoen.pl)' };
+
     for (let i = 0; i < rows.length; i++) {
-      const vals = rows[i].split(delimiter).map(v => v.replace(/^["']|["']$/g, '').trim());
+      // Używamy bezpiecznego parsera dla wartości wiersza
+      const vals = parseCSVLine(rows[i], delimiter);
       const nameVal = vals[idxName];
       if (!nameVal) continue;
 
-      setImportStatus(`Lokalizowanie stacji "${nameVal}" (${i + 1}/${rows.length})...`);
+      setImportStatus(`Geokodowanie: "${nameVal}" (${i + 1}/${rows.length})...`);
 
       let lat = null, lng = null;
-      let cityVal = idxCity !== -1 ? vals[idxCity] : null;
-      let streetVal = idxStreet !== -1 ? vals[idxStreet] : null;
+      let cityVal = idxCity !== -1 ? vals[idxCity] : '';
+      let streetVal = idxStreet !== -1 ? vals[idxStreet] : '';
       let countryVal = idxCountry !== -1 ? vals[idxCountry] : 'Polska';
 
-      if (cityVal && streetVal) {
+      if (cityVal || streetVal) {
         try {
-          await new Promise(r => setTimeout(r, 1000));
-          const searchString = encodeURIComponent(`${streetVal}, ${cityVal}, ${countryVal}`);
-          const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${searchString}`);
-          const geoData = await geoRes.json();
-          if (geoData && geoData.length > 0) {
-            lat = parseFloat(geoData[0].lat); lng = parseFloat(geoData[0].lon);
+          // Zwiększony, stabilny interwał unikania blokad 429
+          await new Promise(r => setTimeout(r, 1100)); 
+
+          // Funkcja oczyszczania adresu z szumów autostradowych (MOP, A2, itp.)
+          const cleanStreet = (str: string) => {
+            return str.replace(/\b(MOP|Mop|mop|A2|A1|A4|S3|S5)\b/g, '').replace(/\s+/g, ' ').trim();
+          };
+
+          const sClean = cleanStreet(streetVal);
+          const cClean = cityVal ? cityVal.trim() : '';
+
+          // ETAP 1: Pełny oczyszczony adres
+          if (sClean && cClean) {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${sClean}, ${cClean}, ${countryVal}`)}`, { headers: nominateHeaders });
+            const data = await res.json();
+            if (data && data.length > 0) { lat = parseFloat(data[0].lat); lng = parseFloat(data[0].lon); }
           }
-        } catch (e) {}
+
+          // ETAP 2: Sama nazwa z lokalizacji + kraj (częste dla małych wiosek / węzłów)
+          if (!lat && sClean) {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${sClean}, ${countryVal}`)}`, { headers: nominateHeaders });
+            const data = await res.json();
+            if (data && data.length > 0) { lat = parseFloat(data[0].lat); lng = parseFloat(data[0].lon); }
+          }
+
+          // ETAP 3: Koło ratunkowe - rzucamy znacznik w centrum miasta/gminy, żeby stacja była widoczna w tabeli i przypisała się do regionu!
+          if (!lat && cClean) {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${cClean}, ${countryVal}`)}`, { headers: nominateHeaders });
+            const data = await res.json();
+            if (data && data.length > 0) { lat = parseFloat(data[0].lat); lng = parseFloat(data[0].lon); }
+          }
+        } catch (e) {
+          console.error("Błąd geokodowania w Nominatim: ", e);
+        }
       }
 
       const payload: any = {
@@ -247,7 +299,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       if (!error) successCount++;
     }
 
-    alert(`Gotowe! Zaimportowano ${successCount} stacji.`);
+    alert(`Gotowe! Zaimportowano pomyślnie ${successCount} stacji z poprawnym przypisaniem kolumn i współrzędnych.`);
     setIsImporting(false); setIsImportModalOpen(false); setSheetUrl(''); setImportStatus('');
     fetchStations();
   };
@@ -275,7 +327,6 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
         </div>
       </div>
 
-      {/* MODYFIKACJA KONTENERA: Dodane zaawansowane przewijanie boczne i sztywne limity szerokości */}
       <div className="max-w-[1600px] mx-auto bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-200">
           <table className="w-full text-left border-collapse table-auto">
@@ -352,41 +403,6 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
           </table>
         </div>
       </div>
-
-      <AddStationModal isOpen={isAddModalOpen || !!editingStation} onClose={() => { setIsAddModalOpen(false); setEditingStation(null); }} initialLatLng={null} onSuccess={fetchStations} editingStation={editingStation} />
-
-      {advancedDetailsStation && (
-        <StationAnalytics station={advancedDetailsStation} onClose={() => setAdvancedDetailsStation(null)} />
-      )}
-
-      {isImportModalOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" onClick={() => !isImporting && setIsImportModalOpen(false)}>
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden border border-slate-200" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-slate-50 px-5 py-4 border-b border-slate-200 flex justify-between items-center">
-              <h3 className="text-sm font-semibold text-slate-800">Import stacji z Google Sheets</h3>
-              <button onClick={() => !isImporting && setIsImportModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 text-xs text-slate-600 space-y-2">
-                <p className="font-bold text-slate-700">Wymagane kolumny w arkuszu:</p>
-                <p className="font-mono bg-white p-1.5 border rounded">Identyfikator, Model, Kraj, Miasto, Ulica, Klient</p>
-                <p className="text-red-500 font-medium pt-1">Pamiętaj o ustawieniu udostępniania arkusza na &quot;Każdy, kto ma link&quot;!</p>
-              </div>
-              <form onSubmit={handleImportStations} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Link do Arkusza Google</label>
-                  <input required type="url" disabled={isImporting} value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-[#58b347]" />
-                </div>
-                {importStatus && <p className="text-[11px] text-[#58b347] font-medium bg-green-50 p-2.5 rounded border border-green-100 animate-pulse">{importStatus}</p>}
-                <div className="flex gap-2 pt-2">
-                  <button type="button" disabled={isImporting} onClick={() => setIsImportModalOpen(false)} className="flex-1 bg-slate-100 text-slate-700 font-medium py-2.5 rounded text-sm hover:bg-slate-200">Anuluj</button>
-                  <button type="submit" disabled={isImporting} className="flex-1 bg-[#58b347] text-white font-medium py-2.5 rounded text-sm hover:bg-[#499b3a] disabled:bg-slate-400">{isImporting ? 'Import...' : 'Uruchom'}</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

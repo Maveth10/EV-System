@@ -28,6 +28,7 @@ const IconTrash = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none"
 const IconEdit = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
 const IconImport = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
 const IconMapPin = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>;
+const IconNoLocation = () => <svg className="w-3.5 h-3.5 text-red-400 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m2 2 20 20"/><path d="M8.36 8.36a6 6 0 0 1 8.28 8.28"/><path d="M19.38 19.38A11.9 11.9 0 0 0 20 10c0-6-8-12-8-12s-3.72 2.79-5.83 6.64"/></svg>;
 
 const parseCSVLine = (line: string, delimiter: string): string[] => {
   const result: string[] = [];
@@ -100,7 +101,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       .order('name', { ascending: true });
       
     if (error) {
-      alert(`Błąd pobierania danych: ${error.message}`);
+      alert(`Błąd pobierania danych z bazy: ${error.message}`);
     } else if (data) {
       setStations(data as Station[]);
     }
@@ -219,12 +220,11 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     }
 
     const rows = lines.slice(1);
-    const nominateHeaders = { 'User-Agent': 'EkoenFSMDispatchSystem/4.0 (dispatch@ekoen.pl)' };
-
-    // --- FAZA 1: Budowanie paczki i znajdowanie unikalnych lokalizacji ---
-    const recordsToProcess = [];
-    const uniqueAddresses = new Set<string>();
-    const addressCache = new Map<string, { lat: number, lng: number, found: boolean }>();
+    
+    // Budowanie payloadów Z POMINIĘCIEM geokodowania (Błyskawiczny import surowych danych)
+    setImportStatus(`Mapowanie ${rows.length} rekordów (bez zapytań o GPS)...`);
+    
+    const finalPayloads = [];
 
     for (let i = 0; i < rows.length; i++) {
       const vals = parseCSVLine(rows[i], delimiter);
@@ -235,90 +235,20 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       let streetVal = idxStreet !== -1 ? vals[idxStreet] : '';
       let countryVal = idxCountry !== -1 ? vals[idxCountry] : 'Polska';
 
-      const addressKey = `${streetVal}|${cityVal}|${countryVal}`;
-      if (streetVal || cityVal) {
-        uniqueAddresses.add(addressKey);
-      }
-
-      recordsToProcess.push({ nameVal, vals, addressKey, cityVal, streetVal, countryVal });
-    }
-
-    // --- FAZA 2: Błyskawiczne geokodowanie TYLKO unikalnych adresów ---
-    let processedAddresses = 0;
-    // FIX: Konwersja Set na klasyczną tablicę za pomocą Array.from(), aby zapobiec błędowi kompilacji ES5
-    const uniqueAddressesArray = Array.from(uniqueAddresses);
-    for (const addrKey of uniqueAddressesArray) {
-      processedAddresses++;
-      setImportStatus(`Analiza lokalizacji na mapie (${processedAddresses}/${uniqueAddressesArray.length} MOP-ów)...`);
-      
-      const [street, city, country] = addrKey.split('|');
-      let lat = 52.0691, lng = 19.4804, found = false;
-
-      try {
-        await new Promise(r => setTimeout(r, 1100));
-
-        const cleanStreet = (str: string) => str.replace(/\b(MOP|Mop|mop|A2|A1|A4|S3|S5|Mop Chociszewo|MOP Rogoziniec)\b/g, '').replace(/\s+/g, ' ').trim();
-        const sClean = cleanStreet(street);
-        const cClean = city ? city.trim() : '';
-
-        if (sClean && cClean) {
-          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${sClean}, ${cClean}, ${country}`)}`, { headers: nominateHeaders });
-          if (res.ok) {
-            const data = await res.json();
-            if (data && data.length > 0 && !isNaN(parseFloat(data[0].lat))) { 
-              lat = parseFloat(data[0].lat); lng = parseFloat(data[0].lon); found = true; 
-            }
-          }
-        }
-
-        if (!found && cClean) {
-          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${cClean}, ${country}`)}`, { headers: nominateHeaders });
-          if (res.ok) {
-            const data = await res.json();
-            if (data && data.length > 0 && !isNaN(parseFloat(data[0].lat))) { 
-              lat = parseFloat(data[0].lat); lng = parseFloat(data[0].lon); found = true; 
-            }
-          }
-        }
-      } catch (e) {
-        console.warn("Serwer odrzucił zapytanie:", e);
-      }
-
-      addressCache.set(addrKey, { lat, lng, found });
-    }
-
-    // --- FAZA 3: Składanie gotowych obiektów (Payloads) ---
-    setImportStatus(`Generowanie geometrii dla bazy danych...`);
-    const finalPayloads = recordsToProcess.map(rec => {
-      const cached = addressCache.get(rec.addressKey) || { lat: 52.0691, lng: 19.4804, found: false };
-      
-      let finalLat = cached.lat;
-      let finalLng = cached.lng;
-
-      if (cached.found) {
-        finalLat += (Math.random() - 0.5) * 0.0001;
-        finalLng += (Math.random() - 0.5) * 0.0001;
-      } else {
-        finalLat += (Math.random() - 0.5) * 2.5;
-        finalLng += (Math.random() - 0.5) * 3.5;
-      }
-
-      return {
-        name: rec.nameVal,
-        client: idxClient !== -1 && rec.vals[idxClient] ? rec.vals[idxClient] : null,
-        model: idxModel !== -1 && rec.vals[idxModel] ? rec.vals[idxModel] : null,
-        inspection_date: idxDate !== -1 && rec.vals[idxDate] ? rec.vals[idxDate] : null,
+      finalPayloads.push({
+        name: nameVal,
+        client: idxClient !== -1 && vals[idxClient] ? vals[idxClient] : null,
+        model: idxModel !== -1 && vals[idxModel] ? vals[idxModel] : null,
+        inspection_date: idxDate !== -1 && vals[idxDate] ? vals[idxDate] : null,
         status: 'Brak akcji',
-        country: rec.countryVal,
-        city: rec.cityVal,
-        street: rec.streetVal,
-        lat: finalLat,
-        lng: finalLng,
-        location: `POINT(${finalLng} ${finalLat})`
-      };
-    });
+        country: countryVal,
+        city: cityVal,
+        street: streetVal
+        // lat, lng, location zostają puste (NULL) - zrobimy to później
+      });
+    }
 
-    // --- FAZA 4: Batch Insert do Supabase ---
+    // Batch Insert do Supabase w paczkach po 100 sztuk
     let successCount = 0;
     let lastError = '';
 
@@ -338,7 +268,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     if (lastError) {
       alert(`Wystąpił błąd w trakcie zapisu! Zapisano ${successCount} stacji. Błąd bazy: ${lastError}`);
     } else {
-      alert(`Super! Zaimportowano wszystkie ${successCount} stacji w trybie Turbo.`);
+      alert(`Sukces! Szybki import zakończony. Zaimportowano tekstowo ${successCount} stacji. Brakujące koordynaty możemy zaktualizować w dowolnym momencie.`);
     }
 
     setIsImporting(false); setIsImportModalOpen(false); setSheetUrl(''); setImportStatus('');
@@ -401,7 +331,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
                     </td>
                     <td className="py-2.5 px-2 text-center">
                       <div className="flex justify-center gap-1">
-                        <button onClick={() => onFocusStation(station)} className="text-slate-400 hover:text-blue-500 hover:bg-blue-50 p-1 rounded transition-colors" title="Zlokalizuj na mapie"><IconMapPin /></button>
+                        <button onClick={() => onFocusStation(station)} disabled={!station.lat} className={`${station.lat ? 'text-slate-400 hover:text-blue-500 hover:bg-blue-50 cursor-pointer' : 'text-slate-200 cursor-not-allowed'} p-1 rounded transition-colors`} title={station.lat ? "Zlokalizuj na mapie" : "Brak współrzędnych"}><IconMapPin /></button>
                         <button onClick={() => setEditingStation(station)} className="text-slate-400 hover:text-[#58b347] hover:bg-green-50 p-1 rounded transition-colors" title="Edytuj sprzęt"><IconEdit /></button>
                       </div>
                     </td>
@@ -411,7 +341,10 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
                       </span>
                     </td>
                     <td className="py-2.5 px-3 text-slate-600 font-medium truncate max-w-[200px]">{station.client || '-'}</td>
-                    <td className="py-2.5 px-3 text-slate-600 truncate max-w-[280px]">{station.city ? `${station.city}, ${station.street}` : '-'}</td>
+                    <td className="py-2.5 px-3 text-slate-600 truncate max-w-[280px]">
+                      {(!station.lat || !station.lng) && <span title="Brak koordynatów GPS - uzupełnij ręcznie w edycji"><IconNoLocation /></span>}
+                      {station.city ? `${station.city}, ${station.street}` : '-'}
+                    </td>
                     
                     <td className="py-2.5 px-3">
                       {station.region ? (
@@ -455,7 +388,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" onClick={() => !isImporting && setIsImportModalOpen(false)}>
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden border border-slate-200" onClick={(e) => e.stopPropagation()}>
             <div className="bg-slate-50 px-5 py-4 border-b border-slate-200 flex justify-between items-center">
-              <h3 className="text-sm font-semibold text-slate-800">Import stacji z Google Sheets</h3>
+              <h3 className="text-sm font-semibold text-slate-800">Szybki Import Danych (Bez GPS)</h3>
               <button onClick={() => !isImporting && setIsImportModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
             <div className="p-5 space-y-4">

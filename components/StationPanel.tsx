@@ -48,13 +48,13 @@ export default function StationPanel({ station, onClose, onEdit }: StationPanelP
     
     const fetchLiveStation = async () => {
       setIsLoading(true);
+      // Zmiana na bezpieczne select('*'), PostgREST sam wyciągnie lat i lng jako kolumny
       const { data, error } = await supabase
         .from('stations')
-        .select('*, st_x(location::geometry) as lng, st_y(location::geometry) as lat')
+        .select('*')
         .eq('id', station.id)
         .single();
         
-      // ROZWIĄZANIE BŁĘDU VERCEL (podwójne rzutowanie typu)
       if (data && !error) setLiveStation(data as unknown as Station);
       else setLiveStation(station); 
       setIsLoading(false);

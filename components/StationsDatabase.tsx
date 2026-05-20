@@ -10,8 +10,8 @@ export type Station = {
   model: string | null;
   inspection_date: string | null;
   last_ticket_date: string | null;
-  technicians_in_range: string | null;
   technician: string | null;
+  region?: string | null;
   status: string;
   country: string | null;
   city: string | null;
@@ -30,7 +30,7 @@ const IconImport = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none
 const IconMapPin = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>;
 
 const getDaysSince = (dateString: string | null) => {
-  if (!dateString) return 'Brak zgłoszeń';
+  if (!dateString) return 'Brak';
   const diffTime = Math.abs(new Date().getTime() - new Date(dateString).getTime());
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
   return diffDays === 0 ? 'Dzisiaj' : `${diffDays} dni`;
@@ -75,18 +75,25 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
 
   const fetchStations = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase.from('stations').select('*, lat, lng').order('name', { ascending: true });
-    if (!error && data) setStations(data);
+    const { data, error } = await supabase
+      .from('stations')
+      .select('*')
+      .order('name', { ascending: true });
+      
+    if (error) {
+      alert(`Błąd pobierania danych: ${error.message}`);
+    } else if (data) {
+      setStations(data as Station[]);
+    }
     setIsLoading(false);
   };
 
   useEffect(() => { fetchStations(); }, []);
 
+  // FIX: Poprawiona nazwa zmiennej w tablicy zależności (linia 100)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isImportModalOpen && !isImporting) {
-        setIsImportModalOpen(false);
-      }
+      if (e.key === 'Escape' && isImportModalOpen && !isImporting) setIsImportModalOpen(false);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -145,11 +152,8 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
         const res = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`);
         if (res.ok) {
           const text = await res.text();
-          if (text && text.includes('<html')) {
-            isPrivate = true;
-          } else if (text && text.includes(',')) {
-            csvText = text; break;
-          }
+          if (text && text.includes('<html')) isPrivate = true;
+          else if (text && text.includes(',')) { csvText = text; break; }
         }
       } catch (err) {}
     }
@@ -159,11 +163,8 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
         const res = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`);
         if (res.ok) {
           const text = await res.text();
-          if (text && text.includes('<html')) {
-            isPrivate = true;
-          } else if (text) {
-            csvText = text;
-          }
+          if (text && text.includes('<html')) isPrivate = true;
+          else if (text) csvText = text;
         }
       } catch (err) {}
     }
@@ -237,7 +238,11 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
         street: streetVal
       };
       
-      if (lat && lng) payload.location = `POINT(${lng} ${lat})`;
+      if (lat && lng) {
+        payload.location = `POINT(${lng} ${lat})`;
+        payload.lat = lat;
+        payload.lng = lng;
+      }
 
       const { error } = await supabase.from('stations').insert([payload]);
       if (!error) successCount++;
@@ -250,9 +255,9 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
 
   return (
     <div className="absolute inset-0 left-[72px] bg-slate-50 z-40 p-8 overflow-y-auto">
-      <div className="max-w-[1400px] mx-auto flex justify-between items-center mb-8">
+      <div className="max-w-[1500px] mx-auto flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Baza stacji</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Baza stacji i regionów</h1>
           <p className="text-sm text-slate-500 mt-1">Zarządzaj flotą punktów ładowania i ich zadaniami ({stations.length} punktów)</p>
         </div>
         <div className="flex gap-3">
@@ -271,76 +276,67 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
         </div>
       </div>
 
-      <div className="max-w-[1400px] mx-auto bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="max-w-[1500px] mx-auto bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse whitespace-nowrap">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                <th className="p-4 w-24 text-left">
+                <th className="p-4 w-12 text-left">
                   <input type="checkbox" checked={selectedIds.length === stations.length && stations.length > 0} onChange={toggleSelectAll} className="rounded text-[#58b347] focus:ring-[#58b347]" />
                 </th>
+                <th className="p-4 w-16"></th>
                 <th onClick={() => handleSort('name')} className="p-4 cursor-pointer hover:bg-slate-100">Identyfikator <IconSort /></th>
                 <th onClick={() => handleSort('client')} className="p-4 cursor-pointer hover:bg-slate-100">Klient <IconSort /></th>
                 <th onClick={() => handleSort('city')} className="p-4 cursor-pointer hover:bg-slate-100">Lokalizacja <IconSort /></th>
+                <th onClick={() => handleSort('region')} className="p-4 cursor-pointer hover:bg-slate-100">Region <IconSort /></th>
                 <th onClick={() => handleSort('model')} className="p-4 cursor-pointer hover:bg-slate-100">Model <IconSort /></th>
                 <th onClick={() => handleSort('inspection_date')} className="p-4 cursor-pointer hover:bg-slate-100">Przegląd <IconSort /></th>
                 <th onClick={() => handleSort('last_ticket_date')} className="p-4 cursor-pointer hover:bg-slate-100">Ost. zgłoszenie <IconSort /></th>
-                <th className="p-4">W zasięgu</th>
+                <th onClick={() => handleSort('technician')} className="p-4 cursor-pointer hover:bg-slate-100">Opiekun <IconSort /></th>
                 <th onClick={() => handleSort('status')} className="p-4 cursor-pointer hover:bg-slate-100">Status / Zadanie <IconSort /></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
-                <tr><td colSpan={9} className="p-8 text-center text-slate-400 text-sm">Ładowanie danych...</td></tr>
+                <tr><td colSpan={11} className="p-8 text-center text-slate-400 text-sm">Ładowanie danych...</td></tr>
               ) : sortedStations.length === 0 ? (
-                <tr><td colSpan={9} className="p-8 text-center text-slate-400 text-sm">Brak stacji w bazie danych.</td></tr>
+                <tr><td colSpan={11} className="p-8 text-center text-slate-400 text-sm">Brak stacji w bazie danych.</td></tr>
               ) : (
                 sortedStations.map(station => (
                   <tr key={station.id} className={`hover:bg-slate-50/50 transition-colors ${selectedIds.includes(station.id) ? 'bg-green-50/20' : ''}`}>
                     <td className="p-4">
-                      <div className="flex items-center gap-4">
-                        <input type="checkbox" checked={selectedIds.includes(station.id)} onChange={() => toggleSelect(station.id)} className="rounded text-[#58b347] focus:ring-[#58b347]" />
-                        <button onClick={() => setEditingStation(station)} className="text-slate-400 hover:text-[#58b347] transition-colors" title="Edytuj sprzęt">
-                          <IconEdit />
-                        </button>
-                      </div>
+                      <input type="checkbox" checked={selectedIds.includes(station.id)} onChange={() => toggleSelect(station.id)} className="rounded text-[#58b347] focus:ring-[#58b347]" />
                     </td>
-                    
+                    <td className="p-4 flex gap-2">
+                      <button onClick={() => onFocusStation(station)} className="text-slate-400 hover:text-blue-500 hover:bg-blue-50 p-1.5 rounded transition-colors" title="Zlokalizuj na mapie"><IconMapPin /></button>
+                      <button onClick={() => setEditingStation(station)} className="text-slate-400 hover:text-[#58b347] hover:bg-green-50 p-1.5 rounded transition-colors" title="Edytuj sprzęt"><IconEdit /></button>
+                    </td>
                     <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        <span 
-                          className="font-bold text-slate-800 text-sm cursor-pointer hover:text-[#58b347] transition-colors" 
-                          onClick={() => setAdvancedDetailsStation(station)}
-                          title="Otwórz zaawansowaną analitykę stacji"
-                        >
-                          {station.name}
-                        </span>
-                        <button 
-                          onClick={() => onFocusStation(station)} 
-                          className="text-slate-400 hover:text-[#58b347] hover:bg-green-50 p-1.5 rounded-md transition-colors"
-                          title="Zlokalizuj na mapie"
-                        >
-                          <IconMapPin />
-                        </button>
-                      </div>
+                      <span className="font-bold text-slate-800 text-sm cursor-pointer hover:text-[#58b347] transition-colors" onClick={() => setAdvancedDetailsStation(station)} title="Otwórz zaawansowaną analitykę stacji">
+                        {station.name}
+                      </span>
                     </td>
-
                     <td className="p-4 text-slate-600 text-sm font-medium">{station.client || '-'}</td>
                     <td className="p-4 text-slate-600 text-sm">{station.city ? `${station.city}, ${station.street}` : '-'}</td>
+                    
+                    <td className="p-4">
+                      {station.region ? (
+                        <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded text-xs font-semibold border border-slate-200">{station.region}</span>
+                      ) : <span className="text-[10px] text-slate-400 italic">Brak</span>}
+                    </td>
+
                     <td className="p-4 text-slate-600 text-sm">{station.model || '-'}</td>
                     <td className="p-4 text-slate-600 text-sm">{station.inspection_date || '-'}</td>
                     <td className="p-4 text-slate-600 text-sm font-mono">{getDaysSince(station.last_ticket_date)}</td>
+                    
                     <td className="p-4">
-                      {station.technicians_in_range && station.technicians_in_range !== 'Brak w zasięgu' ? (
-                        <div className="flex flex-wrap gap-1">
-                          {station.technicians_in_range.split(', ').map((tech, idx) => (
-                            <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-700 border border-green-100">
-                              {tech}
-                            </span>
-                          ))}
-                        </div>
+                      {station.technician ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-green-50 text-green-700 border border-green-200">
+                          {station.technician}
+                        </span>
                       ) : <span className="text-[10px] text-slate-400 italic">Brak pokrycia</span>}
                     </td>
+
                     <td className="p-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${getStatusBadge(station.status)}`}>
                         <div className={`w-1.5 h-1.5 rounded-full ${getStatusDot(station.status)}`} />

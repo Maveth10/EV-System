@@ -221,15 +221,24 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
 
     const rows = lines.slice(1);
     
-    // Budowanie payloadów Z POMINIĘCIEM geokodowania (Błyskawiczny import surowych danych)
-    setImportStatus(`Mapowanie ${rows.length} rekordów (bez zapytań o GPS)...`);
+    // Budowanie payloadów Z POMINIĘCIEM geokodowania
+    setImportStatus(`Mapowanie ${rows.length} rekordów...`);
     
     const finalPayloads = [];
+    let emptyIdCount = 0; 
 
     for (let i = 0; i < rows.length; i++) {
       const vals = parseCSVLine(rows[i], delimiter);
       const nameVal = vals[idxName];
-      if (!nameVal) continue;
+      
+      // Jeśli cały wiersz jest po prostu pusty (same przecinki), ignorujemy po cichu
+      if (vals.every(v => v === '')) continue; 
+      
+      // Jeśli wiersz ma jakieś dane, ale brakuje ID - notujemy to!
+      if (!nameVal) {
+        emptyIdCount++;
+        continue;
+      }
 
       let cityVal = idxCity !== -1 ? vals[idxCity] : '';
       let streetVal = idxStreet !== -1 ? vals[idxStreet] : '';
@@ -244,12 +253,12 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
         country: countryVal,
         city: cityVal,
         street: streetVal
-        // lat, lng, location zostają puste (NULL) - zrobimy to później
       });
     }
 
     // Batch Insert do Supabase w paczkach po 100 sztuk
     let successCount = 0;
+    let failedChunks = 0; 
     let lastError = '';
 
     for (let i = 0; i < finalPayloads.length; i += 100) {
@@ -258,18 +267,20 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       
       const { error } = await supabase.from('stations').insert(chunk);
       if (error) {
-        console.error("Błąd zapisu Supabase:", error);
+        console.error("Błąd zapisu Supabase paczki:", error);
         lastError = error.message;
+        failedChunks++;
       } else {
         successCount += chunk.length;
       }
     }
 
-    if (lastError) {
-      alert(`Wystąpił błąd w trakcie zapisu! Zapisano ${successCount} stacji. Błąd bazy: ${lastError}`);
-    } else {
-      alert(`Sukces! Szybki import zakończony. Zaimportowano tekstowo ${successCount} stacji. Brakujące koordynaty możemy zaktualizować w dowolnym momencie.`);
-    }
+    // Raport końcowy
+    let alertMessage = `Gotowe! Zapisano w bazie: ${successCount} stacji.\n`;
+    if (emptyIdCount > 0) alertMessage += `\n⚠️ Pominięto ${emptyIdCount} wierszy, ponieważ miały pustą komórkę "Identyfikator" lub ukryte złamania linii (Alt+Enter).`;
+    if (failedChunks > 0) alertMessage += `\n❌ Baza danych odrzuciła ${failedChunks} paczek danych (prawdopodobnie przez duplikaty ID). Ostatni błąd: ${lastError}`;
+    
+    alert(alertMessage);
 
     setIsImporting(false); setIsImportModalOpen(false); setSheetUrl(''); setImportStatus('');
     fetchStations();

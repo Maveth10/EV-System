@@ -16,7 +16,7 @@ export default function AddStationModal({ isOpen, onClose, initialLatLng, onSucc
   const [client, setClient] = useState('');
   const [model, setModel] = useState('');
   const [inspectionDate, setInspectionDate] = useState('');
-  const [status, setStatus] = useState('Działa');
+  const [status, setStatus] = useState('Brak akcji');
   const [technician, setTechnician] = useState('');
   
   const [country, setCountry] = useState('Polska');
@@ -41,7 +41,7 @@ export default function AddStationModal({ isOpen, onClose, initialLatLng, onSucc
       setClient(editingStation.client || '');
       setModel(editingStation.model || '');
       setInspectionDate(editingStation.inspection_date || '');
-      setStatus(editingStation.status || 'Działa');
+      setStatus(editingStation.status || 'Brak akcji');
       setTechnician(editingStation.technician || '');
       setCountry(editingStation.country || 'Polska');
       setCity(editingStation.city || '');
@@ -58,7 +58,7 @@ export default function AddStationModal({ isOpen, onClose, initialLatLng, onSucc
       fetchTechnician();
     } else if (!isOpen) {
       setName(''); setClient(''); setModel(''); setInspectionDate(''); 
-      setCountry('Polska'); setCity(''); setStreet(''); setAdditionalInfo(''); setTechnician(''); setStatus('Działa');
+      setCountry('Polska'); setCity(''); setStreet(''); setAdditionalInfo(''); setTechnician(''); setStatus('Brak akcji');
     }
   }, [isOpen, initialLatLng, editingStation]);
 
@@ -127,7 +127,7 @@ export default function AddStationModal({ isOpen, onClose, initialLatLng, onSucc
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
         <div className="bg-slate-50 px-5 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
           <h3 className="text-sm font-semibold text-slate-800">
-            {isEditMode ? 'Edycja stacji' : 'Rejestracja nowej stacji'}
+            {isEditMode ? 'Edycja zadania / stacji' : 'Rejestracja nowego punktu'}
           </h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
         </div>
@@ -181,14 +181,18 @@ export default function AddStationModal({ isOpen, onClose, initialLatLng, onSucc
 
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2 sm:col-span-1 relative">
-                <label className="block text-xs font-medium text-slate-600 mb-1">Główny technik</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Opiekun / Technik</label>
                 <input type="text" value={technician} onChange={(e) => setTechnician(e.target.value)} className={`w-full px-3 py-2 border rounded text-sm focus:border-[#58b347] outline-none ${isCheckingZone ? 'bg-slate-100' : 'border-slate-200'}`} />
               </div>
               <div className="col-span-2 sm:col-span-1">
-                <label className="block text-xs font-medium text-slate-600 mb-1">Status techniczny *</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Aktualna akcja / Zadanie *</label>
                 <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:border-[#58b347] outline-none bg-white">
-                  <option value="Działa">Działa</option>
-                  <option value="Awaria">Awaria</option>
+                  <option value="Brak akcji">Brak akcji (Zielony)</option>
+                  <option value="Uruchomienie">Uruchomienie (Fioletowy)</option>
+                  <option value="Przegląd">Przegląd (Niebieski)</option>
+                  <option value="Awaria">Awaria (Czerwony)</option>
+                  <option value="Zlecenie jakościowe">Zlecenie jakościowe (Pomarańczowy)</option>
+                  <option value="Naprawa odpłatna">Naprawa odpłatna (Bursztynowy)</option>
                 </select>
               </div>
             </div>

@@ -7,6 +7,8 @@ type SectorEditorProps = {
   onStartDrawingNew: (techName: string, color: string, mode: 'insert' | 'append' | 'update', sectorId?: string) => void;
   onEditExisting: (sector: Sector) => void; onDeleteSector: (id: string) => void;
   isDrawingActive: boolean; onSaveDrawing: () => Promise<boolean>; onCancelDrawing: () => void;
+  drawMethod: 'manual' | 'click'; onSetDrawMethod: (method: 'manual' | 'click') => void;
+  onSelectAllPoland: () => void;
 };
 
 const IconMap = () => <svg className="w-4 h-4 text-[#58b347]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg>;
@@ -17,7 +19,7 @@ const IconTrash = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="n
 const IconArrowLeft = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
 const IconClose = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
 
-export default function SectorEditor({ isOpen, onClose, sectors, onStartDrawingNew, onEditExisting, onDeleteSector, isDrawingActive, onSaveDrawing, onCancelDrawing }: SectorEditorProps) {
+export default function SectorEditor({ isOpen, onClose, sectors, onStartDrawingNew, onEditExisting, onDeleteSector, isDrawingActive, onSaveDrawing, onCancelDrawing, drawMethod, onSetDrawMethod, onSelectAllPoland }: SectorEditorProps) {
   const [selectedTech, setSelectedTech] = useState<string | null>(null);
   const [isCreatingNewTech, setIsCreatingNewTech] = useState(false);
   const [newTechName, setNewTechName] = useState('');
@@ -27,15 +29,10 @@ export default function SectorEditor({ isOpen, onClose, sectors, onStartDrawingN
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
-        if (isDrawingActive) {
-          onCancelDrawing();
-        } else if (isCreatingNewTech) {
-          setIsCreatingNewTech(false);
-        } else if (selectedTech) {
-          setSelectedTech(null);
-        } else {
-          onClose();
-        }
+        if (isDrawingActive) onCancelDrawing();
+        else if (isCreatingNewTech) setIsCreatingNewTech(false);
+        else if (selectedTech) setSelectedTech(null);
+        else onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -61,7 +58,35 @@ export default function SectorEditor({ isOpen, onClose, sectors, onStartDrawingN
     return (
       <div className="absolute top-20 left-[96px] z-30 bg-white/95 backdrop-blur-md border border-slate-200 p-6 rounded-lg shadow-xl w-[320px]">
         <h3 className="font-semibold text-slate-800 text-sm mb-4 flex items-center gap-2"><IconDraw /> Tryb edycji strefy</h3>
-        <div className="bg-green-50 border border-green-100 p-3 rounded text-xs text-green-800 mb-4">Użyj wskaźnika, aby wyznaczyć obszar. Zakończ podwójnym kliknięciem. ESC anuluje.</div>
+        
+        <div className="flex bg-slate-100 p-1 rounded-lg mb-4">
+          <button 
+            onClick={() => onSetDrawMethod('manual')} 
+            className={`flex-1 text-xs font-semibold py-2 rounded-md transition-all ${drawMethod === 'manual' ? 'bg-white shadow-sm text-[#58b347]' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Rysuj odręcznie
+          </button>
+          <button 
+            onClick={() => onSetDrawMethod('click')} 
+            className={`flex-1 text-xs font-semibold py-2 rounded-md transition-all ${drawMethod === 'click' ? 'bg-white shadow-sm text-[#58b347]' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Wybierz region
+          </button>
+        </div>
+
+        {/* ZMIENIONE INSTRUKCJE O PROWADNICACH */}
+        <div className="bg-green-50 border border-green-100 p-3 rounded text-xs text-green-800 mb-4 leading-relaxed">
+          {drawMethod === 'manual' 
+            ? "Wskazówka: Zaznacz najpierw województwa w trybie 'Wybierz region'. Posłużą one jako niewidzialne, twarde prowadnice – system automatycznie utnie Twój odręczny rysunek na ich granicy!" 
+            : "Zaznacz województwa na mapie. Kliknij 2x w zewnętrzną granicę kraju, aby zaznaczyć całą Polskę."}
+          
+          {drawMethod === 'click' && (
+            <button onClick={onSelectAllPoland} className="w-full mt-3 bg-white border border-green-200 hover:bg-green-100 text-[#58b347] font-bold py-1.5 rounded transition-colors text-center">
+              + Zaznacz całą Polskę
+            </button>
+          )}
+        </div>
+
         <div className="flex gap-2">
           <button onClick={onCancelDrawing} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 rounded text-sm transition-colors border border-slate-200">Anuluj</button>
           <button onClick={handleSave} disabled={isSaving} className="flex-1 flex items-center justify-center gap-2 bg-[#58b347] hover:bg-[#499b3a] text-white font-medium py-2 rounded text-sm transition-colors disabled:bg-slate-400"><IconSave /> {isSaving ? 'Zapis...' : 'Zapisz'}</button>
@@ -78,23 +103,12 @@ export default function SectorEditor({ isOpen, onClose, sectors, onStartDrawingN
           <button onClick={() => setIsCreatingNewTech(false)} className="text-slate-400 hover:text-slate-600"><IconClose /></button>
         </div>
         <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Identyfikator (Imię i nazwisko)</label>
-            <input type="text" autoFocus value={newTechName} onChange={(e) => setNewTechName(e.target.value)} className="w-full px-3 py-2 border rounded text-sm focus:outline-none focus:border-[#58b347]" />
-          </div>
+          <div><label className="block text-xs font-medium text-slate-500 mb-1">Identyfikator (Imię i nazwisko)</label><input type="text" autoFocus value={newTechName} onChange={(e) => setNewTechName(e.target.value)} className="w-full px-3 py-2 border rounded text-sm focus:outline-none focus:border-[#58b347]" /></div>
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1">Kolor strefy na mapie</label>
-            <div className="flex items-center gap-3">
-              <input type="color" value={newTechColor} onChange={(e) => setNewTechColor(e.target.value)} className="w-10 h-10 p-0.5 border border-slate-200 rounded cursor-pointer" />
-              <span className="text-xs text-slate-500 font-mono uppercase">{newTechColor}</span>
-            </div>
+            <div className="flex items-center gap-3"><input type="color" value={newTechColor} onChange={(e) => setNewTechColor(e.target.value)} className="w-10 h-10 p-0.5 border border-slate-200 rounded cursor-pointer" /><span className="text-xs text-slate-500 font-mono uppercase">{newTechColor}</span></div>
           </div>
-          <button onClick={() => {
-            if(!newTechName) return alert('Wprowadź identyfikator.');
-            setSelectedTech(newTechName);
-            setIsCreatingNewTech(false);
-            onStartDrawingNew(newTechName, newTechColor, 'insert');
-          }} className="w-full bg-[#58b347] text-white font-medium py-2.5 rounded text-sm hover:bg-[#499b3a] transition-colors">Utwórz i narysuj strefę</button>
+          <button onClick={() => { if(!newTechName) return alert('Wprowadź identyfikator.'); setSelectedTech(newTechName); setIsCreatingNewTech(false); onStartDrawingNew(newTechName, newTechColor, 'insert'); }} className="w-full bg-[#58b347] text-white font-medium py-2.5 rounded text-sm hover:bg-[#499b3a] transition-colors">Utwórz i narysuj strefę</button>
         </div>
       </div>
     );
@@ -108,18 +122,13 @@ export default function SectorEditor({ isOpen, onClose, sectors, onStartDrawingN
       <div className="absolute top-20 left-[96px] z-30 bg-white/95 backdrop-blur-md border border-slate-200 p-5 rounded-lg shadow-xl w-[340px] max-h-[80vh] flex flex-col">
         <div className="flex items-center gap-3 mb-5 border-b border-slate-100 pb-3">
           <button onClick={() => setSelectedTech(null)} className="text-slate-400 hover:text-slate-600 text-lg"><IconArrowLeft /></button>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: techData.color }} />
-            <h3 className="font-semibold text-slate-800 text-sm">{selectedTech}</h3>
-          </div>
+          <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full" style={{ backgroundColor: techData.color }} /><h3 className="font-semibold text-slate-800 text-sm">{selectedTech}</h3></div>
         </div>
 
         {techData.zones.length === 0 ? (
           <div className="text-center bg-slate-50 border border-slate-200 p-4 rounded-lg mb-4">
             <p className="text-xs text-slate-500 mb-3">Ten technik nie ma jeszcze przypisanego terytorium roboczego.</p>
-            <button onClick={() => onStartDrawingNew(selectedTech, techData.color, 'update', techData.id)} className="w-full bg-[#58b347] text-white hover:bg-[#499b3a] font-medium py-2 rounded text-sm transition-colors flex items-center justify-center gap-2">
-              <IconDraw /> Narysuj pierwszą strefę
-            </button>
+            <button onClick={() => onStartDrawingNew(selectedTech, techData.color, 'update', techData.id)} className="w-full bg-[#58b347] text-white hover:bg-[#499b3a] font-medium py-2 rounded text-sm transition-colors flex items-center justify-center gap-2"><IconDraw /> Narysuj pierwszą strefę</button>
           </div>
         ) : (
           <div className="overflow-y-auto space-y-2 pr-1">
@@ -154,16 +163,7 @@ export default function SectorEditor({ isOpen, onClose, sectors, onStartDrawingN
         <div className="overflow-y-auto space-y-2 pr-1">
           {Object.entries(groupedSectors).map(([name, data]) => (
             <div key={name} onClick={() => setSelectedTech(name)} className="flex justify-between items-center bg-white border border-slate-200 p-2.5 rounded cursor-pointer hover:border-slate-300 transition-colors">
-              <div className="flex items-center gap-2.5">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: data.color }} />
-                <div>
-                  <div className="text-xs font-medium text-slate-700">{name}</div>
-                  <div className={`text-[10px] font-medium ${data.zones.length > 0 ? 'text-[#58b347]' : 'text-slate-400'}`}>
-                    {data.zones.length > 0 ? '✓ Przypisano strefę' : 'Brak przypisanej strefy'}
-                  </div>
-                </div>
-              </div>
-              <svg className="w-4 h-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+              <div className="flex items-center gap-2.5"><div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: data.color }} /><div><div className="text-xs font-medium text-slate-700">{name}</div><div className={`text-[10px] font-medium ${data.zones.length > 0 ? 'text-[#58b347]' : 'text-slate-400'}`}>{data.zones.length > 0 ? '✓ Przypisano strefę' : 'Brak przypisanej strefy'}</div></div></div><svg className="w-4 h-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
             </div>
           ))}
         </div>

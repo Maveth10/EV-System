@@ -36,6 +36,29 @@ const getDaysSince = (dateString: string | null) => {
   return diffDays === 0 ? 'Dzisiaj' : `${diffDays} dni`;
 };
 
+// NOWA LOGIKA STATUSÓW EKOEN TASK-BASED
+const getStatusBadge = (status: string) => {
+  switch (status) {
+    case 'Awaria': return 'bg-red-50 text-red-700 border-red-200';
+    case 'Uruchomienie': return 'bg-purple-50 text-purple-700 border-purple-200';
+    case 'Przegląd': return 'bg-blue-50 text-blue-700 border-blue-200';
+    case 'Zlecenie jakościowe': return 'bg-orange-50 text-orange-700 border-orange-200';
+    case 'Naprawa odpłatna': return 'bg-amber-50 text-amber-700 border-amber-200';
+    case 'Brak akcji': default: return 'bg-green-50 text-[#58b347] border-green-200';
+  }
+};
+
+const getStatusDot = (status: string) => {
+  switch (status) {
+    case 'Awaria': return 'bg-red-500';
+    case 'Uruchomienie': return 'bg-purple-500';
+    case 'Przegląd': return 'bg-blue-500';
+    case 'Zlecenie jakościowe': return 'bg-orange-500';
+    case 'Naprawa odpłatna': return 'bg-amber-500';
+    case 'Brak akcji': default: return 'bg-[#58b347]';
+  }
+};
+
 export default function StationsDatabase({ onFocusStation }: { onFocusStation: (station: Station) => void }) {
   const [stations, setStations] = useState<Station[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -189,7 +212,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
         client: idxClient !== -1 && vals[idxClient] ? vals[idxClient] : null,
         model: idxModel !== -1 && vals[idxModel] ? vals[idxModel] : null,
         inspection_date: idxDate !== -1 && vals[idxDate] ? vals[idxDate] : null,
-        status: 'Działa',
+        status: 'Brak akcji', // Domyślny status po imporcie
         country: 'Polska', city: idxCity !== -1 ? vals[idxCity] : null, street: idxStreet !== -1 ? vals[idxStreet] : null
       };
       if (lat && lng) payload.location = `POINT(${lng} ${lat})`;
@@ -208,7 +231,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       <div className="max-w-[1400px] mx-auto flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Baza stacji</h1>
-          <p className="text-sm text-slate-500 mt-1">Zarządzaj flotą punktów ładowania ({stations.length} stacji)</p>
+          <p className="text-sm text-slate-500 mt-1">Zarządzaj flotą punktów ładowania i ich zadaniami ({stations.length} punktów)</p>
         </div>
         <div className="flex gap-3">
           {selectedIds.length > 0 && (
@@ -219,17 +242,15 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
           <button onClick={() => setIsImportModalOpen(true)} className="bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors">
             <IconImport /> Importuj
           </button>
-          {/* PRZYCISK ZMIENIONY NA ZIELONY EKOEN */}
           <button onClick={() => setIsAddModalOpen(true)} className="bg-[#58b347] text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-[#499b3a] flex items-center gap-2 shadow-sm transition-colors">
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-            Nowa stacja
+            Nowy punkt
           </button>
         </div>
       </div>
 
       <div className="max-w-[1400px] mx-auto bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          {/* ZMIENIONO TŁO ZAZNACZENIA WIERSZA NA ZIELONE (bg-green-50/20) */}
           <table className="w-full text-left border-collapse whitespace-nowrap">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -238,12 +259,12 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
                 </th>
                 <th onClick={() => handleSort('name')} className="p-4 cursor-pointer hover:bg-slate-100">Identyfikator <IconSort /></th>
                 <th onClick={() => handleSort('client')} className="p-4 cursor-pointer hover:bg-slate-100">Klient <IconSort /></th>
-                <th onClick={() => handleSort('city')} className="p-4 cursor-pointer hover:bg-slate-100">Miasto / Ulica <IconSort /></th>
+                <th onClick={() => handleSort('city')} className="p-4 cursor-pointer hover:bg-slate-100">Lokalizacja <IconSort /></th>
                 <th onClick={() => handleSort('model')} className="p-4 cursor-pointer hover:bg-slate-100">Model <IconSort /></th>
                 <th onClick={() => handleSort('inspection_date')} className="p-4 cursor-pointer hover:bg-slate-100">Przegląd <IconSort /></th>
                 <th onClick={() => handleSort('last_ticket_date')} className="p-4 cursor-pointer hover:bg-slate-100">Ost. zgłoszenie <IconSort /></th>
                 <th className="p-4">W zasięgu</th>
-                <th onClick={() => handleSort('status')} className="p-4 cursor-pointer hover:bg-slate-100">Status <IconSort /></th>
+                <th onClick={() => handleSort('status')} className="p-4 cursor-pointer hover:bg-slate-100">Status / Zadanie <IconSort /></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -257,7 +278,6 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
                     <td className="p-4">
                       <div className="flex items-center gap-4">
                         <input type="checkbox" checked={selectedIds.includes(station.id)} onChange={() => toggleSelect(station.id)} className="rounded text-[#58b347] focus:ring-[#58b347]" />
-                        {/* HOVER EDYCJI NA ZIELONO */}
                         <button onClick={() => setEditingStation(station)} className="text-slate-400 hover:text-[#58b347] transition-colors" title="Edytuj sprzęt">
                           <IconEdit />
                         </button>
@@ -266,7 +286,6 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
                     
                     <td className="p-4">
                       <div className="flex items-center gap-2">
-                        {/* ZMIENIONO HOVER IDENTYFIKATORA ORAZ IKONY PINEZKI NA BARWY EKOEN */}
                         <span 
                           className="font-bold text-slate-800 text-sm cursor-pointer hover:text-[#58b347] transition-colors" 
                           onClick={() => setAdvancedDetailsStation(station)}
@@ -301,8 +320,8 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
                       ) : <span className="text-[10px] text-slate-400 italic">Brak pokrycia</span>}
                     </td>
                     <td className="p-4">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${station.status === 'Awaria' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-green-50 text-green-700 border-green-100'}`}>
-                        <div className={`w-1.5 h-1.5 rounded-full ${station.status === 'Awaria' ? 'bg-red-500' : 'bg-[#58b347]'}`} />
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${getStatusBadge(station.status)}`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${getStatusDot(station.status)}`} />
                         {station.status}
                       </span>
                     </td>
@@ -335,13 +354,11 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
               <form onSubmit={handleImportStations} className="space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Link do Arkusza Google</label>
-                  {/* ZMIENIONO FOCUS INPUTU NA ZIELONY */}
                   <input required type="url" disabled={isImporting} value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-[#58b347]" />
                 </div>
                 {importStatus && <p className="text-[11px] text-[#58b347] font-medium bg-green-50 p-2.5 rounded border border-green-100 animate-pulse">{importStatus}</p>}
                 <div className="flex gap-2 pt-2">
                   <button type="button" disabled={isImporting} onClick={() => setIsImportModalOpen(false)} className="flex-1 bg-slate-100 text-slate-700 font-medium py-2.5 rounded text-sm hover:bg-slate-200">Anuluj</button>
-                  {/* ZMIENIONO PRZYCISK URUCHOMIENIA IMPORTU NA ZIELONY */}
                   <button type="submit" disabled={isImporting} className="flex-1 bg-[#58b347] text-white font-medium py-2.5 rounded text-sm hover:bg-[#499b3a] disabled:bg-slate-400">{isImporting ? 'Import...' : 'Uruchom'}</button>
                 </div>
               </form>

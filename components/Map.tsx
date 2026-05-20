@@ -75,9 +75,6 @@ export default function ChargeMap() {
     setDrawMethod(method);
     drawMethodRef.current = method;
     
-    // PRZYWRÓCONA FUNKCJA: Nie czyścimy już wybranych województw przy zmianie trybu!
-    // Dzięki temu użytkownik może zaznaczyć województwa i użyć ich jako granic do rysowania ręcznego.
-
     if (!drawRef.current) return;
     
     if (forceMode) drawRef.current.changeMode(forceMode as any, forceOptions);
@@ -362,15 +359,24 @@ export default function ChargeMap() {
     }
   };
 
+  // NAPRAWIONA FUNKCJA ZAPISU (Łączenie klikniętych województw z kształtami już na mapie)
   const handleSaveDrawing = async (): Promise<boolean> => {
     if (!activeDrawContext) return false;
     let finalGeometry = null;
 
     if (drawMethodRef.current === 'click') {
-      if (selectedRegionIds.current.size === 0) { alert('Nie wybrano żadnego regionu.'); return false; }
-      const featuresToMerge = polandGeoJsonRef.current.features.filter((f: any) => selectedRegionIds.current.has(f.properties.customId));
+      const clickedFeatures = polandGeoJsonRef.current.features.filter((f: any) => selectedRegionIds.current.has(f.properties.customId));
+      const existingFeatures = drawRef.current ? drawRef.current.getAll().features : [];
+
+      if (clickedFeatures.length === 0 && existingFeatures.length === 0) {
+        alert('Nie wybrano żadnego obszaru.'); return false;
+      }
+
+      // Łączymy nowo kliknięte województwa ze starym kształtem z bazy
+      const featuresToMerge = [...clickedFeatures, ...existingFeatures];
       const mergedPolygon = mergeRegions(featuresToMerge);
       finalGeometry = ensureMultiPolygon(mergedPolygon?.geometry);
+
     } else {
       if (!drawRef.current) return false;
       const selectedData = drawRef.current.getAll();

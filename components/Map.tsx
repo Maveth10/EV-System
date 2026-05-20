@@ -39,6 +39,7 @@ export default function ChargeMap() {
   const [editingStationMap, setEditingStationMap] = useState<Station | null>(null);
   
   const [savedSectorsList, setSavedSectorsList] = useState<Sector[]>([]);
+  const [savedRegionsList, setSavedRegionsList] = useState<Sector[]>([]);
   const sectorsListRef = useRef<Sector[]>([]);
 
   const [allStations, setAllStations] = useState<Station[]>([]);
@@ -95,7 +96,7 @@ export default function ChargeMap() {
   }, []);
 
   const [activeDrawContext, setActiveDrawContext] = useState<{
-    mode: 'insert' | 'append' | 'update'; techName: string; color: string; sectorId?: string;
+    mode: 'insert' | 'append' | 'update'; techName: string; color: string; sectorId?: string; targetType: 'technician' | 'region';
   } | null>(null);
 
   const toggleSectorsVisibility = (forceShow?: boolean) => {
@@ -104,8 +105,9 @@ export default function ChargeMap() {
     showSectorsRef.current = newState;
     
     if (map.current) {
-      if (map.current.getLayer('saved-sectors-layer')) map.current.setLayoutProperty('saved-sectors-layer', 'visibility', newState ? 'visible' : 'none');
-      if (map.current.getLayer('saved-sectors-outline')) map.current.setLayoutProperty('saved-sectors-outline', 'visibility', newState ? 'visible' : 'none');
+      ['saved-sectors-layer', 'saved-sectors-outline', 'saved-regions-layer', 'saved-regions-outline'].forEach(layer => {
+        if (map.current!.getLayer(layer)) map.current!.setLayoutProperty(layer, 'visibility', newState ? 'visible' : 'none');
+      });
     }
   };
 
@@ -161,24 +163,30 @@ export default function ChargeMap() {
   }, [allStations, filters]);
 
   const loadSavedSectors = useCallback(async () => {
-    const { data, error } = await supabase.from('technicians').select('id, name, color, zone_geometry');
-    if (error || !data || !map.current) return;
-    
-    const mappedSectors = data.map(d => ({ id: d.id, name: d.name, color: d.color, geometry: d.zone_geometry }));
-    setSavedSectorsList(mappedSectors);
-    sectorsListRef.current = mappedSectors;
+    const [techs, regs] = await Promise.all([
+      supabase.from('technicians').select('id, name, color, zone_geometry'),
+      supabase.from('regions').select('id, name, color, zone_geometry')
+    ]);
 
-    if (map.current.getLayer('saved-sectors-layer')) map.current.removeLayer('saved-sectors-layer');
-    if (map.current.getLayer('saved-sectors-outline')) map.current.removeLayer('saved-sectors-outline');
-    if (map.current.getSource('saved-sectors')) map.current.removeSource('saved-sectors');
+    if (techs.data) {
+      const mappedTechs = techs.data.map(d => ({ id: d.id, name: d.name, color: d.color, geometry: d.zone_geometry }));
+      setSavedSectorsList(mappedTechs);
+      
+      if (map.current?.getSource('saved-sectors')) {
+        const features = mappedTechs.filter(t => t.geometry).map(t => ({ type: 'Feature', geometry: t.geometry, properties: { id: t.id, name: t.name, color: t.color }}));
+        (map.current.getSource('saved-sectors') as maplibregl.GeoJSONSource).setData({ type: 'FeatureCollection', features } as any);
+      }
+    }
 
-    const features = data.filter(tech => tech.zone_geometry).map(tech => ({
-      type: 'Feature', geometry: tech.zone_geometry, properties: { id: tech.id, name: tech.name, color: tech.color }
-    }));
-
-    map.current.addSource('saved-sectors', { type: 'geojson', data: { type: 'FeatureCollection', features } as any });
-    map.current.addLayer({ id: 'saved-sectors-layer', type: 'fill', source: 'saved-sectors', layout: { visibility: showSectorsRef.current ? 'visible' : 'none' }, paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.15 } });
-    map.current.addLayer({ id: 'saved-sectors-outline', type: 'line', source: 'saved-sectors', layout: { visibility: showSectorsRef.current ? 'visible' : 'none' }, paint: { 'line-color': ['get', 'color'], 'line-width': 2 } });
+    if (regs.data) {
+      const mappedRegs = regs.data.map(d => ({ id: d.id, name: d.name, color: d.color, geometry: d.zone_geometry }));
+      setSavedRegionsList(mappedRegs);
+      
+      if (map.current?.getSource('saved-regions')) {
+        const features = mappedRegs.filter(r => r.geometry).map(r => ({ type: 'Feature', geometry: r.geometry, properties: { id: r.id, name: r.name, color: r.color }}));
+        (map.current.getSource('saved-regions') as maplibregl.GeoJSONSource).setData({ type: 'FeatureCollection', features } as any);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -210,6 +218,15 @@ export default function ChargeMap() {
       map.current.on('click', () => setContextMenu(null));
 
       loadStations();
+
+      map.current.addSource('saved-regions', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.current.addLayer({ id: 'saved-regions-layer', type: 'fill', source: 'saved-regions', layout: { visibility: 'none' }, paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.1 } });
+      map.current.addLayer({ id: 'saved-regions-outline', type: 'line', source: 'saved-regions', layout: { visibility: 'none' }, paint: { 'line-color': ['get', 'color'], 'line-width': 3, 'line-dasharray': [2, 2] } });
+
+      map.current.addSource('saved-sectors', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.current.addLayer({ id: 'saved-sectors-layer', type: 'fill', source: 'saved-sectors', layout: { visibility: 'none' }, paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.2 } });
+      map.current.addLayer({ id: 'saved-sectors-outline', type: 'line', source: 'saved-sectors', layout: { visibility: 'none' }, paint: { 'line-color': ['get', 'color'], 'line-width': 2 } });
+
       loadSavedSectors();
 
       try {
@@ -297,24 +314,34 @@ export default function ChargeMap() {
     });
   }, [loadStations, loadSavedSectors, selectAllPoland]); 
 
-  const handleStartDrawingNew = (techName: string, color: string, mode: 'insert' | 'append' | 'update', sectorId?: string) => {
+  const handleStartDrawingNew = (techName: string, color: string, mode: 'insert' | 'append' | 'update', targetType: 'technician' | 'region', sectorId?: string) => {
     if (!drawRef.current) return;
     drawRef.current.deleteAll(); 
     handleSetDrawMethod('manual');
     setDrawingState(true);
-    setActiveDrawContext({ mode, techName, color, sectorId });
+    setActiveDrawContext({ mode, techName, color, sectorId, targetType });
   };
 
-  const handleEditExisting = useCallback((sector: Sector) => {
+  const handleEditExisting = useCallback((sector: Sector, targetType: 'technician' | 'region', appendMode = false) => {
     if (!drawRef.current || !sector.geometry) return;
     drawRef.current.deleteAll(); 
+    
     const featureIds = drawRef.current.add({ type: 'Feature', geometry: sector.geometry, properties: {} });
-    handleSetDrawMethod('manual', 'direct_select', { featureId: featureIds[0] });
+    
+    if (appendMode) {
+      handleSetDrawMethod('manual');
+    } else {
+      handleSetDrawMethod('manual', 'direct_select', { featureId: featureIds[0] });
+    }
+    
     setDrawingState(true);
-    setActiveDrawContext({ mode: 'update', techName: sector.name, color: sector.color, sectorId: sector.id });
-    if(map.current?.getLayer('saved-sectors-layer')) {
-      map.current.setFilter('saved-sectors-layer', ['!=', ['get', 'id'], sector.id]);
-      map.current.setFilter('saved-sectors-outline', ['!=', ['get', 'id'], sector.id]);
+    setActiveDrawContext({ mode: 'update', techName: sector.name, color: sector.color, sectorId: sector.id, targetType });
+    
+    const targetLayer = targetType === 'technician' ? 'saved-sectors-layer' : 'saved-regions-layer';
+    const outlineLayer = targetType === 'technician' ? 'saved-sectors-outline' : 'saved-regions-outline';
+    if(map.current?.getLayer(targetLayer)) {
+      map.current.setFilter(targetLayer, ['!=', ['get', 'id'], sector.id]);
+      map.current.setFilter(outlineLayer, ['!=', ['get', 'id'], sector.id]);
     }
   }, []);
 
@@ -330,50 +357,52 @@ export default function ChargeMap() {
     if(map.current?.getLayer('saved-sectors-layer')) {
       map.current.setFilter('saved-sectors-layer', null);
       map.current.setFilter('saved-sectors-outline', null);
+      map.current.setFilter('saved-regions-layer', null);
+      map.current.setFilter('saved-regions-outline', null);
     }
   };
 
   const handleSaveDrawing = async (): Promise<boolean> => {
     if (!activeDrawContext) return false;
-    let geometryToSave = null;
+    let finalGeometry = null;
 
     if (drawMethodRef.current === 'click') {
       if (selectedRegionIds.current.size === 0) { alert('Nie wybrano żadnego regionu.'); return false; }
       const featuresToMerge = polandGeoJsonRef.current.features.filter((f: any) => selectedRegionIds.current.has(f.properties.customId));
       const mergedPolygon = mergeRegions(featuresToMerge);
-      geometryToSave = ensureMultiPolygon(mergedPolygon?.geometry);
-
+      finalGeometry = ensureMultiPolygon(mergedPolygon?.geometry);
     } else {
       if (!drawRef.current) return false;
       const selectedData = drawRef.current.getAll();
       if (selectedData.features.length === 0) { alert('Kształt jest pusty.'); return false; }
       
-      let featureToSave = selectedData.features[0];
+      const mergedDrawings = mergeRegions(selectedData.features);
+      if (!mergedDrawings) return false;
 
-      // PRZYWRÓCONA LOGIKA KLIPOWANIA DO ZAZNACZONYCH WOJEWÓDZTW
-      let clippingBoundary = polandOuterRef.current; // Domyślnie obcinamy do granic Polski
+      let clippingBoundary = polandOuterRef.current; 
       
       if (selectedRegionIds.current.size > 0) {
-        // Jeśli zaznaczono jakieś województwa, to obcinamy rysunek dokładnie do nich!
         const featuresToMerge = polandGeoJsonRef.current.features.filter((f: any) => selectedRegionIds.current.has(f.properties.customId));
         const mergedSelected = mergeRegions(featuresToMerge);
         if (mergedSelected) clippingBoundary = mergedSelected;
       }
 
       if (clippingBoundary) {
-        const clippedFeature = clipToBoundary(featureToSave, clippingBoundary);
+        const clippedFeature = clipToBoundary(mergedDrawings, clippingBoundary);
         if (!clippedFeature) return false; 
-        geometryToSave = ensureMultiPolygon(clippedFeature.geometry);
+        finalGeometry = ensureMultiPolygon(clippedFeature.geometry);
       } else {
-        geometryToSave = ensureMultiPolygon(featureToSave.geometry);
+        finalGeometry = ensureMultiPolygon(mergedDrawings.geometry);
       }
     }
 
+    const tableName = activeDrawContext.targetType === 'technician' ? 'technicians' : 'regions';
+
     if (activeDrawContext.mode === 'update' && activeDrawContext.sectorId) {
-      const { error } = await supabase.from('technicians').update({ zone_geometry: geometryToSave }).eq('id', activeDrawContext.sectorId);
+      const { error } = await supabase.from(tableName).update({ zone_geometry: finalGeometry }).eq('id', activeDrawContext.sectorId);
       if (error) { alert(`Błąd aktualizacji: ${error.message}`); return false; }
     } else {
-      const { error } = await supabase.rpc('add_snapped_sector', { p_tech_name: activeDrawContext.techName, p_tech_color: activeDrawContext.color, p_new_geom: geometryToSave });
+      const { error } = await supabase.from(tableName).insert([{ name: activeDrawContext.techName, color: activeDrawContext.color, zone_geometry: finalGeometry }]);
       if (error) { alert(`Błąd zapisu: ${error.message}`); return false; }
     }
 
@@ -382,9 +411,10 @@ export default function ChargeMap() {
     return true;
   };
 
-  const deleteSector = async (id: string) => {
-    if(!confirm('Na pewno wyczyścić cały obszar roboczy z mapy dla tego technika? (Jego dane pozostaną w bazie)')) return;
-    const { error } = await supabase.from('technicians').update({ zone_geometry: null }).eq('id', id);
+  const deleteSector = async (id: string, targetType: 'technician' | 'region') => {
+    if(!confirm('Na pewno wyczyścić cały obszar roboczy z mapy dla tego obiektu? (Dane pozostaną w bazie)')) return;
+    const tableName = targetType === 'technician' ? 'technicians' : 'regions';
+    const { error } = await supabase.from(tableName).update({ zone_geometry: null }).eq('id', id);
     if(error) alert('Błąd usuwania strefy z bazy');
     else loadSavedSectors();
   };
@@ -409,6 +439,7 @@ export default function ChargeMap() {
       {activeView === 'map' && (
         <>
           <ContextMenu menu={contextMenu} onClose={() => setContextMenu(null)} onAddStation={(lat, lng) => { setModalLatLng({ lat, lng }); setIsAddModalOpen(true); }} onEditSector={() => { setIsSectorEditorOpen(true); if (!showSectorsRef.current) toggleSectorsVisibility(true); }} />
+          
           <StationPanel 
             station={selectedStation} 
             onClose={() => setSelectedStation(null)} 
@@ -417,6 +448,7 @@ export default function ChargeMap() {
               setIsAddModalOpen(true);
             }}
           />
+          
           <AddStationModal 
             isOpen={isAddModalOpen || !!editingStationMap} 
             onClose={() => { 
@@ -427,12 +459,13 @@ export default function ChargeMap() {
             initialLatLng={modalLatLng} 
             onSuccess={() => {
               loadStations();
-              setSelectedStation(null); // Zamyka panel po zapisaniu żeby wymusić odświeżenie
+              setSelectedStation(null);
             }} 
             editingStation={editingStationMap}
           />
+
           <SectorEditor 
-            isOpen={isSectorEditorOpen} onClose={() => { setIsSectorEditorOpen(false); cancelDrawing(); }} sectors={savedSectorsList} isDrawingActive={isDrawingActive}
+            isOpen={isSectorEditorOpen} onClose={() => { setIsSectorEditorOpen(false); cancelDrawing(); }} sectors={savedSectorsList} regions={savedRegionsList} isDrawingActive={isDrawingActive}
             onStartDrawingNew={handleStartDrawingNew} onEditExisting={handleEditExisting} onSaveDrawing={handleSaveDrawing} onCancelDrawing={cancelDrawing} onDeleteSector={deleteSector} drawMethod={drawMethod} onSetDrawMethod={handleSetDrawMethod} onSelectAllPoland={selectAllPoland}
           />
 

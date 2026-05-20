@@ -25,7 +25,7 @@ type SortConfig = { key: keyof Station; direction: 'asc' | 'desc' } | null;
 
 const IconSort = () => <svg className="w-3 h-3 inline-block ml-1 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>;
 const IconTrash = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
-const IconEdit = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
+const IconEdit = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
 const IconImport = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
 const IconMapPin = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>;
 
@@ -90,7 +90,6 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
 
   useEffect(() => { fetchStations(); }, []);
 
-  // FIX: Poprawiona nazwa zmiennej w tablicy zależności (linia 100)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isImportModalOpen && !isImporting) setIsImportModalOpen(false);
@@ -254,82 +253,85 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
   };
 
   return (
-    <div className="absolute inset-0 left-[72px] bg-slate-50 z-40 p-8 overflow-y-auto">
-      <div className="max-w-[1500px] mx-auto flex justify-between items-center mb-8">
+    <div className="absolute inset-0 left-[72px] bg-slate-50 z-40 p-6 overflow-y-auto">
+      <div className="max-w-[1600px] mx-auto flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Baza stacji i regionów</h1>
-          <p className="text-sm text-slate-500 mt-1">Zarządzaj flotą punktów ładowania i ich zadaniami ({stations.length} punktów)</p>
+          <h1 className="text-xl font-bold text-slate-800">Baza stacji i regionów</h1>
+          <p className="text-xs text-slate-500 mt-0.5">Pełna lista infrastruktury Ekoen ({stations.length} punktów)</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           {selectedIds.length > 0 && (
-            <button onClick={deleteSelected} className="bg-white border border-red-200 text-red-600 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-red-50 flex items-center gap-2 shadow-sm transition-colors">
-              <IconTrash /> Usuń wybrane ({selectedIds.length})
+            <button onClick={deleteSelected} className="bg-white border border-red-200 text-red-600 px-3 py-2 rounded-lg text-xs font-medium hover:bg-red-50 flex items-center gap-2 shadow-sm transition-colors">
+              <IconTrash /> Usuń ({selectedIds.length})
             </button>
           )}
-          <button onClick={() => setIsImportModalOpen(true)} className="bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors">
+          <button onClick={() => setIsImportModalOpen(true)} className="bg-white border border-slate-200 text-slate-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors">
             <IconImport /> Importuj
           </button>
-          <button onClick={() => setIsAddModalOpen(true)} className="bg-[#58b347] text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-[#499b3a] flex items-center gap-2 shadow-sm transition-colors">
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          <button onClick={() => setIsAddModalOpen(true)} className="bg-[#58b347] text-white px-4 py-2 rounded-lg text-xs font-medium hover:bg-[#499b3a] flex items-center gap-2 shadow-sm transition-colors">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
             Nowy punkt
           </button>
         </div>
       </div>
 
-      <div className="max-w-[1500px] mx-auto bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse whitespace-nowrap">
+      {/* MODYFIKACJA KONTENERA: Dodane zaawansowane przewijanie boczne i sztywne limity szerokości */}
+      <div className="max-w-[1600px] mx-auto bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-200">
+          <table className="w-full text-left border-collapse table-auto">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                <th className="p-4 w-12 text-left">
-                  <input type="checkbox" checked={selectedIds.length === stations.length && stations.length > 0} onChange={toggleSelectAll} className="rounded text-[#58b347] focus:ring-[#58b347]" />
+              <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                <th className="py-3 px-4 w-10 text-left">
+                  <input type="checkbox" checked={selectedIds.length === stations.length && stations.length > 0} onChange={toggleSelectAll} className="rounded text-[#58b347] focus:ring-[#58b347] w-3.5 h-3.5" />
                 </th>
-                <th className="p-4 w-16"></th>
-                <th onClick={() => handleSort('name')} className="p-4 cursor-pointer hover:bg-slate-100">Identyfikator <IconSort /></th>
-                <th onClick={() => handleSort('client')} className="p-4 cursor-pointer hover:bg-slate-100">Klient <IconSort /></th>
-                <th onClick={() => handleSort('city')} className="p-4 cursor-pointer hover:bg-slate-100">Lokalizacja <IconSort /></th>
-                <th onClick={() => handleSort('region')} className="p-4 cursor-pointer hover:bg-slate-100">Region <IconSort /></th>
-                <th onClick={() => handleSort('model')} className="p-4 cursor-pointer hover:bg-slate-100">Model <IconSort /></th>
-                <th onClick={() => handleSort('inspection_date')} className="p-4 cursor-pointer hover:bg-slate-100">Przegląd <IconSort /></th>
-                <th onClick={() => handleSort('last_ticket_date')} className="p-4 cursor-pointer hover:bg-slate-100">Ost. zgłoszenie <IconSort /></th>
-                <th onClick={() => handleSort('technician')} className="p-4 cursor-pointer hover:bg-slate-100">Opiekun <IconSort /></th>
-                <th onClick={() => handleSort('status')} className="p-4 cursor-pointer hover:bg-slate-100">Status / Zadanie <IconSort /></th>
+                <th className="py-3 px-2 w-20 text-center text-slate-400">Akcje</th>
+                <th onClick={() => handleSort('name')} className="py-3 px-3 cursor-pointer hover:bg-slate-100 min-w-[120px]">Identyfikator <IconSort /></th>
+                <th onClick={() => handleSort('client')} className="py-3 px-3 cursor-pointer hover:bg-slate-100 min-w-[150px]">Klient <IconSort /></th>
+                <th onClick={() => handleSort('city')} className="py-3 px-3 cursor-pointer hover:bg-slate-100 min-w-[220px]">Lokalizacja <IconSort /></th>
+                <th onClick={() => handleSort('region')} className="py-3 px-3 cursor-pointer hover:bg-slate-100 min-w-[110px]">Region <IconSort /></th>
+                <th onClick={() => handleSort('model')} className="py-3 px-3 cursor-pointer hover:bg-slate-100 min-w-[120px]">Model <IconSort /></th>
+                <th onClick={() => handleSort('inspection_date')} className="py-3 px-3 cursor-pointer hover:bg-slate-100 min-w-[100px]">Przegląd <IconSort /></th>
+                <th onClick={() => handleSort('last_ticket_date')} className="py-3 px-3 cursor-pointer hover:bg-slate-100 min-w-[110px]">Zgłoszenie <IconSort /></th>
+                <th onClick={() => handleSort('technician')} className="py-3 px-3 cursor-pointer hover:bg-slate-100 min-w-[120px]">Opiekun <IconSort /></th>
+                <th onClick={() => handleSort('status')} className="py-3 px-3 cursor-pointer hover:bg-slate-100 min-w-[120px]">Status / Zadanie <IconSort /></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 text-xs">
               {isLoading ? (
-                <tr><td colSpan={11} className="p-8 text-center text-slate-400 text-sm">Ładowanie danych...</td></tr>
-              ) : sortedStations.length === 0 ? (
-                <tr><td colSpan={11} className="p-8 text-center text-slate-400 text-sm">Brak stacji w bazie danych.</td></tr>
+                <tr><td colSpan={11} className="p-8 text-center text-slate-400">Ładowanie bazy stacji...</td></tr>
+              ) : stations.length === 0 ? (
+                <tr><td colSpan={11} className="p-8 text-center text-slate-400">Brak stacji w bazie danych.</td></tr>
               ) : (
                 sortedStations.map(station => (
-                  <tr key={station.id} className={`hover:bg-slate-50/50 transition-colors ${selectedIds.includes(station.id) ? 'bg-green-50/20' : ''}`}>
-                    <td className="p-4">
-                      <input type="checkbox" checked={selectedIds.includes(station.id)} onChange={() => toggleSelect(station.id)} className="rounded text-[#58b347] focus:ring-[#58b347]" />
+                  <tr key={station.id} className={`hover:bg-slate-50/40 transition-colors ${selectedIds.includes(station.id) ? 'bg-green-50/10' : ''}`}>
+                    <td className="py-2.5 px-4">
+                      <input type="checkbox" checked={selectedIds.includes(station.id)} onChange={() => toggleSelect(station.id)} className="rounded text-[#58b347] focus:ring-[#58b347] w-3.5 h-3.5" />
                     </td>
-                    <td className="p-4 flex gap-2">
-                      <button onClick={() => onFocusStation(station)} className="text-slate-400 hover:text-blue-500 hover:bg-blue-50 p-1.5 rounded transition-colors" title="Zlokalizuj na mapie"><IconMapPin /></button>
-                      <button onClick={() => setEditingStation(station)} className="text-slate-400 hover:text-[#58b347] hover:bg-green-50 p-1.5 rounded transition-colors" title="Edytuj sprzęt"><IconEdit /></button>
+                    <td className="py-2.5 px-2 text-center">
+                      <div className="flex justify-center gap-1">
+                        <button onClick={() => onFocusStation(station)} className="text-slate-400 hover:text-blue-500 hover:bg-blue-50 p-1 rounded transition-colors" title="Zlokalizuj na mapie"><IconMapPin /></button>
+                        <button onClick={() => setEditingStation(station)} className="text-slate-400 hover:text-[#58b347] hover:bg-green-50 p-1 rounded transition-colors" title="Edytuj sprzęt"><IconEdit /></button>
+                      </div>
                     </td>
-                    <td className="p-4">
-                      <span className="font-bold text-slate-800 text-sm cursor-pointer hover:text-[#58b347] transition-colors" onClick={() => setAdvancedDetailsStation(station)} title="Otwórz zaawansowaną analitykę stacji">
+                    <td className="py-2.5 px-3 font-bold text-slate-800">
+                      <span className="cursor-pointer hover:text-[#58b347] transition-colors" onClick={() => setAdvancedDetailsStation(station)} title="Analityka stacji">
                         {station.name}
                       </span>
                     </td>
-                    <td className="p-4 text-slate-600 text-sm font-medium">{station.client || '-'}</td>
-                    <td className="p-4 text-slate-600 text-sm">{station.city ? `${station.city}, ${station.street}` : '-'}</td>
+                    <td className="py-2.5 px-3 text-slate-600 font-medium truncate max-w-[200px]">{station.client || '-'}</td>
+                    <td className="py-2.5 px-3 text-slate-600 truncate max-w-[280px]">{station.city ? `${station.city}, ${station.street}` : '-'}</td>
                     
-                    <td className="p-4">
+                    <td className="py-2.5 px-3">
                       {station.region ? (
-                        <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded text-xs font-semibold border border-slate-200">{station.region}</span>
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold border border-slate-200">{station.region}</span>
                       ) : <span className="text-[10px] text-slate-400 italic">Brak</span>}
                     </td>
 
-                    <td className="p-4 text-slate-600 text-sm">{station.model || '-'}</td>
-                    <td className="p-4 text-slate-600 text-sm">{station.inspection_date || '-'}</td>
-                    <td className="p-4 text-slate-600 text-sm font-mono">{getDaysSince(station.last_ticket_date)}</td>
+                    <td className="py-2.5 px-3 text-slate-600">{station.model || '-'}</td>
+                    <td className="py-2.5 px-3 text-slate-600 font-medium">{station.inspection_date || '-'}</td>
+                    <td className="py-2.5 px-3 text-slate-500 font-mono text-[11px]">{getDaysSince(station.last_ticket_date)}</td>
                     
-                    <td className="p-4">
+                    <td className="py-2.5 px-3">
                       {station.technician ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-green-50 text-green-700 border border-green-200">
                           {station.technician}
@@ -337,8 +339,8 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
                       ) : <span className="text-[10px] text-slate-400 italic">Brak pokrycia</span>}
                     </td>
 
-                    <td className="p-4">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${getStatusBadge(station.status)}`}>
+                    <td className="py-2.5 px-3">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${getStatusBadge(station.status)}`}>
                         <div className={`w-1.5 h-1.5 rounded-full ${getStatusDot(station.status)}`} />
                         {station.status}
                       </span>

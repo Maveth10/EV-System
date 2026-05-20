@@ -65,25 +65,6 @@ const IconArrowUp = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill=
 const IconArrowDown = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>;
 const IconRadar = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h.01"/><path d="M2.29 9.62A10 10 0 1 0 21.31 8.35"/><path d="M16.24 7.76A6 6 0 1 0 8.23 16.67"/><path d="M12 18h.01"/><path d="M17.99 11.66A6 6 0 0 1 15.77 16.67"/><circle cx="12" cy="12" r="2"/><path d="m13.41 10.59 5.66-5.66"/></svg>;
 
-const parseCSVLine = (line: string, delimiter: string): string[] => {
-  const result: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"' || char === "'") {
-      inQuotes = !inQuotes;
-    } else if (char === delimiter && !inQuotes) {
-      result.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  result.push(current.trim());
-  return result.map(v => v.replace(/^["']|["']$/g, '').trim());
-};
-
 const parseCSV = (text: string, delimiter: string): string[][] => {
   const rows: string[][] = [];
   let currentRow: string[] = [];
@@ -171,7 +152,6 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
   const [importStatus, setImportStatus] = useState('');
   const [isImporting, setIsImporting] = useState(false);
 
-  // Nowe stany dla Geokodowania w tle
   const [isGeocodeModalOpen, setIsGeocodeModalOpen] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [geocodeStatus, setGeocodeStatus] = useState('');
@@ -281,7 +261,6 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
 
     setIsGeocoding(true);
     
-    // Grupowanie stacji po adresie (Oszczędność API)
     const addressGroups = new Map<string, typeof missing>();
     missing.forEach(s => {
       const c = s.city || '';
@@ -296,8 +275,9 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     const totalGroups = addressGroups.size;
     let successUpdates = 0;
     let failedUpdates = 0;
+    let lastDbError = '';
 
-    const nominateHeaders = { 'User-Agent': 'EkoenFSMDispatchSystem/5.0 (dispatch@ekoen.pl)' };
+    const nominateHeaders = { 'User-Agent': 'EkoenFSMDispatchSystem/6.0 (dispatch@ekoen.pl)' };
 
     for (const [key, stList] of addressGroups.entries()) {
       processed++;
@@ -312,7 +292,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
 
       if (sClean || cClean) {
         try {
-          await new Promise(r => setTimeout(r, 1200)); // Rate limit map
+          await new Promise(r => setTimeout(r, 1200)); 
           let url = '';
           if (sClean && cClean) {
             url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${sClean}, ${cClean}, ${country}`)}`;
@@ -338,20 +318,33 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       if (lat && lng) {
         setGeocodeStatus(`Zapisywanie współrzędnych do bazy danych...`);
         for (const s of stList) {
-          // Mikro-offset żeby stacje w tej samej lokalizacji (MOP) nie zlały się w jeden piksel
           const offsetLat = lat + (Math.random() - 0.5) * 0.0001;
           const offsetLng = lng + (Math.random() - 0.5) * 0.0001;
-          const locationVal = `POINT(${offsetLng} ${offsetLat})`;
           
-          await supabase.from('stations').update({ lat: offsetLat, lng: offsetLng, location: locationVal }).eq('id', s.id);
+          // UWAGA: Nie wysyłamy już ręcznie kolumny "location: 'POINT(...)'".
+          // Wysyłamy TYLKO liczby, a baza danych automatycznie zadba o geometrie (Dzięki triggerowi z kroku 1).
+          const { error } = await supabase.from('stations')
+            .update({ lat: offsetLat, lng: offsetLng })
+            .eq('id', s.id);
+
+          if (error) {
+            console.error("Błąd zapisu bazy:", error);
+            lastDbError = error.message;
+            failedUpdates++;
+          } else {
+            successUpdates++;
+          }
         }
-        successUpdates += stList.length;
       } else {
         failedUpdates += stList.length;
       }
     }
 
-    setGeocodeStatus(`Zakończono! Odnaleziono i przypisano: ${successUpdates}. Brakujące: ${failedUpdates} (Wymagają poprawy ręcznej).`);
+    setGeocodeStatus(`Zakończono! Zaktualizowano pomyślnie: ${successUpdates}. Brakujące adresy: ${failedUpdates}.`);
+    if (lastDbError) {
+      alert(`Wystąpił błąd Supabase podczas aktualizacji niektórych stacji: ${lastDbError}`);
+    }
+    
     setIsGeocoding(false);
     fetchStations();
   };
@@ -404,7 +397,6 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     }
   };
 
-  // Import pomijający GPS (Surowy)
   const handleImportStations = async (e: React.FormEvent) => {
     e.preventDefault();
     const matches = sheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
@@ -654,7 +646,6 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
         <StationAnalytics station={advancedDetailsStation} onClose={() => setAdvancedDetailsStation(null)} />
       )}
 
-      {/* Modal Geokodowania */}
       {isGeocodeModalOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" onClick={() => !isGeocoding && setIsGeocodeModalOpen(false)}>
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden border border-slate-200" onClick={(e) => e.stopPropagation()}>
@@ -665,7 +656,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
             <div className="p-5 space-y-4">
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 text-xs text-slate-600 space-y-2">
                 <p>System spróbuje automatycznie odnaleźć koordynaty GPS dla <strong>{missingGpsCount} stacji</strong>.</p>
-                <p className="text-slate-500 mt-1">Dzięki grupowaniu po adresach proces ten będzie znacznie szybszy i bezpieczniejszy dla darmowych serwerów map.</p>
+                <p className="text-slate-500 mt-1">Dzięki grupowaniu po adresach proces ten będzie znacznie szybszy i bezpieczniejszy dla serwerów map.</p>
               </div>
               
               {isGeocoding || geocodeStatus ? (
@@ -686,12 +677,11 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
         </div>
       )}
 
-      {/* Modal Szybkiego Importu */}
       {isImportModalOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" onClick={() => !isImporting && setIsImportModalOpen(false)}>
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden border border-slate-200" onClick={(e) => e.stopPropagation()}>
             <div className="bg-slate-50 px-5 py-4 border-b border-slate-200 flex justify-between items-center">
-              <h3 className="text-sm font-semibold text-slate-800">Szybki Import Danych</h3>
+              <h3 className="text-sm font-semibold text-slate-800">Szybki Import Danych (Bez GPS)</h3>
               <button onClick={() => !isImporting && setIsImportModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
             <div className="p-5 space-y-4">

@@ -30,23 +30,44 @@ const IconImport = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none
 const IconMapPin = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>;
 const IconNoLocation = () => <svg className="w-3.5 h-3.5 text-red-400 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m2 2 20 20"/><path d="M8.36 8.36a6 6 0 0 1 8.28 8.28"/><path d="M19.38 19.38A11.9 11.9 0 0 0 20 10c0-6-8-12-8-12s-3.72 2.79-5.83 6.64"/></svg>;
 
-const parseCSVLine = (line: string, delimiter: string): string[] => {
-  const result: string[] = [];
-  let current = '';
+// ZAAWANSOWANY PARSER CSV: Ignoruje "Entery" ukryte w komórkach arkusza
+const parseCSV = (text: string, delimiter: string): string[][] => {
+  const rows: string[][] = [];
+  let currentRow: string[] = [];
+  let currentCell = '';
   let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"' || char === "'") {
-      inQuotes = !inQuotes;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        currentCell += '"'; // Zachowaj cudzysłów w środku tekstu
+        i++; 
+      } else {
+        inQuotes = !inQuotes; // Wejdź lub wyjdź z cytatu
+      }
     } else if (char === delimiter && !inQuotes) {
-      result.push(current.trim());
-      current = '';
+      currentRow.push(currentCell.trim());
+      currentCell = '';
+    } else if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && nextChar === '\n') i++; // Pomiń podwójne złamanie w Windowsie
+      currentRow.push(currentCell.trim());
+      if (currentRow.some(cell => cell !== '')) rows.push(currentRow);
+      currentRow = [];
+      currentCell = '';
     } else {
-      current += char;
+      currentCell += char;
     }
   }
-  result.push(current.trim());
-  return result.map(v => v.replace(/^["']|["']$/g, '').trim());
+  
+  if (currentCell || currentRow.length > 0) {
+    currentRow.push(currentCell.trim());
+    if (currentRow.some(cell => cell !== '')) rows.push(currentRow);
+  }
+  
+  return rows.map(row => row.map(cell => cell.replace(/^["']|["']$/g, '').trim()));
 };
 
 const getDaysSince = (dateString: string | null) => {
@@ -148,7 +169,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
   const deleteSelected = async () => {
     if (!confirm(`Na pewno usunąć wybrane stacje (${selectedIds.length})?`)) return;
     const { error } = await supabase.from('stations').delete().in('id', selectedIds);
-    if (error) alert('Błąd usuwania: ' + error.message);
+    if (error) alert('Błąd usuwania. Możliwe, że lista stacji jest zbyt duża. Użyj SQL Editora (TRUNCATE TABLE stations;) by usunąć wszystkie naraz.');
     else { setSelectedIds([]); fetchStations(); }
   };
 
@@ -198,11 +219,13 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       setIsImporting(false); setImportStatus(''); return;
     }
 
-    const lines = csvText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    if (lines.length < 2) { alert('Arkusz nie zawiera wierszy z danymi.'); setIsImporting(false); return; }
+    const delimiter = csvText.split('\n')[0].includes(';') ? ';' : ',';
+    
+    // Użycie nowego, potężnego parsera CSV zamiast prostego split('\n')
+    const parsedData = parseCSV(csvText, delimiter);
+    if (parsedData.length < 2) { alert('Arkusz nie zawiera wierszy z danymi.'); setIsImporting(false); return; }
 
-    const delimiter = lines[0].includes(';') ? ';' : ',';
-    const headers = parseCSVLine(lines[0], delimiter).map(h => h.toLowerCase());
+    const headers = parsedData[0].map(h => h.toLowerCase());
 
     const getColIndex = (names: string[]) => headers.findIndex(h => names.some(n => h === n || h.includes(n)));
     
@@ -219,22 +242,17 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       setIsImporting(false); return;
     }
 
-    const rows = lines.slice(1);
+    const rows = parsedData.slice(1);
     
-    // Budowanie payloadów Z POMINIĘCIEM geokodowania
     setImportStatus(`Mapowanie ${rows.length} rekordów...`);
     
     const finalPayloads = [];
     let emptyIdCount = 0; 
 
     for (let i = 0; i < rows.length; i++) {
-      const vals = parseCSVLine(rows[i], delimiter);
+      const vals = rows[i];
       const nameVal = vals[idxName];
       
-      // Jeśli cały wiersz jest po prostu pusty (same przecinki), ignorujemy po cichu
-      if (vals.every(v => v === '')) continue; 
-      
-      // Jeśli wiersz ma jakieś dane, ale brakuje ID - notujemy to!
       if (!nameVal) {
         emptyIdCount++;
         continue;
@@ -256,7 +274,6 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       });
     }
 
-    // Batch Insert do Supabase w paczkach po 100 sztuk
     let successCount = 0;
     let failedChunks = 0; 
     let lastError = '';
@@ -275,10 +292,9 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       }
     }
 
-    // Raport końcowy
     let alertMessage = `Gotowe! Zapisano w bazie: ${successCount} stacji.\n`;
-    if (emptyIdCount > 0) alertMessage += `\n⚠️ Pominięto ${emptyIdCount} wierszy, ponieważ miały pustą komórkę "Identyfikator" lub ukryte złamania linii (Alt+Enter).`;
-    if (failedChunks > 0) alertMessage += `\n❌ Baza danych odrzuciła ${failedChunks} paczek danych (prawdopodobnie przez duplikaty ID). Ostatni błąd: ${lastError}`;
+    if (emptyIdCount > 0) alertMessage += `\n⚠️ Zignorowano ${emptyIdCount} wierszy, ponieważ miały pustą komórkę "Identyfikator" (np. puste wiersze na dole arkusza).`;
+    if (failedChunks > 0) alertMessage += `\n❌ Baza danych odrzuciła ${failedChunks} paczek danych. Ostatni błąd: ${lastError}`;
     
     alert(alertMessage);
 

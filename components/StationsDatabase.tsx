@@ -100,7 +100,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       .order('name', { ascending: true });
       
     if (error) {
-      alert(`Błąd pobierania danych z bazy: ${error.message}`);
+      alert(`Błąd pobierania danych: ${error.message}`);
     } else if (data) {
       setStations(data as Station[]);
     }
@@ -245,22 +245,22 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
 
     // --- FAZA 2: Błyskawiczne geokodowanie TYLKO unikalnych adresów ---
     let processedAddresses = 0;
-    for (const addrKey of uniqueAddresses) {
+    // FIX: Konwersja Set na klasyczną tablicę za pomocą Array.from(), aby zapobiec błędowi kompilacji ES5
+    const uniqueAddressesArray = Array.from(uniqueAddresses);
+    for (const addrKey of uniqueAddressesArray) {
       processedAddresses++;
-      setImportStatus(`Analiza lokalizacji na mapie (${processedAddresses}/${uniqueAddresses.size} MOP-ów)...`);
+      setImportStatus(`Analiza lokalizacji na mapie (${processedAddresses}/${uniqueAddressesArray.length} MOP-ów)...`);
       
       const [street, city, country] = addrKey.split('|');
       let lat = 52.0691, lng = 19.4804, found = false;
 
       try {
-        await new Promise(r => setTimeout(r, 1100)); // Bezpieczny limit dla API
+        await new Promise(r => setTimeout(r, 1100));
 
-        // Czyszczenie MOPów dla lepszej wyszukiwalności
         const cleanStreet = (str: string) => str.replace(/\b(MOP|Mop|mop|A2|A1|A4|S3|S5|Mop Chociszewo|MOP Rogoziniec)\b/g, '').replace(/\s+/g, ' ').trim();
         const sClean = cleanStreet(street);
         const cClean = city ? city.trim() : '';
 
-        // Próba 1: Pełny adres
         if (sClean && cClean) {
           const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${sClean}, ${cClean}, ${country}`)}`, { headers: nominateHeaders });
           if (res.ok) {
@@ -271,7 +271,6 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
           }
         }
 
-        // Próba 2: Samo miasto
         if (!found && cClean) {
           const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${cClean}, ${country}`)}`, { headers: nominateHeaders });
           if (res.ok) {
@@ -296,12 +295,10 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       let finalLat = cached.lat;
       let finalLng = cached.lng;
 
-      // Zabezpieczenie przed nałożeniem się wtyczek w jeden punkt (dajemy losowy offset 5 metrów)
       if (cached.found) {
         finalLat += (Math.random() - 0.5) * 0.0001;
         finalLng += (Math.random() - 0.5) * 0.0001;
       } else {
-        // Jeśli nie znaleziono na GPS, zrzucamy losowo wokół centrum Polski z dużym rozstrzałem, żeby uniknąć błędu WKT
         finalLat += (Math.random() - 0.5) * 2.5;
         finalLng += (Math.random() - 0.5) * 3.5;
       }
@@ -317,11 +314,11 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
         street: rec.streetVal,
         lat: finalLat,
         lng: finalLng,
-        location: `POINT(${finalLng} ${finalLat})` // Baza z automatu sama to sparsuje na GEOMETRY
+        location: `POINT(${finalLng} ${finalLat})`
       };
     });
 
-    // --- FAZA 4: Batch Insert do Supabase (Błyskawiczny zapis w paczkach) ---
+    // --- FAZA 4: Batch Insert do Supabase ---
     let successCount = 0;
     let lastError = '';
 

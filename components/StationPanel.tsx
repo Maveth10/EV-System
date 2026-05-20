@@ -40,7 +40,6 @@ export default function StationPanel({ station, onClose, onEdit }: StationPanelP
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
-  // Pobieranie świeżych danych przy każdym otwarciu panelu
   useEffect(() => {
     if (!station) {
       setLiveStation(null);
@@ -55,8 +54,9 @@ export default function StationPanel({ station, onClose, onEdit }: StationPanelP
         .eq('id', station.id)
         .single();
         
-      if (data && !error) setLiveStation(data as Station);
-      else setLiveStation(station); // Fallback w razie błędu
+      // ROZWIĄZANIE BŁĘDU VERCEL (podwójne rzutowanie typu)
+      if (data && !error) setLiveStation(data as unknown as Station);
+      else setLiveStation(station); 
       setIsLoading(false);
     };
 
@@ -77,7 +77,6 @@ export default function StationPanel({ station, onClose, onEdit }: StationPanelP
     <>
       <div className="absolute top-0 right-0 h-full w-96 bg-white/95 backdrop-blur-xl shadow-2xl border-l border-slate-200 z-40 flex flex-col transform transition-transform duration-300">
         
-        {/* NAGŁÓWEK */}
         <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -89,7 +88,6 @@ export default function StationPanel({ station, onClose, onEdit }: StationPanelP
           <button onClick={onClose} className="p-2 bg-white rounded-full border border-slate-200 text-slate-400 hover:text-slate-600 shadow-sm transition-colors"><IconClose /></button>
         </div>
 
-        {/* ZAWARTOŚĆ */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 relative">
           {isLoading && (
             <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex justify-center pt-10">
@@ -97,7 +95,6 @@ export default function StationPanel({ station, onClose, onEdit }: StationPanelP
             </div>
           )}
 
-          {/* AKTYWNE ZADANIA (Jeśli są) */}
           {hasActiveTask && (
             <div className={`rounded-xl p-4 border ${liveStation.status === 'Awaria' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-orange-50 border-orange-200 text-orange-800'}`}>
               <h3 className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
@@ -125,7 +122,6 @@ export default function StationPanel({ station, onClose, onEdit }: StationPanelP
             </div>
           )}
 
-          {/* SZYBKIE AKCJE */}
           <div className="grid grid-cols-2 gap-3 pt-2">
             <button onClick={() => setIsHistoryModalOpen(true)} className="bg-white border border-slate-200 text-slate-700 hover:text-[#58b347] hover:border-[#58b347] font-medium py-2.5 rounded-lg shadow-sm transition-all flex flex-col items-center justify-center gap-1 text-xs">
               <IconHistory /> Historia zgłoszeń
@@ -136,7 +132,6 @@ export default function StationPanel({ station, onClose, onEdit }: StationPanelP
           </div>
         </div>
 
-        {/* DOLNY PRZYCISK EDYCJI */}
         <div className="p-6 border-t border-slate-100 bg-slate-50">
           <button 
             onClick={() => onEdit(liveStation)}
@@ -147,7 +142,6 @@ export default function StationPanel({ station, onClose, onEdit }: StationPanelP
         </div>
       </div>
 
-      {/* MODAL NAWIGACJI GOOGLE MAPS */}
       {isMapModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" onClick={() => setIsMapModalOpen(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden border border-slate-200 flex flex-col" onClick={e => e.stopPropagation()}>
@@ -156,16 +150,15 @@ export default function StationPanel({ station, onClose, onEdit }: StationPanelP
               <button onClick={() => setIsMapModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
             <div className="w-full bg-slate-200 relative" style={{ height: '60vh' }}>
-              {/* Iframe generujący trasę od lokalizacji urządzenia (saddr=My+Location) do koordynatów stacji */}
               <iframe 
                 width="100%" height="100%" frameBorder="0" style={{ border: 0 }} allowFullScreen
-                src={`https://maps.google.com/maps?saddr=My+Location&daddr=${liveStation.lat},${liveStation.lng}&output=embed`}
+                src={`https://maps.google.com/maps?q=${liveStation.lat},${liveStation.lng}&hl=pl&z=14&amp;output=embed`}
                 allow="geolocation"
               />
             </div>
             <div className="p-4 bg-white border-t border-slate-100 text-center flex justify-between items-center">
               <p className="text-xs text-slate-500 text-left">
-                Jeśli nawigacja nie wykrywa Twojej lokalizacji, zezwól przeglądarce na dostęp do GPS.
+                Jeśli nawigacja nie działa, użyj przycisku obok, aby przejść do aplikacji Google Maps.
               </p>
               <a 
                 href={`https://www.google.com/maps/dir/?api=1&destination=${liveStation.lat},${liveStation.lng}`} 
@@ -179,7 +172,6 @@ export default function StationPanel({ station, onClose, onEdit }: StationPanelP
         </div>
       )}
 
-      {/* MODAL HISTORII ZGŁOSZEŃ (ZAŚLEPKA) */}
       {isHistoryModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" onClick={() => setIsHistoryModalOpen(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 flex flex-col" onClick={e => e.stopPropagation()}>

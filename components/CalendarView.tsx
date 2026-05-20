@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { supabase } from '../app/supabase';
 
 // Ikony Ekoen
 const IconChevronLeft = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>;
@@ -6,29 +7,72 @@ const IconChevronRight = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill
 const IconPlus = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
 const IconCalendar = () => <svg className="w-4 h-4 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
 
-type Event = {
+type CalendarEvent = {
   id: string;
   date: string; // YYYY-MM-DD
   title: string;
-  type: 'inspection' | 'repair' | 'other';
-  technician: string;
+  event_type: 'inspection' | 'repair' | 'other';
+  technician_id: string | null;
 };
 
-// Przykładowe dane wstrzyknięte do kalendarza
-const mockEvents: Event[] = [
-  { id: '1', date: '2026-05-12', title: 'Przegląd kwartalny', type: 'inspection', technician: 'Jan Kowalski' },
-  { id: '2', date: '2026-05-15', title: 'Wymiana modułu (TKT-102)', type: 'repair', technician: 'Piotr Nowak' },
-  { id: '3', date: '2026-05-20', title: 'Audyt UDT', type: 'inspection', technician: 'Jan Kowalski' },
-  { id: '4', date: '2026-05-20', title: 'Usterka ekranu (TKT-334)', type: 'repair', technician: 'Adam Wiśniewski' },
-  { id: '5', date: '2026-05-28', title: 'Instalacja nowego punktu', type: 'other', technician: 'Zespół A' },
-];
+type Technician = {
+  id: string;
+  name: string;
+};
 
 const WEEKDAYS = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Ndz'];
 const MONTHS = ['Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec', 'Lipiec', 'Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień'];
 
 export default function CalendarView() {
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 4, 20)); // Kontekst: Maj 2026
+  const [currentDate, setCurrentDate] = useState(new Date()); 
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Dane z bazy
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+
+  // Formularz nowego wydarzenia
+  const [newEvent, setNewEvent] = useState({
+    title: '',
+    date: new Date().toISOString().split('T')[0],
+    event_type: 'inspection' as 'inspection' | 'repair' | 'other',
+    technician_id: ''
+  });
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    const [eventsRes, techRes] = await Promise.all([
+      supabase.from('calendar_events').select('*'),
+      supabase.from('technicians').select('id, name')
+    ]);
+
+    if (eventsRes.data) setEvents(eventsRes.data);
+    if (techRes.data) setTechnicians(techRes.data);
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleAddEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload = {
+      title: newEvent.title,
+      date: newEvent.date,
+      event_type: newEvent.event_type,
+      technician_id: newEvent.technician_id || null
+    };
+
+    const { error } = await supabase.from('calendar_events').insert([payload]);
+    if (error) alert(`Błąd: ${error.message}`);
+    else {
+      setIsAddEventOpen(false);
+      setNewEvent({ title: '', date: new Date().toISOString().split('T')[0], event_type: 'inspection', technician_id: '' });
+      fetchData(); // Odświeżenie danych
+    }
+  };
 
   // Funkcje nawigacyjne
   const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
@@ -76,6 +120,11 @@ export default function CalendarView() {
     }
   };
 
+  const getTechName = (id: string | null) => {
+    if (!id) return 'Brak przypisania';
+    return technicians.find(t => t.id === id)?.name || 'Nieznany';
+  };
+
   return (
     <div className="absolute inset-0 left-[72px] bg-slate-50 z-40 p-8 flex flex-col h-full overflow-hidden">
       
@@ -107,8 +156,14 @@ export default function CalendarView() {
       </div>
 
       {/* Siatka Kalendarza */}
-      <div className="max-w-[1400px] w-full mx-auto flex-1 flex flex-col bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-8">
+      <div className="max-w-[1400px] w-full mx-auto flex-1 flex flex-col bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-8 relative">
         
+        {isLoading && (
+          <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center font-bold text-slate-400">
+            Ładowanie kalendarza...
+          </div>
+        )}
+
         {/* Dni Tygodnia (Nagłówek Siatki) */}
         <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-200 shrink-0">
           {WEEKDAYS.map(day => (
@@ -122,7 +177,7 @@ export default function CalendarView() {
         <div className="flex-1 grid grid-cols-7 grid-rows-6">
           {calendarDays.map((cell, idx) => {
             const isToday = cell.dateString === new Date().toISOString().split('T')[0];
-            const dayEvents = mockEvents.filter(e => e.date === cell.dateString);
+            const dayEvents = events.filter(e => e.date === cell.dateString);
 
             return (
               <div 
@@ -137,7 +192,7 @@ export default function CalendarView() {
                   <span className={`text-sm font-semibold w-7 h-7 flex items-center justify-center rounded-full
                     ${isToday ? 'bg-[#58b347] text-white shadow-md' : (cell.isCurrentMonth ? 'text-slate-700' : 'text-slate-400')}
                   `}>
-                    {cell.day}
+                    {cell.day > 0 ? cell.day : ''}
                   </span>
                 </div>
 
@@ -146,11 +201,11 @@ export default function CalendarView() {
                   {cell.isCurrentMonth && dayEvents.map(event => (
                     <div 
                       key={event.id} 
-                      className={`text-xs p-1.5 rounded border shadow-sm truncate cursor-pointer hover:opacity-80 transition-opacity ${getEventBadgeClass(event.type)}`}
-                      title={`${event.title} - ${event.technician}`}
+                      className={`text-[10px] p-1.5 rounded border shadow-sm truncate cursor-pointer hover:opacity-80 transition-opacity ${getEventBadgeClass(event.event_type)}`}
+                      title={`${event.title} - ${getTechName(event.technician_id)}`}
                     >
                       <span className="font-bold block truncate">{event.title}</span>
-                      <span className="opacity-80 truncate block">{event.technician}</span>
+                      <span className="opacity-80 truncate block">{getTechName(event.technician_id)}</span>
                     </div>
                   ))}
                 </div>
@@ -168,38 +223,37 @@ export default function CalendarView() {
               <h3 className="font-bold text-slate-800">Zaplanuj nowe zadanie</h3>
               <button onClick={() => setIsAddEventOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
-            <div className="p-6 space-y-4">
+            <form onSubmit={handleAddEvent} className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Tytuł zdarzenia *</label>
-                <input type="text" placeholder="np. Przegląd UDT" className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-[#58b347]" />
+                <input required value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} type="text" placeholder="np. Przegląd UDT" className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-[#58b347]" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Data *</label>
-                  <input type="date" className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-[#58b347]" />
+                  <input required value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} type="date" className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-[#58b347]" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Typ zadania</label>
-                  <select className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-[#58b347] bg-white">
+                  <select value={newEvent.event_type} onChange={e => setNewEvent({...newEvent, event_type: e.target.value as any})} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-[#58b347] bg-white">
                     <option value="inspection">Przegląd / UDT</option>
                     <option value="repair">Naprawa awarii</option>
-                    <option value="other">Inne zadanie</option>
+                    <option value="other">Inne zadanie / Urlop</option>
                   </select>
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Przypisz technika</label>
-                <select className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-[#58b347] bg-white">
-                  <option value="">Wybierz...</option>
-                  <option value="Jan Kowalski">Jan Kowalski</option>
-                  <option value="Piotr Nowak">Piotr Nowak</option>
+                <select value={newEvent.technician_id} onChange={e => setNewEvent({...newEvent, technician_id: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-[#58b347] bg-white">
+                  <option value="">-- Brak (Opcjonalne) --</option>
+                  {technicians.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
               </div>
               <div className="pt-4 flex gap-2">
-                <button onClick={() => setIsAddEventOpen(false)} className="flex-1 bg-slate-100 text-slate-700 font-medium py-2.5 rounded hover:bg-slate-200 transition-colors text-sm">Anuluj</button>
-                <button className="flex-1 bg-[#58b347] text-white font-medium py-2.5 rounded hover:bg-[#499b3a] transition-colors text-sm">Zapisz w kalendarzu</button>
+                <button type="button" onClick={() => setIsAddEventOpen(false)} className="flex-1 bg-slate-100 text-slate-700 font-medium py-2.5 rounded hover:bg-slate-200 transition-colors text-sm">Anuluj</button>
+                <button type="submit" className="flex-1 bg-[#58b347] text-white font-medium py-2.5 rounded hover:bg-[#499b3a] transition-colors text-sm shadow-sm">Zapisz w kalendarzu</button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       )}

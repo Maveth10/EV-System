@@ -16,13 +16,16 @@ import TechniciansDatabase from './TechniciansDatabase';
 import TicketsDatabase from './TicketsDatabase';
 import CalendarView from './CalendarView';
 import { LoadingScreen } from './EkoenLogo';
+import EquipmentManager from './EquipmentManager';
+import ClientsDatabase from './ClientsDatabase';
+import AnalyticsDashboard from './AnalyticsDashboard'; // <--- DODANY IMPORT
 
 import { buildOuterBoundary, mergeRegions, clipToBoundary, ensureMultiPolygon } from '../utils/geometryEngine';
 
-// TABLICA URLI: Tutaj w przyszłości po prostu dopisujesz kolejne kraje, np. '/germany.geojson'
-const GEOJSON_COUNTRY_URLS = [
-  '/poland.geojson',
-  '/slovakia.geojson'
+// Definiujemy kraje i ich kody
+const COUNTRY_SOURCES = [
+  { url: '/poland.geojson', code: 'PL' },
+  { url: '/slovakia.geojson', code: 'SK' }
 ];
 
 const IconFilter = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>;
@@ -44,7 +47,6 @@ export default function ChargeMap() {
   
   const [savedSectorsList, setSavedSectorsList] = useState<Sector[]>([]);
   const [savedRegionsList, setSavedRegionsList] = useState<Sector[]>([]);
-  const sectorsListRef = useRef<Sector[]>([]);
 
   const [allStations, setAllStations] = useState<Station[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -58,8 +60,9 @@ export default function ChargeMap() {
   const [drawMethod, setDrawMethod] = useState<'manual' | 'click'>('manual');
   const drawMethodRef = useRef<'manual' | 'click'>('manual');
 
-  const polandGeoJsonRef = useRef<any>(null);
-  const polandOuterRef = useRef<any>(null);
+  // Uniwersalne referencje dla wszystkich krajów
+  const regionsGeoJsonRef = useRef<any>(null);
+  const masterBoundaryRef = useRef<any>(null); // Do przycinania manualnego rysowania
   const selectedRegionIds = useRef<Set<number>>(new Set());
 
   const [showSectors, setShowSectors] = useState(false);
@@ -85,16 +88,6 @@ export default function ChargeMap() {
     else if (method === 'manual') drawRef.current.changeMode('draw_polygon');
     else drawRef.current.changeMode('simple_select');
   };
-
-  const selectAllPoland = useCallback(() => {
-    if (polandGeoJsonRef.current && map.current) {
-      polandGeoJsonRef.current.features.forEach((f: any) => {
-        const fId = f.properties.customId;
-        selectedRegionIds.current.add(fId);
-        map.current!.setFeatureState({ source: 'poland-data', id: fId }, { selected: true });
-      });
-    }
-  }, []);
 
   const [activeDrawContext, setActiveDrawContext] = useState<{
     mode: 'insert' | 'append' | 'update'; techName: string; color: string; sectorId?: string; targetType: 'technician' | 'region';
@@ -231,108 +224,147 @@ export default function ChargeMap() {
       loadSavedSectors();
 
       try {
-        // NOWOŚĆ: Błyskawiczne pobieranie i łączenie wielu krajów naraz
-        const responses = await Promise.all(GEOJSON_COUNTRY_URLS.map(url => fetch(url).then(res => res.json())));
+        const responses = await Promise.all(
+          COUNTRY_SOURCES.map(src => fetch(src.url).then(res => res.json()).then(data => ({ code: src.code, data })))
+        );
         
         const combinedFeatures: any[] = [];
+        const boundaryFeatures: any[] = [];
         let globalId = 1;
+        let boundaryId = 9000;
 
-        responses.forEach(data => {
+        responses.forEach(({ code, data }) => {
           if (data && data.features) {
+            // Przetwarzanie województw/regionów wewnętrznych
             data.features.forEach((f: any) => {
               combinedFeatures.push({
                 ...f,
                 id: globalId,
-                properties: { ...f.properties, customId: globalId }
+                properties: { ...f.properties, customId: globalId, countryCode: code }
               });
               globalId++;
             });
+
+            // Tworzenie OSOBNEJ obwódki dla każdego kraju
+            const outerPolygon = buildOuterBoundary(data) || data.features[0];
+            outerPolygon.id = boundaryId;
+            outerPolygon.properties = { ...outerPolygon.properties, customId: boundaryId, countryCode: code, isBoundary: true };
+            boundaryFeatures.push(outerPolygon);
+            boundaryId++;
           }
         });
 
-        const combinedGeoJson = {
-          type: 'FeatureCollection',
-          features: combinedFeatures
-        };
+        const combinedGeoJson = { type: 'FeatureCollection' as const, features: combinedFeatures };
+        const boundariesGeoJson = { type: 'FeatureCollection' as const, features: boundaryFeatures };
 
-        polandGeoJsonRef.current = combinedGeoJson;
+        regionsGeoJsonRef.current = combinedGeoJson;
+        // Master boundary to złączenie wszystkich krajów - przydatne tylko do przycinania manualnego rysowania
+        masterBoundaryRef.current = buildOuterBoundary(combinedGeoJson) || combinedGeoJson.features[0];
 
-        const outerPolygon = buildOuterBoundary(combinedGeoJson) || combinedGeoJson.features[0];
-        outerPolygon.id = 999;
-        outerPolygon.properties = { ...outerPolygon.properties, customId: 999 };
-        polandOuterRef.current = outerPolygon;
-
-        // Przekazujemy połączone kraje do źródła mapy
-        map.current.addSource('poland-data', { type: 'geojson', data: combinedGeoJson, promoteId: 'customId' });
-        map.current.addSource('poland-outer', { type: 'geojson', data: outerPolygon, promoteId: 'customId' });
+        map.current.addSource('regions-data', { type: 'geojson', data: combinedGeoJson as any, promoteId: 'customId' });
+        map.current.addSource('boundaries-data', { type: 'geojson', data: boundariesGeoJson as any, promoteId: 'customId' });
         
+        // Warstwy wewnętrzne województw
         map.current.addLayer({ 
-          id: 'poland-fill', type: 'fill', source: 'poland-data', 
+          id: 'regions-fill', type: 'fill', source: 'regions-data', 
           paint: { 
             'fill-color': '#58b347', 
             'fill-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 0.6, ['boolean', ['feature-state', 'hover'], false], 0.2, 0.02] 
           }
         });
-        map.current.addLayer({ id: 'poland-outline', type: 'line', source: 'poland-data', paint: { 'line-color': '#cbd5e1', 'line-width': 1, 'line-dasharray': [3, 3] }});
+        map.current.addLayer({ id: 'regions-outline', type: 'line', source: 'regions-data', paint: { 'line-color': '#cbd5e1', 'line-width': 1, 'line-dasharray': [3, 3] }});
 
-        map.current.addLayer({ id: 'poland-outer-hitbox', type: 'line', source: 'poland-outer', paint: { 'line-width': 20, 'line-color': 'transparent' }});
-        map.current.addLayer({ id: 'poland-outer-glow', type: 'line', source: 'poland-outer', paint: { 'line-width': 4, 'line-color': '#58b347', 'line-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 1, 0] }});
+        // Warstwy granic państw (Oddzielne dla każdego kraju, ale gruby hitbox pozwoli złapać oba na styku)
+        map.current.addLayer({ id: 'boundaries-hitbox', type: 'line', source: 'boundaries-data', paint: { 'line-width': 20, 'line-color': 'transparent' }});
+        map.current.addLayer({ id: 'boundaries-glow', type: 'line', source: 'boundaries-data', paint: { 'line-width': 4, 'line-color': '#58b347', 'line-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 1, 0] }});
 
         let hoveredStateId: number | null = null;
+        let hoveredBoundaryId: number | null = null;
 
-        map.current.on('mousemove', 'poland-fill', (e) => {
+        // --- HOVER I KLIKANIE WOJEWÓDZTW (Pojedyncze) ---
+        map.current.on('mousemove', 'regions-fill', (e) => {
           if (isDrawingActiveRef.current && drawMethodRef.current === 'click' && e.features && e.features.length > 0) {
             map.current!.getCanvas().style.cursor = 'crosshair';
             const fId = e.features[0].properties.customId as number;
             
             if (hoveredStateId !== null && hoveredStateId !== fId) {
-              map.current!.setFeatureState({ source: 'poland-data', id: hoveredStateId as number }, { hover: false });
+              map.current!.setFeatureState({ source: 'regions-data', id: hoveredStateId as number }, { hover: false });
             }
-            
             hoveredStateId = fId;
-            map.current!.setFeatureState({ source: 'poland-data', id: fId }, { hover: true });
+            map.current!.setFeatureState({ source: 'regions-data', id: fId }, { hover: true });
           }
         });
         
-        map.current.on('mouseleave', 'poland-fill', () => {
+        map.current.on('mouseleave', 'regions-fill', () => {
           if (hoveredStateId !== null) {
-            map.current!.setFeatureState({ source: 'poland-data', id: hoveredStateId as number }, { hover: false });
+            map.current!.setFeatureState({ source: 'regions-data', id: hoveredStateId as number }, { hover: false });
             hoveredStateId = null;
           }
           map.current!.getCanvas().style.cursor = '';
         });
 
-        map.current.on('click', 'poland-fill', (e) => {
+        map.current.on('click', 'regions-fill', (e) => {
           if (!isDrawingActiveRef.current || drawMethodRef.current !== 'click') return;
           if (e.features && e.features.length > 0) {
             const id = e.features[0].properties.customId as number;
             if (selectedRegionIds.current.has(id)) {
               selectedRegionIds.current.delete(id);
-              map.current!.setFeatureState({ source: 'poland-data', id }, { selected: false });
+              map.current!.setFeatureState({ source: 'regions-data', id }, { selected: false });
             } else {
               selectedRegionIds.current.add(id);
-              map.current!.setFeatureState({ source: 'poland-data', id }, { selected: true });
+              map.current!.setFeatureState({ source: 'regions-data', id }, { selected: true });
             }
           }
         });
 
-        map.current.on('mousemove', 'poland-outer-hitbox', () => {
-          if (isDrawingActiveRef.current && drawMethodRef.current === 'click') {
+        // --- HOVER I PODWÓJNE KLIKANIE GRANIC PAŃSTW ---
+        map.current.on('mousemove', 'boundaries-hitbox', (e) => {
+          if (isDrawingActiveRef.current && drawMethodRef.current === 'click' && e.features && e.features.length > 0) {
             map.current!.getCanvas().style.cursor = 'pointer';
-            map.current!.setFeatureState({ source: 'poland-outer', id: 999 }, { hover: true });
+            const fId = e.features[0].properties.customId as number;
+
+            if (hoveredBoundaryId !== null && hoveredBoundaryId !== fId) {
+              map.current!.setFeatureState({ source: 'boundaries-data', id: hoveredBoundaryId as number }, { hover: false });
+            }
+            hoveredBoundaryId = fId;
+            map.current!.setFeatureState({ source: 'boundaries-data', id: fId }, { hover: true });
           }
         });
-        map.current.on('mouseleave', 'poland-outer-hitbox', () => { map.current!.setFeatureState({ source: 'poland-outer', id: 999 }, { hover: false }); });
-        map.current.on('dblclick', 'poland-outer-hitbox', (e) => {
+
+        map.current.on('mouseleave', 'boundaries-hitbox', () => { 
+          if (hoveredBoundaryId !== null) {
+            map.current!.setFeatureState({ source: 'boundaries-data', id: hoveredBoundaryId as number }, { hover: false });
+            hoveredBoundaryId = null;
+          }
+        });
+
+        map.current.on('dblclick', 'boundaries-hitbox', (e) => {
           if (!isDrawingActiveRef.current || drawMethodRef.current !== 'click') return;
-          e.preventDefault(); selectAllPoland();
+          e.preventDefault(); 
+          
+          if (e.features && e.features.length > 0) {
+            // Zbieramy tagi państw w które uderzył podwójny klik (jeden na środku granicy, lub dwa na styku)
+            const clickedCountryCodes = new Set(e.features.map(f => f.properties.countryCode));
+
+            // Przeszukujemy bazę regionów i dodajemy tylko te, które należą do klikniętych państw
+            regionsGeoJsonRef.current.features.forEach((f: any) => {
+              if (clickedCountryCodes.has(f.properties.countryCode)) {
+                const fId = f.properties.customId;
+                selectedRegionIds.current.add(fId);
+                map.current!.setFeatureState({ source: 'regions-data', id: fId }, { selected: true });
+              }
+            });
+          }
         });
 
       } catch (error) {
         console.error("Błąd ładowania danych geolokalizacyjnych:", error);
       }
     });
-  }, [loadStations, loadSavedSectors, selectAllPoland]); 
+  }, [loadStations, loadSavedSectors]); 
+
+  // Pusta funkcja dla zachowania kompatybilności przycisku w SectorEditor (można ją później całkowicie usunąć)
+  const selectAllPoland = useCallback(() => {}, []);
 
   const handleStartDrawingNew = (techName: string, color: string, mode: 'insert' | 'append' | 'update', targetType: 'technician' | 'region', sectorId?: string) => {
     if (!drawRef.current) return;
@@ -371,8 +403,8 @@ export default function ChargeMap() {
     drawRef.current?.deleteAll();
     
     selectedRegionIds.current.clear();
-    if (map.current && polandGeoJsonRef.current) {
-      polandGeoJsonRef.current.features.forEach((f: any) => map.current!.setFeatureState({ source: 'poland-data', id: f.properties.customId }, { selected: false }));
+    if (map.current && regionsGeoJsonRef.current) {
+      regionsGeoJsonRef.current.features.forEach((f: any) => map.current!.setFeatureState({ source: 'regions-data', id: f.properties.customId }, { selected: false }));
     }
     if(map.current?.getLayer('saved-sectors-layer')) {
       map.current.setFilter('saved-sectors-layer', null);
@@ -387,7 +419,7 @@ export default function ChargeMap() {
     let finalGeometry = null;
 
     if (drawMethodRef.current === 'click') {
-      const clickedFeatures = polandGeoJsonRef.current.features.filter((f: any) => selectedRegionIds.current.has(f.properties.customId));
+      const clickedFeatures = regionsGeoJsonRef.current.features.filter((f: any) => selectedRegionIds.current.has(f.properties.customId));
       const existingFeatures = drawRef.current ? drawRef.current.getAll().features : [];
 
       if (clickedFeatures.length === 0 && existingFeatures.length === 0) {
@@ -406,10 +438,10 @@ export default function ChargeMap() {
       const mergedDrawings = mergeRegions(selectedData.features);
       if (!mergedDrawings) return false;
 
-      let clippingBoundary = polandOuterRef.current; 
+      let clippingBoundary = masterBoundaryRef.current; 
       
       if (selectedRegionIds.current.size > 0) {
-        const featuresToMerge = polandGeoJsonRef.current.features.filter((f: any) => selectedRegionIds.current.has(f.properties.customId));
+        const featuresToMerge = regionsGeoJsonRef.current.features.filter((f: any) => selectedRegionIds.current.has(f.properties.customId));
         const mergedSelected = mergeRegions(featuresToMerge);
         if (mergedSelected) clippingBoundary = mergedSelected;
       }
@@ -552,16 +584,9 @@ export default function ChargeMap() {
       {activeView === 'technicians' && <TechniciansDatabase />}
       {activeView === 'tickets' && <TicketsDatabase />}
       {activeView === 'calendar' && <CalendarView />}
-      
-      {['equipment', 'analytics', 'clients'].includes(activeView) && (
-        <div className="absolute inset-0 left-[72px] z-40 bg-slate-50/95 backdrop-blur-sm flex items-center justify-center">
-          <div className="text-center bg-white p-10 rounded-2xl shadow-xl border border-slate-200">
-            <h2 className="text-2xl font-bold text-slate-800 mb-2">Moduł w budowie</h2>
-            <p className="text-slate-500">Ten moduł zostanie wdrożony w kolejnym kroku integracji.</p>
-            <button onClick={() => setActiveView('map')} className="mt-6 text-[#58b347] font-bold hover:underline">← Wróć na mapę</button>
-          </div>
-        </div>
-      )}
+      {activeView === 'equipment' && <EquipmentManager />}
+      {activeView === 'clients' && <ClientsDatabase />}
+      {activeView === 'analytics' && <AnalyticsDashboard />}
     </div>
   );
 }

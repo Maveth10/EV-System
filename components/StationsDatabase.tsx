@@ -25,7 +25,7 @@ type SortConfig = { key: keyof Station; direction: 'asc' | 'desc' } | null;
 
 const IconSort = () => <svg className="w-3 h-3 inline-block ml-1 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>;
 const IconTrash = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
-const IconEdit = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
+const IconEdit = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
 const IconImport = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
 const IconMapPin = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>;
 
@@ -36,7 +36,6 @@ const getDaysSince = (dateString: string | null) => {
   return diffDays === 0 ? 'Dzisiaj' : `${diffDays} dni`;
 };
 
-// NOWA LOGIKA STATUSÓW EKOEN TASK-BASED
 const getStatusBadge = (status: string) => {
   switch (status) {
     case 'Awaria': return 'bg-red-50 text-red-700 border-red-200';
@@ -135,34 +134,49 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     if (!spreadsheetId) { alert('Nieprawidłowy link do Arkusza Google.'); return; }
 
     setIsImporting(true);
-    setImportStatus('Przeszukiwanie zakładek w arkuszu...');
+    setImportStatus('Nawiązywanie połączenia z plikiem...');
 
-    const candidates = ['stacje', 'stations', 'arkusz1', 'sheet1'];
+    const candidates = ['stacje', 'stations', 'arkusz1', 'sheet1', 'Arkusz1', 'Sheet1'];
     let csvText = '';
+    let isPrivate = false;
+
+    // Próba pobrania jako gviz/tq
     for (const tab of candidates) {
       try {
         const res = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`);
         if (res.ok) {
           const text = await res.text();
-          if (text && !text.includes('<!DOCTYPE html>') && text.includes(',')) {
+          if (text && text.includes('<html')) {
+            isPrivate = true; // Google wyrzuca stronę logowania (arkusz zablokowany)
+          } else if (text && text.includes(',')) {
             csvText = text; break;
           }
         }
       } catch (err) {}
     }
 
-    if (!csvText) {
+    // Próba pobrania całego eksportu
+    if (!csvText && !isPrivate) {
       try {
         const res = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`);
         if (res.ok) {
           const text = await res.text();
-          if (text && !text.includes('<!DOCTYPE html>')) csvText = text;
+          if (text && text.includes('<html')) {
+            isPrivate = true;
+          } else if (text) {
+            csvText = text;
+          }
         }
       } catch (err) {}
     }
 
+    if (isPrivate) {
+      alert("UWAGA: Twój arkusz jest zablokowany (Prywatny)!\n\nMusisz wejść w arkusz, kliknąć zielony przycisk 'Udostępnij' i zmienić dostęp na 'Każdy, kto ma link'.");
+      setIsImporting(false); setImportStatus(''); return;
+    }
+
     if (!csvText) {
-      alert('Nie udało się pobrać danych z arkusza.');
+      alert('Nie udało się pobrać danych z arkusza. Upewnij się, że ma poprawne uprawnienia (Każdy, kto ma link).');
       setIsImporting(false); setImportStatus(''); return;
     }
 
@@ -173,15 +187,18 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     const headers = lines[0].split(delimiter).map(h => h.replace(/^["']|["']$/g, '').trim().toLowerCase());
 
     const getColIndex = (names: string[]) => headers.findIndex(h => names.some(n => h.includes(n)));
+    
+    // Mapowanie kolumn zgodne z Twoim plikiem
     const idxName = getColIndex(['identyfikator', 'nazwa', 'name']);
     const idxClient = getColIndex(['klient', 'client']);
     const idxModel = getColIndex(['model']);
-    const idxDate = getColIndex(['przegląd', 'data', 'inspection']);
+    const idxCountry = getColIndex(['kraj', 'country']);
     const idxCity = getColIndex(['miasto', 'city']);
     const idxStreet = getColIndex(['ulica', 'street']);
+    const idxDate = getColIndex(['przegląd', 'data', 'inspection']); // Opcjonalne
 
     if (idxName === -1) {
-      alert('Nie odnaleziono kolumny identyfikatora stacji.');
+      alert('Błąd: Nie odnaleziono głównej kolumny "Identyfikator" w arkuszu.');
       setIsImporting(false); return;
     }
 
@@ -193,13 +210,18 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       const nameVal = vals[idxName];
       if (!nameVal) continue;
 
-      setImportStatus(`Import wiersza ${i + 1} z ${rows.length}: Lokalizowanie stacji "${nameVal}"...`);
+      setImportStatus(`Lokalizowanie stacji "${nameVal}" (${i + 1}/${rows.length})...`);
 
       let lat = null, lng = null;
-      if (idxCity !== -1 && idxStreet !== -1 && vals[idxCity] && vals[idxStreet]) {
+      let cityVal = idxCity !== -1 ? vals[idxCity] : null;
+      let streetVal = idxStreet !== -1 ? vals[idxStreet] : null;
+      let countryVal = idxCountry !== -1 ? vals[idxCountry] : 'Polska';
+
+      if (cityVal && streetVal) {
         try {
-          await new Promise(r => setTimeout(r, 1000));
-          const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${vals[idxStreet]}, ${vals[idxCity]}, Polska`)}`);
+          await new Promise(r => setTimeout(r, 1000)); // Limit API (1 request na sekunde)
+          const searchString = encodeURIComponent(`${streetVal}, ${cityVal}, ${countryVal}`);
+          const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${searchString}`);
           const geoData = await geoRes.json();
           if (geoData && geoData.length > 0) {
             lat = parseFloat(geoData[0].lat); lng = parseFloat(geoData[0].lon);
@@ -212,16 +234,19 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
         client: idxClient !== -1 && vals[idxClient] ? vals[idxClient] : null,
         model: idxModel !== -1 && vals[idxModel] ? vals[idxModel] : null,
         inspection_date: idxDate !== -1 && vals[idxDate] ? vals[idxDate] : null,
-        status: 'Brak akcji', // Domyślny status po imporcie
-        country: 'Polska', city: idxCity !== -1 ? vals[idxCity] : null, street: idxStreet !== -1 ? vals[idxStreet] : null
+        status: 'Brak akcji',
+        country: countryVal,
+        city: cityVal,
+        street: streetVal
       };
+      
       if (lat && lng) payload.location = `POINT(${lng} ${lat})`;
 
       const { error } = await supabase.from('stations').insert([payload]);
       if (!error) successCount++;
     }
 
-    alert(`Zaimportowano pomyślnie ${successCount} z ${rows.length} stacji.`);
+    alert(`Gotowe! Zaimportowano ${successCount} stacji.`);
     setIsImporting(false); setIsImportModalOpen(false); setSheetUrl(''); setImportStatus('');
     fetchStations();
   };
@@ -348,8 +373,9 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
             </div>
             <div className="p-5 space-y-4">
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 text-xs text-slate-600 space-y-2">
-                <p className="font-bold text-slate-700">Wymagane nagłówki w 1. wierszu:</p>
-                <p className="font-mono bg-white p-1.5 border rounded">Identyfikator, Klient, Model, Miasto, Ulica, Kraj, Przegląd</p>
+                <p className="font-bold text-slate-700">Wymagane kolumny w arkuszu:</p>
+                <p className="font-mono bg-white p-1.5 border rounded">Identyfikator, Model, Kraj, Miasto, Ulica, Klient</p>
+                <p className="text-red-500 font-medium pt-1">Pamiętaj o ustawieniu udostępniania arkusza na "Każdy, kto ma link"!</p>
               </div>
               <form onSubmit={handleImportStations} className="space-y-4">
                 <div>

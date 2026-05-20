@@ -40,7 +40,6 @@ export default function ChargeMap() {
   const [savedSectorsList, setSavedSectorsList] = useState<Sector[]>([]);
   const sectorsListRef = useRef<Sector[]>([]);
 
-  // ---- NOWE STANY: OBSŁUGA DANYCH I FILTRÓW ----
   const [allStations, setAllStations] = useState<Station[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filters, setFilters] = useState({
@@ -74,12 +73,8 @@ export default function ChargeMap() {
     setDrawMethod(method);
     drawMethodRef.current = method;
     
-    selectedRegionIds.current.clear();
-    if (map.current && polandGeoJsonRef.current) {
-      polandGeoJsonRef.current.features.forEach((f: any) => {
-        map.current!.setFeatureState({ source: 'poland-data', id: f.properties.customId }, { selected: false });
-      });
-    }
+    // PRZYWRÓCONA FUNKCJA: Nie czyścimy już wybranych województw przy zmianie trybu!
+    // Dzięki temu użytkownik może zaznaczyć województwa i użyć ich jako granic do rysowania ręcznego.
 
     if (!drawRef.current) return;
     
@@ -113,7 +108,6 @@ export default function ChargeMap() {
     }
   };
 
-  // ZMIANA: Zamiast renderować markery, tylko pobieramy dane do pamięci!
   const loadStations = useCallback(async () => {
     const { data } = await supabase.from('stations').select('*');
     if (data) {
@@ -121,15 +115,12 @@ export default function ChargeMap() {
     }
   }, []);
 
-  // NOWY EFEKT: Filtrowanie i renderowanie markerów w czasie rzeczywistym
   useEffect(() => {
     if (!map.current) return;
 
-    // Usuwamy stare markery z mapy
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
 
-    // Filtrowanie stacji
     const filteredStations = allStations.filter(s => {
       if (filters.client && s.client !== filters.client) return false;
       if (filters.technician && s.technician !== filters.technician) return false;
@@ -140,7 +131,6 @@ export default function ChargeMap() {
       return true;
     });
 
-    // Renderowanie tylko tych, które spełniają filtry
     filteredStations.forEach((station: Station) => {
       if (!station.lat || !station.lng) return;
       
@@ -255,23 +245,29 @@ export default function ChargeMap() {
         map.current.on('mousemove', 'poland-fill', (e) => {
           if (isDrawingActiveRef.current && drawMethodRef.current === 'click' && e.features && e.features.length > 0) {
             map.current!.getCanvas().style.cursor = 'crosshair';
-            const fId = e.features[0].properties.customId;
-            if (hoveredStateId !== null && hoveredStateId !== fId) map.current!.setFeatureState({ source: 'poland-data', id: hoveredStateId }, { hover: false });
+            const fId = e.features[0].properties.customId as number;
+            
+            if (hoveredStateId !== null && hoveredStateId !== fId) {
+              map.current!.setFeatureState({ source: 'poland-data', id: hoveredStateId as number }, { hover: false });
+            }
+            
             hoveredStateId = fId;
-            map.current!.setFeatureState({ source: 'poland-data', id: hoveredStateId }, { hover: true });
+            map.current!.setFeatureState({ source: 'poland-data', id: fId }, { hover: true });
           }
         });
         
         map.current.on('mouseleave', 'poland-fill', () => {
-          if (hoveredStateId !== null) map.current!.setFeatureState({ source: 'poland-data', id: hoveredStateId }, { hover: false });
-          hoveredStateId = null;
+          if (hoveredStateId !== null) {
+            map.current!.setFeatureState({ source: 'poland-data', id: hoveredStateId as number }, { hover: false });
+            hoveredStateId = null;
+          }
           map.current!.getCanvas().style.cursor = '';
         });
 
         map.current.on('click', 'poland-fill', (e) => {
           if (!isDrawingActiveRef.current || drawMethodRef.current !== 'click') return;
           if (e.features && e.features.length > 0) {
-            const id = e.features[0].properties.customId;
+            const id = e.features[0].properties.customId as number;
             if (selectedRegionIds.current.has(id)) {
               selectedRegionIds.current.delete(id);
               map.current!.setFeatureState({ source: 'poland-data', id }, { selected: false });
@@ -353,8 +349,18 @@ export default function ChargeMap() {
       
       let featureToSave = selectedData.features[0];
 
-      if (polandOuterRef.current) {
-        const clippedFeature = clipToBoundary(featureToSave, polandOuterRef.current);
+      // PRZYWRÓCONA LOGIKA KLIPOWANIA DO ZAZNACZONYCH WOJEWÓDZTW
+      let clippingBoundary = polandOuterRef.current; // Domyślnie obcinamy do granic Polski
+      
+      if (selectedRegionIds.current.size > 0) {
+        // Jeśli zaznaczono jakieś województwa, to obcinamy rysunek dokładnie do nich!
+        const featuresToMerge = polandGeoJsonRef.current.features.filter((f: any) => selectedRegionIds.current.has(f.properties.customId));
+        const mergedSelected = mergeRegions(featuresToMerge);
+        if (mergedSelected) clippingBoundary = mergedSelected;
+      }
+
+      if (clippingBoundary) {
+        const clippedFeature = clipToBoundary(featureToSave, clippingBoundary);
         if (!clippedFeature) return false; 
         geometryToSave = ensureMultiPolygon(clippedFeature.geometry);
       } else {
@@ -388,7 +394,6 @@ export default function ChargeMap() {
     if (map.current && station.lat && station.lng) map.current.flyTo({ center: [station.lng, station.lat], zoom: 17, pitch: 0, essential: true, speed: 1.5 });
   };
 
-  // Generowanie unikalnych opcji dla filtrów
   const uniqueClients = Array.from(new Set(allStations.map(s => s.client).filter(Boolean))) as string[];
   const uniqueTechnicians = Array.from(new Set(allStations.map(s => s.technician).filter(Boolean))) as string[];
   const uniqueModels = Array.from(new Set(allStations.map(s => s.model).filter(Boolean))) as string[];
@@ -419,23 +424,16 @@ export default function ChargeMap() {
               {showSectors ? 'Ukryj strefy' : 'Pokaż strefy'}
             </button>
 
-            {/* NOWY PRZYCISK FILTRÓW */}
             <div className="relative">
-              <button 
-                onClick={() => setIsFilterOpen(!isFilterOpen)} 
-                className={`backdrop-blur-md shadow-lg border px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${isFilterOpen || activeFiltersCount > 0 ? 'bg-green-50 text-[#58b347] border-[#58b347]' : 'bg-white/95 border-slate-200 text-slate-700 hover:bg-green-50 hover:text-[#58b347]'}`}
-              >
+              <button onClick={() => setIsFilterOpen(!isFilterOpen)} className={`backdrop-blur-md shadow-lg border px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${isFilterOpen || activeFiltersCount > 0 ? 'bg-green-50 text-[#58b347] border-[#58b347]' : 'bg-white/95 border-slate-200 text-slate-700 hover:bg-green-50 hover:text-[#58b347]'}`}>
                 <IconFilter /> Filtry mapy {activeFiltersCount > 0 && `(${activeFiltersCount})`}
               </button>
 
-              {/* ROZWIJANY PANEL FILTRÓW */}
               {isFilterOpen && (
                 <div className="absolute top-12 left-0 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 p-5 z-[100] flex flex-col gap-4">
                   <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                     <h3 className="font-bold text-slate-800 text-sm">Filtruj stacje</h3>
-                    {activeFiltersCount > 0 && (
-                      <button onClick={() => setFilters({ client: '', technician: '', model: '', status: '', dateFrom: '', dateTo: '' })} className="text-xs text-red-500 hover:underline font-medium">Wyczyść filtry</button>
-                    )}
+                    {activeFiltersCount > 0 && <button onClick={() => setFilters({ client: '', technician: '', model: '', status: '', dateFrom: '', dateTo: '' })} className="text-xs text-red-500 hover:underline font-medium">Wyczyść filtry</button>}
                   </div>
                   
                   <div className="space-y-3">
@@ -451,31 +449,9 @@ export default function ChargeMap() {
                         <option value="Naprawa odpłatna">Naprawa odpłatna (Bursztynowe)</option>
                       </select>
                     </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">Opiekun / Technik</label>
-                      <select value={filters.technician} onChange={(e) => setFilters({...filters, technician: e.target.value})} className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-[#58b347]">
-                        <option value="">Wszyscy technicy</option>
-                        {uniqueTechnicians.map((t, idx) => <option key={idx} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">Klient / Sieć</label>
-                      <select value={filters.client} onChange={(e) => setFilters({...filters, client: e.target.value})} className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-[#58b347]">
-                        <option value="">Wszyscy klienci</option>
-                        {uniqueClients.map((c, idx) => <option key={idx} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">Model ładowarki</label>
-                      <select value={filters.model} onChange={(e) => setFilters({...filters, model: e.target.value})} className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-[#58b347]">
-                        <option value="">Wszystkie modele</option>
-                        {uniqueModels.map((m, idx) => <option key={idx} value={m}>{m}</option>)}
-                      </select>
-                    </div>
-
+                    <div><label className="block text-xs font-medium text-slate-500 mb-1">Opiekun / Technik</label><select value={filters.technician} onChange={(e) => setFilters({...filters, technician: e.target.value})} className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-[#58b347]"><option value="">Wszyscy technicy</option>{uniqueTechnicians.map((t, idx) => <option key={idx} value={t}>{t}</option>)}</select></div>
+                    <div><label className="block text-xs font-medium text-slate-500 mb-1">Klient / Sieć</label><select value={filters.client} onChange={(e) => setFilters({...filters, client: e.target.value})} className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-[#58b347]"><option value="">Wszyscy klienci</option>{uniqueClients.map((c, idx) => <option key={idx} value={c}>{c}</option>)}</select></div>
+                    <div><label className="block text-xs font-medium text-slate-500 mb-1">Model ładowarki</label><select value={filters.model} onChange={(e) => setFilters({...filters, model: e.target.value})} className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-[#58b347]"><option value="">Wszystkie modele</option>{uniqueModels.map((m, idx) => <option key={idx} value={m}>{m}</option>)}</select></div>
                     <div>
                       <label className="block text-xs font-medium text-slate-500 mb-1">Data przeglądu UDT (Okres)</label>
                       <div className="flex items-center gap-2">
@@ -484,12 +460,10 @@ export default function ChargeMap() {
                         <input type="date" value={filters.dateTo} onChange={(e) => setFilters({...filters, dateTo: e.target.value})} className="w-full text-xs border border-slate-200 rounded p-1.5 focus:outline-none focus:border-[#58b347]" />
                       </div>
                     </div>
-
                   </div>
                 </div>
               )}
             </div>
-
           </div>
         </>
       )}

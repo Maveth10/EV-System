@@ -5,6 +5,7 @@ import StationAnalytics from './StationAnalytics';
 
 export type Station = {
   id: string;
+  created_at?: string;
   name: string;
   client: string | null;
   model: string | null;
@@ -22,7 +23,7 @@ export type Station = {
 };
 
 type SortConfig = { key: keyof Station; direction: 'asc' | 'desc' } | null;
-type ColumnKey = 'select' | 'actions' | 'name' | 'client' | 'location' | 'region' | 'model' | 'inspection_date' | 'last_ticket_date' | 'technician' | 'status';
+type ColumnKey = 'select' | 'actions' | 'name' | 'client' | 'location' | 'region' | 'model' | 'inspection_date' | 'last_ticket_date' | 'technician' | 'status' | 'additional_info' | 'country' | 'lat' | 'lng' | 'created_at';
 
 interface ColumnDef {
   key: ColumnKey;
@@ -45,6 +46,11 @@ const defaultColumns: ColumnDef[] = [
   { key: 'last_ticket_date', label: 'Zgłoszenie', visible: true, sortableKey: 'last_ticket_date', thClass: 'min-w-[110px]', tdClass: 'text-slate-500 font-mono text-[11px]' },
   { key: 'technician', label: 'Opiekun', visible: true, sortableKey: 'technician', thClass: 'min-w-[120px]', tdClass: '' },
   { key: 'status', label: 'Status / Zadanie', visible: true, sortableKey: 'status', thClass: 'min-w-[120px]', tdClass: '' },
+  { key: 'additional_info', label: 'Dodatkowe info', visible: false, sortableKey: 'additional_info', thClass: 'min-w-[150px]', tdClass: 'text-slate-500 truncate max-w-[200px]' },
+  { key: 'country', label: 'Kraj', visible: false, sortableKey: 'country', thClass: 'min-w-[100px]', tdClass: 'text-slate-600' },
+  { key: 'lat', label: 'Szerokość GPS', visible: false, sortableKey: 'lat', thClass: 'min-w-[110px]', tdClass: 'text-slate-400 font-mono text-[11px]' },
+  { key: 'lng', label: 'Długość GPS', visible: false, sortableKey: 'lng', thClass: 'min-w-[110px]', tdClass: 'text-slate-400 font-mono text-[11px]' },
+  { key: 'created_at', label: 'Data dodania', visible: false, sortableKey: 'created_at', thClass: 'min-w-[120px]', tdClass: 'text-slate-500 text-[11px]' },
 ];
 
 const IconSort = () => <svg className="w-3 h-3 inline-block ml-1 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>;
@@ -57,6 +63,7 @@ const IconColumns = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="non
 const IconSearch = () => <svg className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
 const IconArrowUp = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>;
 const IconArrowDown = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>;
+const IconRadar = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h.01"/><path d="M2.29 9.62A10 10 0 1 0 21.31 8.35"/><path d="M16.24 7.76A6 6 0 1 0 8.23 16.67"/><path d="M12 18h.01"/><path d="M17.99 11.66A6 6 0 0 1 15.77 16.67"/><circle cx="12" cy="12" r="2"/><path d="m13.41 10.59 5.66-5.66"/></svg>;
 
 const parseCSVLine = (line: string, delimiter: string): string[] => {
   const result: string[] = [];
@@ -75,6 +82,45 @@ const parseCSVLine = (line: string, delimiter: string): string[] => {
   }
   result.push(current.trim());
   return result.map(v => v.replace(/^["']|["']$/g, '').trim());
+};
+
+const parseCSV = (text: string, delimiter: string): string[][] => {
+  const rows: string[][] = [];
+  let currentRow: string[] = [];
+  let currentCell = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        currentCell += '"'; 
+        i++; 
+      } else {
+        inQuotes = !inQuotes; 
+      }
+    } else if (char === delimiter && !inQuotes) {
+      currentRow.push(currentCell.trim());
+      currentCell = '';
+    } else if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && nextChar === '\n') i++; 
+      currentRow.push(currentCell.trim());
+      if (currentRow.some(cell => cell !== '')) rows.push(currentRow);
+      currentRow = [];
+      currentCell = '';
+    } else {
+      currentCell += char;
+    }
+  }
+  
+  if (currentCell || currentRow.length > 0) {
+    currentRow.push(currentCell.trim());
+    if (currentRow.some(cell => cell !== '')) rows.push(currentRow);
+  }
+  
+  return rows.map(row => row.map(cell => cell.replace(/^["']|["']$/g, '').trim()));
 };
 
 const getDaysSince = (dateString: string | null) => {
@@ -112,7 +158,6 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
   const [sortConfig, setSortConfig] = useState<SortConfig>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   
-  // Nowe stany filtrów i kolumn
   const [searchTerm, setSearchTerm] = useState('');
   const [columns, setColumns] = useState<ColumnDef[]>(defaultColumns);
   const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
@@ -125,6 +170,11 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
   const [sheetUrl, setSheetUrl] = useState('');
   const [importStatus, setImportStatus] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+
+  // Nowe stany dla Geokodowania w tle
+  const [isGeocodeModalOpen, setIsGeocodeModalOpen] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [geocodeStatus, setGeocodeStatus] = useState('');
 
   const fetchStations = async () => {
     setIsLoading(true);
@@ -147,12 +197,13 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (isImportModalOpen && !isImporting) setIsImportModalOpen(false);
+        if (isGeocodeModalOpen && !isGeocoding) setIsGeocodeModalOpen(false);
         if (isColumnSettingsOpen) setIsColumnSettingsOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isImportModalOpen, isImporting, isColumnSettingsOpen]);
+  }, [isImportModalOpen, isImporting, isColumnSettingsOpen, isGeocodeModalOpen, isGeocoding]);
 
   const handleSort = (key: keyof Station) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -160,11 +211,9 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     setSortConfig({ key, direction });
   };
 
-  // Rozszerzona logika filtrowania i sortowania w locie
   const processedStations = useMemo(() => {
     let result = stations;
 
-    // A. Filtrowanie tekstowe
     if (searchTerm.trim() !== '') {
       const q = searchTerm.toLowerCase();
       result = result.filter(s => 
@@ -174,11 +223,11 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
         (s.street && s.street.toLowerCase().includes(q)) ||
         (s.technician && s.technician.toLowerCase().includes(q)) ||
         (s.model && s.model.toLowerCase().includes(q)) ||
-        (s.region && s.region.toLowerCase().includes(q))
+        (s.region && s.region.toLowerCase().includes(q)) ||
+        (s.additional_info && s.additional_info.toLowerCase().includes(q))
       );
     }
 
-    // B. Sortowanie
     if (sortConfig) {
       result = [...result].sort((a, b) => {
         const aVal = a[sortConfig.key] || '';
@@ -205,11 +254,10 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
   const deleteSelected = async () => {
     if (!confirm(`Na pewno usunąć wybrane stacje (${selectedIds.length})?`)) return;
     const { error } = await supabase.from('stations').delete().in('id', selectedIds);
-    if (error) alert('Błąd usuwania: ' + error.message);
+    if (error) alert('Błąd usuwania. Użyj SQL Editora by usunąć wielkie zbiory danych naraz.');
     else { setSelectedIds([]); fetchStations(); }
   };
 
-  // Metody do zarządzania kolumnami
   const moveColumn = (index: number, direction: -1 | 1) => {
     const newCols = [...columns];
     const target = index + direction;
@@ -223,6 +271,89 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     const newCols = [...columns];
     newCols[index].visible = !newCols[index].visible;
     setColumns(newCols);
+  };
+
+  const missingGpsCount = stations.filter(s => !s.lat || !s.lng).length;
+
+  const handleGeocodeMissing = async () => {
+    const missing = stations.filter(s => !s.lat || !s.lng);
+    if (missing.length === 0) return;
+
+    setIsGeocoding(true);
+    
+    // Grupowanie stacji po adresie (Oszczędność API)
+    const addressGroups = new Map<string, typeof missing>();
+    missing.forEach(s => {
+      const c = s.city || '';
+      const str = s.street || '';
+      const ctry = s.country || 'Polska';
+      const key = `${str}|${c}|${ctry}`;
+      if (!addressGroups.has(key)) addressGroups.set(key, []);
+      addressGroups.get(key)!.push(s);
+    });
+
+    let processed = 0;
+    const totalGroups = addressGroups.size;
+    let successUpdates = 0;
+    let failedUpdates = 0;
+
+    const nominateHeaders = { 'User-Agent': 'EkoenFSMDispatchSystem/5.0 (dispatch@ekoen.pl)' };
+
+    for (const [key, stList] of addressGroups.entries()) {
+      processed++;
+      setGeocodeStatus(`Szukanie adresu na mapie (${processed} z ${totalGroups} lokalizacji)...`);
+
+      const [street, city, country] = key.split('|');
+      let lat = null, lng = null;
+
+      const cleanStreet = (str: string) => str.replace(/\b(MOP|Mop|mop|A2|A1|A4|S3|S5|Mop Chociszewo|MOP Rogoziniec)\b/g, '').replace(/\s+/g, ' ').trim();
+      const sClean = cleanStreet(street);
+      const cClean = city.trim();
+
+      if (sClean || cClean) {
+        try {
+          await new Promise(r => setTimeout(r, 1200)); // Rate limit map
+          let url = '';
+          if (sClean && cClean) {
+            url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${sClean}, ${cClean}, ${country}`)}`;
+          } else if (cClean) {
+            url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${cClean}, ${country}`)}`;
+          }
+
+          if (url) {
+            const res = await fetch(url, { headers: nominateHeaders });
+            if (res.ok) {
+              const data = await res.json();
+              if (data && data.length > 0 && !isNaN(parseFloat(data[0].lat))) {
+                lat = parseFloat(data[0].lat);
+                lng = parseFloat(data[0].lon);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("Geocode error", e);
+        }
+      }
+
+      if (lat && lng) {
+        setGeocodeStatus(`Zapisywanie współrzędnych do bazy danych...`);
+        for (const s of stList) {
+          // Mikro-offset żeby stacje w tej samej lokalizacji (MOP) nie zlały się w jeden piksel
+          const offsetLat = lat + (Math.random() - 0.5) * 0.0001;
+          const offsetLng = lng + (Math.random() - 0.5) * 0.0001;
+          const locationVal = `POINT(${offsetLng} ${offsetLat})`;
+          
+          await supabase.from('stations').update({ lat: offsetLat, lng: offsetLng, location: locationVal }).eq('id', s.id);
+        }
+        successUpdates += stList.length;
+      } else {
+        failedUpdates += stList.length;
+      }
+    }
+
+    setGeocodeStatus(`Zakończono! Odnaleziono i przypisano: ${successUpdates}. Brakujące: ${failedUpdates} (Wymagają poprawy ręcznej).`);
+    setIsGeocoding(false);
+    fetchStations();
   };
 
   const renderCellContent = (station: Station, key: ColumnKey) => {
@@ -246,7 +377,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       case 'location':
         return (
           <div className="flex items-center gap-1.5">
-            {(!station.lat || !station.lng) && <span title="Brak koordynatów GPS - uzupełnij ręcznie w edycji"><IconNoLocation /></span>}
+            {(!station.lat || !station.lng) && <span title="Brak koordynatów GPS - uzupełnij ręcznie w edycji lub geokoduj"><IconNoLocation /></span>}
             {station.city ? `${station.city}, ${station.street}` : '-'}
           </div>
         );
@@ -264,10 +395,16 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
             {station.status}
           </span>
         );
+      case 'additional_info': return station.additional_info || '-';
+      case 'country': return station.country || '-';
+      case 'lat': return station.lat ? station.lat.toFixed(6) : '-';
+      case 'lng': return station.lng ? station.lng.toFixed(6) : '-';
+      case 'created_at': return station.created_at ? new Date(station.created_at).toLocaleDateString() : '-';
       default: return null;
     }
   };
 
+  // Import pomijający GPS (Surowy)
   const handleImportStations = async (e: React.FormEvent) => {
     e.preventDefault();
     const matches = sheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
@@ -314,11 +451,12 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       setIsImporting(false); setImportStatus(''); return;
     }
 
-    const lines = csvText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    if (lines.length < 2) { alert('Arkusz nie zawiera wierszy z danymi.'); setIsImporting(false); return; }
+    const delimiter = csvText.split('\n')[0].includes(';') ? ';' : ',';
+    
+    const parsedData = parseCSV(csvText, delimiter);
+    if (parsedData.length < 2) { alert('Arkusz nie zawiera wierszy z danymi.'); setIsImporting(false); return; }
 
-    const delimiter = lines[0].includes(';') ? ';' : ',';
-    const headers = parseCSVLine(lines[0], delimiter).map(h => h.toLowerCase());
+    const headers = parsedData[0].map(h => h.toLowerCase());
 
     const getColIndex = (names: string[]) => headers.findIndex(h => names.some(n => h === n || h.includes(n)));
     
@@ -335,7 +473,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       setIsImporting(false); return;
     }
 
-    const rows = lines.slice(1);
+    const rows = parsedData.slice(1);
     
     setImportStatus(`Mapowanie ${rows.length} rekordów...`);
     
@@ -343,10 +481,8 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     let emptyIdCount = 0; 
 
     for (let i = 0; i < rows.length; i++) {
-      const vals = parseCSVLine(rows[i], delimiter);
+      const vals = rows[i];
       const nameVal = vals[idxName];
-      
-      if (vals.every(v => v === '')) continue; 
       
       if (!nameVal) {
         emptyIdCount++;
@@ -388,7 +524,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     }
 
     let alertMessage = `Gotowe! Zapisano w bazie: ${successCount} stacji.\n`;
-    if (emptyIdCount > 0) alertMessage += `\n⚠️ Pominięto ${emptyIdCount} wierszy, ponieważ miały pustą komórkę "Identyfikator".`;
+    if (emptyIdCount > 0) alertMessage += `\n⚠️ Zignorowano ${emptyIdCount} wierszy, ponieważ miały pustą komórkę "Identyfikator" (np. puste wiersze na dole arkusza).`;
     if (failedChunks > 0) alertMessage += `\n❌ Baza danych odrzuciła ${failedChunks} paczek danych. Ostatni błąd: ${lastError}`;
     
     alert(alertMessage);
@@ -428,7 +564,7 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
                   Zarządzaj kolumnami
                   <button onClick={() => setIsColumnSettingsOpen(false)} className="hover:text-slate-700">✕</button>
                 </div>
-                <div className="p-1 max-h-[60vh] overflow-y-auto">
+                <div className="p-1 max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
                   {columns.map((c, i) => (
                     <div key={c.key} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded group">
                       <div className="flex items-center gap-2.5">
@@ -447,6 +583,12 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
           </div>
 
           <div className="w-px h-6 bg-slate-200 mx-1"></div>
+
+          {missingGpsCount > 0 && (
+            <button onClick={() => setIsGeocodeModalOpen(true)} className="bg-white border border-orange-300 text-orange-600 px-3 py-2 rounded-lg text-xs font-medium hover:bg-orange-50 flex items-center gap-2 shadow-sm transition-colors animate-pulse">
+              <IconRadar /> Brak GPS ({missingGpsCount})
+            </button>
+          )}
 
           {selectedIds.length > 0 && (
             <button onClick={deleteSelected} className="bg-white border border-red-200 text-red-600 px-3 py-2 rounded-lg text-xs font-medium hover:bg-red-50 flex items-center gap-2 shadow-sm transition-colors">
@@ -512,11 +654,44 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
         <StationAnalytics station={advancedDetailsStation} onClose={() => setAdvancedDetailsStation(null)} />
       )}
 
+      {/* Modal Geokodowania */}
+      {isGeocodeModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" onClick={() => !isGeocoding && setIsGeocodeModalOpen(false)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden border border-slate-200" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-slate-50 px-5 py-4 border-b border-slate-200 flex justify-between items-center">
+              <h3 className="text-sm font-semibold text-slate-800">Lokalizowanie na mapie</h3>
+              <button onClick={() => !isGeocoding && setIsGeocodeModalOpen(false)} disabled={isGeocoding} className="text-slate-400 hover:text-slate-600 disabled:opacity-50">✕</button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 text-xs text-slate-600 space-y-2">
+                <p>System spróbuje automatycznie odnaleźć koordynaty GPS dla <strong>{missingGpsCount} stacji</strong>.</p>
+                <p className="text-slate-500 mt-1">Dzięki grupowaniu po adresach proces ten będzie znacznie szybszy i bezpieczniejszy dla darmowych serwerów map.</p>
+              </div>
+              
+              {isGeocoding || geocodeStatus ? (
+                <div className="bg-orange-50 p-4 rounded-lg border border-orange-100 flex items-center gap-3">
+                  {isGeocoding && <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>}
+                  <p className="text-xs font-medium text-orange-700">{geocodeStatus}</p>
+                </div>
+              ) : null}
+
+              <div className="flex gap-2 pt-2">
+                <button type="button" disabled={isGeocoding} onClick={() => setIsGeocodeModalOpen(false)} className="flex-1 bg-slate-100 text-slate-700 font-medium py-2.5 rounded text-sm hover:bg-slate-200 disabled:opacity-50">Zamknij</button>
+                <button type="button" disabled={isGeocoding} onClick={handleGeocodeMissing} className="flex-1 bg-orange-500 text-white font-medium py-2.5 rounded text-sm hover:bg-orange-600 disabled:opacity-50">
+                  {isGeocoding ? 'Przetwarzanie...' : 'Uruchom wyszukiwanie'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Szybkiego Importu */}
       {isImportModalOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" onClick={() => !isImporting && setIsImportModalOpen(false)}>
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden border border-slate-200" onClick={(e) => e.stopPropagation()}>
             <div className="bg-slate-50 px-5 py-4 border-b border-slate-200 flex justify-between items-center">
-              <h3 className="text-sm font-semibold text-slate-800">Szybki Import Danych (Bez GPS)</h3>
+              <h3 className="text-sm font-semibold text-slate-800">Szybki Import Danych</h3>
               <button onClick={() => !isImporting && setIsImportModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
             <div className="p-5 space-y-4">

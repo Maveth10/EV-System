@@ -19,9 +19,11 @@ import { LoadingScreen } from './EkoenLogo';
 
 import { buildOuterBoundary, mergeRegions, clipToBoundary, ensureMultiPolygon } from '../utils/geometryEngine';
 
-//const DETAILED_POLAND_URL = 'https://raw.githubusercontent.com/ppatrzyk/polska-geojson/master/wojewodztwa/wojewodztwa-medium.geojson';
-const DETAILED_POLAND_URL = '/poland.geojson';
-const DETAILED_SLOVAKIA_URL = '/slovakia.geojson';
+// TABLICA URLI: Tutaj w przyszłości po prostu dopisujesz kolejne kraje, np. '/germany.geojson'
+const GEOJSON_COUNTRY_URLS = [
+  '/poland.geojson',
+  '/slovakia.geojson'
+];
 
 const IconFilter = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>;
 
@@ -229,20 +231,39 @@ export default function ChargeMap() {
       loadSavedSectors();
 
       try {
-        const res = await fetch(DETAILED_POLAND_URL);
-        const data = await res.json();
+        // NOWOŚĆ: Błyskawiczne pobieranie i łączenie wielu krajów naraz
+        const responses = await Promise.all(GEOJSON_COUNTRY_URLS.map(url => fetch(url).then(res => res.json())));
         
-        data.features = data.features.map((f: any, i: number) => ({ 
-          ...f, id: i + 1, properties: { ...f.properties, customId: i + 1 } 
-        }));
-        polandGeoJsonRef.current = data;
+        const combinedFeatures: any[] = [];
+        let globalId = 1;
 
-        const outerPolygon = buildOuterBoundary(data) || data.features[0];
+        responses.forEach(data => {
+          if (data && data.features) {
+            data.features.forEach((f: any) => {
+              combinedFeatures.push({
+                ...f,
+                id: globalId,
+                properties: { ...f.properties, customId: globalId }
+              });
+              globalId++;
+            });
+          }
+        });
+
+        const combinedGeoJson = {
+          type: 'FeatureCollection',
+          features: combinedFeatures
+        };
+
+        polandGeoJsonRef.current = combinedGeoJson;
+
+        const outerPolygon = buildOuterBoundary(combinedGeoJson) || combinedGeoJson.features[0];
         outerPolygon.id = 999;
         outerPolygon.properties = { ...outerPolygon.properties, customId: 999 };
         polandOuterRef.current = outerPolygon;
 
-        map.current.addSource('poland-data', { type: 'geojson', data, promoteId: 'customId' });
+        // Przekazujemy połączone kraje do źródła mapy
+        map.current.addSource('poland-data', { type: 'geojson', data: combinedGeoJson, promoteId: 'customId' });
         map.current.addSource('poland-outer', { type: 'geojson', data: outerPolygon, promoteId: 'customId' });
         
         map.current.addLayer({ 
@@ -361,7 +382,6 @@ export default function ChargeMap() {
     }
   };
 
-  // NAPRAWIONA FUNKCJA ZAPISU (Łączenie klikniętych województw z kształtami już na mapie)
   const handleSaveDrawing = async (): Promise<boolean> => {
     if (!activeDrawContext) return false;
     let finalGeometry = null;
@@ -374,7 +394,6 @@ export default function ChargeMap() {
         alert('Nie wybrano żadnego obszaru.'); return false;
       }
 
-      // Łączymy nowo kliknięte województwa ze starym kształtem z bazy
       const featuresToMerge = [...clickedFeatures, ...existingFeatures];
       const mergedPolygon = mergeRegions(featuresToMerge);
       finalGeometry = ensureMultiPolygon(mergedPolygon?.geometry);

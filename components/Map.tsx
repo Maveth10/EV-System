@@ -36,6 +36,7 @@ export default function ChargeMap() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [modalLatLng, setModalLatLng] = useState<{lat: number, lng: number} | null>(null);
   const [isSectorEditorOpen, setIsSectorEditorOpen] = useState(false);
+  const [editingStationMap, setEditingStationMap] = useState<Station | null>(null);
   
   const [savedSectorsList, setSavedSectorsList] = useState<Sector[]>([]);
   const sectorsListRef = useRef<Sector[]>([]);
@@ -408,9 +409,28 @@ export default function ChargeMap() {
       {activeView === 'map' && (
         <>
           <ContextMenu menu={contextMenu} onClose={() => setContextMenu(null)} onAddStation={(lat, lng) => { setModalLatLng({ lat, lng }); setIsAddModalOpen(true); }} onEditSector={() => { setIsSectorEditorOpen(true); if (!showSectorsRef.current) toggleSectorsVisibility(true); }} />
-          <StationPanel station={selectedStation} onClose={() => setSelectedStation(null)} />
-          <AddStationModal isOpen={isAddModalOpen} onClose={() => { setIsAddModalOpen(false); setModalLatLng(null); }} initialLatLng={modalLatLng} onSuccess={loadStations} />
-          
+          <StationPanel 
+            station={selectedStation} 
+            onClose={() => setSelectedStation(null)} 
+            onEdit={(s) => {
+              setEditingStationMap(s);
+              setIsAddModalOpen(true);
+            }}
+          />
+          <AddStationModal 
+            isOpen={isAddModalOpen || !!editingStationMap} 
+            onClose={() => { 
+              setIsAddModalOpen(false); 
+              setEditingStationMap(null);
+              setModalLatLng(null); 
+            }} 
+            initialLatLng={modalLatLng} 
+            onSuccess={() => {
+              loadStations();
+              setSelectedStation(null); // Zamyka panel po zapisaniu żeby wymusić odświeżenie
+            }} 
+            editingStation={editingStationMap}
+          />
           <SectorEditor 
             isOpen={isSectorEditorOpen} onClose={() => { setIsSectorEditorOpen(false); cancelDrawing(); }} sectors={savedSectorsList} isDrawingActive={isDrawingActive}
             onStartDrawingNew={handleStartDrawingNew} onEditExisting={handleEditExisting} onSaveDrawing={handleSaveDrawing} onCancelDrawing={cancelDrawing} onDeleteSector={deleteSector} drawMethod={drawMethod} onSetDrawMethod={handleSetDrawMethod} onSelectAllPoland={selectAllPoland}

@@ -18,7 +18,7 @@ import CalendarView from './CalendarView';
 import { LoadingScreen } from './EkoenLogo';
 import EquipmentManager from './EquipmentManager';
 import ClientsDatabase from './ClientsDatabase';
-import AnalyticsDashboard from './AnalyticsDashboard'; // <--- DODANY IMPORT
+import AnalyticsDashboard from './AnalyticsDashboard';
 
 import { buildOuterBoundary, mergeRegions, clipToBoundary, ensureMultiPolygon } from '../utils/geometryEngine';
 
@@ -34,9 +34,9 @@ export default function ChargeMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const drawRef = useRef<MapboxDraw | null>(null);
-  const markersRef = useRef<maplibregl.Marker[]>([]);
   
   const [isAppLoading, setIsAppLoading] = useState(true);
+  const [isMapLoaded, setIsMapLoaded] = useState(false); // <--- NOWY STAN
   const [activeView, setActiveView] = useState<ViewState>('map');
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
@@ -60,9 +60,8 @@ export default function ChargeMap() {
   const [drawMethod, setDrawMethod] = useState<'manual' | 'click'>('manual');
   const drawMethodRef = useRef<'manual' | 'click'>('manual');
 
-  // Uniwersalne referencje dla wszystkich krajów
   const regionsGeoJsonRef = useRef<any>(null);
-  const masterBoundaryRef = useRef<any>(null); // Do przycinania manualnego rysowania
+  const masterBoundaryRef = useRef<any>(null); 
   const selectedRegionIds = useRef<Set<number>>(new Set());
 
   const [showSectors, setShowSectors] = useState(false);
@@ -81,9 +80,7 @@ export default function ChargeMap() {
   const handleSetDrawMethod = (method: 'manual' | 'click', forceMode?: string, forceOptions?: any) => {
     setDrawMethod(method);
     drawMethodRef.current = method;
-    
     if (!drawRef.current) return;
-    
     if (forceMode) drawRef.current.changeMode(forceMode as any, forceOptions);
     else if (method === 'manual') drawRef.current.changeMode('draw_polygon');
     else drawRef.current.changeMode('simple_select');
@@ -97,7 +94,6 @@ export default function ChargeMap() {
     const newState = forceShow !== undefined ? forceShow : !showSectors;
     setShowSectors(newState);
     showSectorsRef.current = newState;
-    
     if (map.current) {
       ['saved-sectors-layer', 'saved-sectors-outline', 'saved-regions-layer', 'saved-regions-outline'].forEach(layer => {
         if (map.current!.getLayer(layer)) map.current!.setLayoutProperty(layer, 'visibility', newState ? 'visible' : 'none');
@@ -107,54 +103,8 @@ export default function ChargeMap() {
 
   const loadStations = useCallback(async () => {
     const { data } = await supabase.from('stations').select('*');
-    if (data) {
-      setAllStations(data as Station[]);
-    }
+    if (data) setAllStations(data as Station[]);
   }, []);
-
-  useEffect(() => {
-    if (!map.current) return;
-
-    markersRef.current.forEach(marker => marker.remove());
-    markersRef.current = [];
-
-    const filteredStations = allStations.filter(s => {
-      if (filters.client && s.client !== filters.client) return false;
-      if (filters.technician && s.technician !== filters.technician) return false;
-      if (filters.model && s.model !== filters.model) return false;
-      if (filters.status && s.status !== filters.status) return false;
-      if (filters.dateFrom && (!s.inspection_date || s.inspection_date < filters.dateFrom)) return false;
-      if (filters.dateTo && (!s.inspection_date || s.inspection_date > filters.dateTo)) return false;
-      return true;
-    });
-
-    filteredStations.forEach((station: Station) => {
-      if (!station.lat || !station.lng) return;
-      
-      let markerColor = '#58b347'; 
-      switch(station.status) {
-        case 'Awaria': markerColor = '#ef4444'; break;
-        case 'Uruchomienie': markerColor = '#8b5cf6'; break;
-        case 'Przegląd': markerColor = '#3b82f6'; break;
-        case 'Zlecenie jakościowe': markerColor = '#f97316'; break;
-        case 'Naprawa odpłatna': markerColor = '#eab308'; break;
-        case 'Brak akcji': default: markerColor = '#58b347'; break;
-      }
-
-      const el = document.createElement('div');
-      el.className = 'w-4 h-4 border-2 border-white rounded-full shadow-sm hover:scale-110 transition-transform z-40';
-      el.style.backgroundColor = markerColor;
-      el.style.cursor = 'pointer';
-
-      const marker = new maplibregl.Marker({ element: el }).setLngLat([station.lng, station.lat]).addTo(map.current!);
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        setSelectedStation(station);
-        setContextMenu(null);
-      });
-      markersRef.current.push(marker);
-    });
-  }, [allStations, filters]);
 
   const loadSavedSectors = useCallback(async () => {
     const [techs, regs] = await Promise.all([
@@ -165,7 +115,6 @@ export default function ChargeMap() {
     if (techs.data) {
       const mappedTechs = techs.data.map(d => ({ id: d.id, name: d.name, color: d.color, geometry: d.zone_geometry }));
       setSavedSectorsList(mappedTechs);
-      
       if (map.current?.getSource('saved-sectors')) {
         const features = mappedTechs.filter(t => t.geometry).map(t => ({ type: 'Feature', geometry: t.geometry, properties: { id: t.id, name: t.name, color: t.color }}));
         (map.current.getSource('saved-sectors') as maplibregl.GeoJSONSource).setData({ type: 'FeatureCollection', features } as any);
@@ -175,7 +124,6 @@ export default function ChargeMap() {
     if (regs.data) {
       const mappedRegs = regs.data.map(d => ({ id: d.id, name: d.name, color: d.color, geometry: d.zone_geometry }));
       setSavedRegionsList(mappedRegs);
-      
       if (map.current?.getSource('saved-regions')) {
         const features = mappedRegs.filter(r => r.geometry).map(r => ({ type: 'Feature', geometry: r.geometry, properties: { id: r.id, name: r.name, color: r.color }}));
         (map.current.getSource('saved-regions') as maplibregl.GeoJSONSource).setData({ type: 'FeatureCollection', features } as any);
@@ -190,6 +138,7 @@ export default function ChargeMap() {
     }
   }, [activeView, loadStations, loadSavedSectors]);
 
+  // INICJALIZACJA MAPY (Uruchamia się tylko raz)
   useEffect(() => {
     if (!mapContainer.current || map.current) return; 
 
@@ -211,8 +160,106 @@ export default function ChargeMap() {
       });
       map.current.on('click', () => setContextMenu(null));
 
-      loadStations();
+      // --- DODAWANIE ŹRÓDŁA Z KLASTROWANIEM ---
+      map.current.addSource('stations-data', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+        cluster: true,
+        clusterMaxZoom: 14, // Maksymalny zoom, przy którym punkty wciąż się grupują
+        clusterRadius: 50   // Zasięg "wciągania" punktów w promieniu 50px
+      });
 
+      // 1. Warstwa Klastrów (Zgrupowane koła)
+      map.current.addLayer({
+        id: 'clusters',
+        type: 'circle',
+        source: 'stations-data',
+        filter: ['has', 'point_count'],
+        paint: {
+          'circle-color': '#58b347', // Zielony Ekoen
+          'circle-opacity': 0.9,
+          'circle-radius': [
+            'step',
+            ['get', 'point_count'],
+            18,  // promień dla klastrów < 10 elementów
+            10, 22, // dla klastrów >= 10 elementów
+            50, 28  // dla klastrów >= 50 elementów
+          ],
+          'circle-stroke-width': 3,
+          'circle-stroke-color': 'rgba(255, 255, 255, 0.8)'
+        }
+      });
+
+      // 2. Cyferka wewnątrz klastra
+      map.current.addLayer({
+        id: 'cluster-count',
+        type: 'symbol',
+        source: 'stations-data',
+        filter: ['has', 'point_count'],
+        layout: {
+          'text-field': '{point_count_abbreviated}',
+          'text-font': ['Arial Unicode MS Bold'],
+          'text-size': 14
+        },
+        paint: { 'text-color': '#ffffff' }
+      });
+
+      // 3. Pojedyncza, rozbita stacja (Kolor zależny od statusu bazy!)
+      map.current.addLayer({
+        id: 'unclustered-point',
+        type: 'circle',
+        source: 'stations-data',
+        filter: ['!', ['has', 'point_count']],
+        paint: {
+          'circle-radius': 7,
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff',
+          'circle-color': [
+            'match',
+            ['get', 'status'],
+            'Awaria', '#ef4444',
+            'Uruchomienie', '#8b5cf6',
+            'Przegląd', '#3b82f6',
+            'Zlecenie jakościowe', '#f97316',
+            'Naprawa odpłatna', '#eab308',
+            '#58b347' // Domyślny kolor (Brak akcji)
+          ]
+        }
+      });
+
+      // INTERAKCJE DLA NOWYCH WARSTW STACJI
+      // Kliknięcie w klaster -> Rozbija go (przybliża mapę)
+      map.current.on('click', 'clusters', (e) => {
+        const features = map.current!.queryRenderedFeatures(e.point, { layers: ['clusters'] });
+        const clusterId = features[0].properties.cluster_id;
+        (map.current!.getSource('stations-data') as maplibregl.GeoJSONSource).getClusterExpansionZoom(
+          clusterId,
+          (err, zoom) => {
+            if (err) return;
+            map.current!.easeTo({
+              center: (features[0].geometry as any).coordinates,
+              zoom: zoom
+            });
+          }
+        );
+      });
+
+      // Kliknięcie w pojedynczą stację -> Otwiera panel boczny
+      map.current.on('click', 'unclustered-point', (e) => {
+        const properties = e.features![0].properties;
+        const stationData = JSON.parse(properties.station_data);
+        setSelectedStation(stationData);
+        setContextMenu(null);
+      });
+
+      // Zmiany kursora na łapkę nad stacjami
+      map.current.on('mouseenter', 'clusters', () => { map.current!.getCanvas().style.cursor = 'pointer'; });
+      map.current.on('mouseleave', 'clusters', () => { map.current!.getCanvas().style.cursor = ''; });
+      map.current.on('mouseenter', 'unclustered-point', () => { map.current!.getCanvas().style.cursor = 'pointer'; });
+      map.current.on('mouseleave', 'unclustered-point', () => { map.current!.getCanvas().style.cursor = ''; });
+
+
+      // Ładowanie stref geograficznych (nie zmienione)
       map.current.addSource('saved-regions', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.current.addLayer({ id: 'saved-regions-layer', type: 'fill', source: 'saved-regions', layout: { visibility: 'none' }, paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.1 } });
       map.current.addLayer({ id: 'saved-regions-outline', type: 'line', source: 'saved-regions', layout: { visibility: 'none' }, paint: { 'line-color': ['get', 'color'], 'line-width': 3, 'line-dasharray': [2, 2] } });
@@ -220,8 +267,6 @@ export default function ChargeMap() {
       map.current.addSource('saved-sectors', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.current.addLayer({ id: 'saved-sectors-layer', type: 'fill', source: 'saved-sectors', layout: { visibility: 'none' }, paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.2 } });
       map.current.addLayer({ id: 'saved-sectors-outline', type: 'line', source: 'saved-sectors', layout: { visibility: 'none' }, paint: { 'line-color': ['get', 'color'], 'line-width': 2 } });
-
-      loadSavedSectors();
 
       try {
         const responses = await Promise.all(
@@ -235,7 +280,6 @@ export default function ChargeMap() {
 
         responses.forEach(({ code, data }) => {
           if (data && data.features) {
-            // Przetwarzanie województw/regionów wewnętrznych
             data.features.forEach((f: any) => {
               combinedFeatures.push({
                 ...f,
@@ -245,7 +289,6 @@ export default function ChargeMap() {
               globalId++;
             });
 
-            // Tworzenie OSOBNEJ obwódki dla każdego kraju
             const outerPolygon = buildOuterBoundary(data) || data.features[0];
             outerPolygon.id = boundaryId;
             outerPolygon.properties = { ...outerPolygon.properties, customId: boundaryId, countryCode: code, isBoundary: true };
@@ -258,13 +301,11 @@ export default function ChargeMap() {
         const boundariesGeoJson = { type: 'FeatureCollection' as const, features: boundaryFeatures };
 
         regionsGeoJsonRef.current = combinedGeoJson;
-        // Master boundary to złączenie wszystkich krajów - przydatne tylko do przycinania manualnego rysowania
         masterBoundaryRef.current = buildOuterBoundary(combinedGeoJson) || combinedGeoJson.features[0];
 
         map.current.addSource('regions-data', { type: 'geojson', data: combinedGeoJson as any, promoteId: 'customId' });
         map.current.addSource('boundaries-data', { type: 'geojson', data: boundariesGeoJson as any, promoteId: 'customId' });
         
-        // Warstwy wewnętrzne województw
         map.current.addLayer({ 
           id: 'regions-fill', type: 'fill', source: 'regions-data', 
           paint: { 
@@ -274,14 +315,12 @@ export default function ChargeMap() {
         });
         map.current.addLayer({ id: 'regions-outline', type: 'line', source: 'regions-data', paint: { 'line-color': '#cbd5e1', 'line-width': 1, 'line-dasharray': [3, 3] }});
 
-        // Warstwy granic państw (Oddzielne dla każdego kraju, ale gruby hitbox pozwoli złapać oba na styku)
         map.current.addLayer({ id: 'boundaries-hitbox', type: 'line', source: 'boundaries-data', paint: { 'line-width': 20, 'line-color': 'transparent' }});
         map.current.addLayer({ id: 'boundaries-glow', type: 'line', source: 'boundaries-data', paint: { 'line-width': 4, 'line-color': '#58b347', 'line-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 1, 0] }});
 
         let hoveredStateId: number | null = null;
         let hoveredBoundaryId: number | null = null;
 
-        // --- HOVER I KLIKANIE WOJEWÓDZTW (Pojedyncze) ---
         map.current.on('mousemove', 'regions-fill', (e) => {
           if (isDrawingActiveRef.current && drawMethodRef.current === 'click' && e.features && e.features.length > 0) {
             map.current!.getCanvas().style.cursor = 'crosshair';
@@ -317,7 +356,6 @@ export default function ChargeMap() {
           }
         });
 
-        // --- HOVER I PODWÓJNE KLIKANIE GRANIC PAŃSTW ---
         map.current.on('mousemove', 'boundaries-hitbox', (e) => {
           if (isDrawingActiveRef.current && drawMethodRef.current === 'click' && e.features && e.features.length > 0) {
             map.current!.getCanvas().style.cursor = 'pointer';
@@ -341,12 +379,8 @@ export default function ChargeMap() {
         map.current.on('dblclick', 'boundaries-hitbox', (e) => {
           if (!isDrawingActiveRef.current || drawMethodRef.current !== 'click') return;
           e.preventDefault(); 
-          
           if (e.features && e.features.length > 0) {
-            // Zbieramy tagi państw w które uderzył podwójny klik (jeden na środku granicy, lub dwa na styku)
             const clickedCountryCodes = new Set(e.features.map(f => f.properties.countryCode));
-
-            // Przeszukujemy bazę regionów i dodajemy tylko te, które należą do klikniętych państw
             regionsGeoJsonRef.current.features.forEach((f: any) => {
               if (clickedCountryCodes.has(f.properties.countryCode)) {
                 const fId = f.properties.customId;
@@ -360,10 +394,51 @@ export default function ChargeMap() {
       } catch (error) {
         console.error("Błąd ładowania danych geolokalizacyjnych:", error);
       }
+
+      setIsMapLoaded(true); // Informujemy aplikację, że można ładować stacje do klastrów
+      loadStations();
+      loadSavedSectors();
+
     });
   }, [loadStations, loadSavedSectors]); 
 
-  // Pusta funkcja dla zachowania kompatybilności przycisku w SectorEditor (można ją później całkowicie usunąć)
+
+  // WSTRZYKIWANIE STACJI DO SILNIKA KLASTROWANIA
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    const filteredStations = allStations.filter(s => {
+      if (filters.client && s.client !== filters.client) return false;
+      if (filters.technician && s.technician !== filters.technician) return false;
+      if (filters.model && s.model !== filters.model) return false;
+      if (filters.status && s.status !== filters.status) return false;
+      if (filters.dateFrom && (!s.inspection_date || s.inspection_date < filters.dateFrom)) return false;
+      if (filters.dateTo && (!s.inspection_date || s.inspection_date > filters.dateTo)) return false;
+      return true;
+    });
+
+    const features = filteredStations
+      .filter(station => station.lat && station.lng)
+      .map(station => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [station.lng, station.lat] },
+        properties: {
+          status: station.status || 'Brak akcji',
+          station_data: JSON.stringify(station) // Przekazujemy dane dla prawego panelu
+        }
+      }));
+
+    const source = map.current.getSource('stations-data') as maplibregl.GeoJSONSource;
+    if (source) {
+      source.setData({
+        type: 'FeatureCollection',
+        features: features as any
+      });
+    }
+
+  }, [allStations, filters, isMapLoaded]);
+
+
   const selectAllPoland = useCallback(() => {}, []);
 
   const handleStartDrawingNew = (techName: string, color: string, mode: 'insert' | 'append' | 'update', targetType: 'technician' | 'region', sectorId?: string) => {
@@ -377,18 +452,14 @@ export default function ChargeMap() {
   const handleEditExisting = useCallback((sector: Sector, targetType: 'technician' | 'region', appendMode = false) => {
     if (!drawRef.current || !sector.geometry) return;
     drawRef.current.deleteAll(); 
-    
     const featureIds = drawRef.current.add({ type: 'Feature', geometry: sector.geometry, properties: {} });
-    
     if (appendMode) {
       handleSetDrawMethod('manual');
     } else {
       handleSetDrawMethod('manual', 'direct_select', { featureId: featureIds[0] });
     }
-    
     setDrawingState(true);
     setActiveDrawContext({ mode: 'update', techName: sector.name, color: sector.color, sectorId: sector.id, targetType });
-    
     const targetLayer = targetType === 'technician' ? 'saved-sectors-layer' : 'saved-regions-layer';
     const outlineLayer = targetType === 'technician' ? 'saved-sectors-outline' : 'saved-regions-outline';
     if(map.current?.getLayer(targetLayer)) {
@@ -401,7 +472,6 @@ export default function ChargeMap() {
     setDrawingState(false);
     setActiveDrawContext(null);
     drawRef.current?.deleteAll();
-    
     selectedRegionIds.current.clear();
     if (map.current && regionsGeoJsonRef.current) {
       regionsGeoJsonRef.current.features.forEach((f: any) => map.current!.setFeatureState({ source: 'regions-data', id: f.properties.customId }, { selected: false }));

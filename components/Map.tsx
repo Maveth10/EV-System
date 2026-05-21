@@ -472,8 +472,8 @@ export default function ChargeMap() {
         return;
       }
 
-      // 2. Wyciągnij unikalne współrzędne stacji
-      const stationIds = [...new Set(tickets.map(t => t.station_id))];
+      // 2. Wyciągnij unikalne współrzędne stacji - POPRAWKA DLA TYPESCRIPT (BEZ SPREAD OPERATORA NA SET)
+      const stationIds = Array.from(new Set(tickets.map(t => t.station_id)));
       const stationsToVisit = allStations.filter(s => stationIds.includes(s.id) && s.lng && s.lat);
 
       if (stationsToVisit.length < 2) {
@@ -482,7 +482,6 @@ export default function ChargeMap() {
       }
 
       // 3. Połączenie z API OSRM (Open Source Routing Machine)
-      // Generuje najszybszą trasę odwiedzającą wszystkie punkty
       const coordsString = stationsToVisit.map(s => `${s.lng},${s.lat}`).join(';');
       const response = await fetch(`https://router.project-osrm.org/trip/v1/driving/${coordsString}?source=first&roundtrip=false&geometries=geojson`);
       const data = await response.json();
@@ -698,7 +697,7 @@ export default function ChargeMap() {
 
               {isFilterOpen && (
                 <div className="absolute top-12 left-0 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 p-5 z-[100] flex flex-col gap-4">
-                  <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                  <div className="border-b border-slate-100 pb-2">
                     <h3 className="font-bold text-slate-800 text-sm">Filtruj stacje</h3>
                     {activeFiltersCount > 0 && <button onClick={() => setFilters({ client: '', technician: '', model: '', status: '', dateFrom: '', dateTo: '' })} className="text-xs text-red-500 hover:underline font-medium">Wyczyść filtry</button>}
                   </div>
@@ -732,7 +731,6 @@ export default function ChargeMap() {
               )}
             </div>
 
-            {/* NOWE MENU OPTYMALIZACJI TRASY */}
             <div className="relative">
               <button onClick={() => { setIsRouteMenuOpen(!isRouteMenuOpen); setIsFilterOpen(false); }} className={`backdrop-blur-md shadow-lg border px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${isRouteMenuOpen ? 'bg-blue-50 text-blue-600 border-blue-600' : 'bg-white/95 border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600'}`}>
                 <IconRoute /> Trasy logistyczne

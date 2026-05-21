@@ -34,9 +34,10 @@ export default function ChargeMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const drawRef = useRef<MapboxDraw | null>(null);
+  const markersRef = useRef<maplibregl.Marker[]>([]);
   
   const [isAppLoading, setIsAppLoading] = useState(true);
-  const [isMapLoaded, setIsMapLoaded] = useState(false); // <--- NOWY STAN
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [activeView, setActiveView] = useState<ViewState>('map');
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
@@ -60,6 +61,7 @@ export default function ChargeMap() {
   const [drawMethod, setDrawMethod] = useState<'manual' | 'click'>('manual');
   const drawMethodRef = useRef<'manual' | 'click'>('manual');
 
+  // Uniwersalne referencje dla wszystkich krajów
   const regionsGeoJsonRef = useRef<any>(null);
   const masterBoundaryRef = useRef<any>(null); 
   const selectedRegionIds = useRef<Set<number>>(new Set());
@@ -138,7 +140,6 @@ export default function ChargeMap() {
     }
   }, [activeView, loadStations, loadSavedSectors]);
 
-  // INICJALIZACJA MAPY (Uruchamia się tylko raz)
   useEffect(() => {
     if (!mapContainer.current || map.current) return; 
 
@@ -160,37 +161,35 @@ export default function ChargeMap() {
       });
       map.current.on('click', () => setContextMenu(null));
 
-      // --- DODAWANIE ŹRÓDŁA Z KLASTROWANIEM ---
+      // ŹRÓDŁO KLASTRÓW
       map.current.addSource('stations-data', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
         cluster: true,
-        clusterMaxZoom: 14, // Maksymalny zoom, przy którym punkty wciąż się grupują
-        clusterRadius: 50   // Zasięg "wciągania" punktów w promieniu 50px
+        clusterMaxZoom: 14,
+        clusterRadius: 50
       });
 
-      // 1. Warstwa Klastrów (Zgrupowane koła)
+      // Warstwa klastrów
       map.current.addLayer({
         id: 'clusters',
         type: 'circle',
         source: 'stations-data',
         filter: ['has', 'point_count'],
         paint: {
-          'circle-color': '#58b347', // Zielony Ekoen
+          'circle-color': '#58b347',
           'circle-opacity': 0.9,
           'circle-radius': [
             'step',
             ['get', 'point_count'],
-            18,  // promień dla klastrów < 10 elementów
-            10, 22, // dla klastrów >= 10 elementów
-            50, 28  // dla klastrów >= 50 elementów
+            18, 10, 22, 50, 28
           ],
           'circle-stroke-width': 3,
           'circle-stroke-color': 'rgba(255, 255, 255, 0.8)'
         }
       });
 
-      // 2. Cyferka wewnątrz klastra
+      // Cyferki w klastrach
       map.current.addLayer({
         id: 'cluster-count',
         type: 'symbol',
@@ -204,7 +203,7 @@ export default function ChargeMap() {
         paint: { 'text-color': '#ffffff' }
       });
 
-      // 3. Pojedyncza, rozbita stacja (Kolor zależny od statusu bazy!)
+      // Pojedyncze punkty
       map.current.addLayer({
         id: 'unclustered-point',
         type: 'circle',
@@ -222,29 +221,29 @@ export default function ChargeMap() {
             'Przegląd', '#3b82f6',
             'Zlecenie jakościowe', '#f97316',
             'Naprawa odpłatna', '#eab308',
-            '#58b347' // Domyślny kolor (Brak akcji)
+            '#58b347'
           ]
         }
       });
 
-      // INTERAKCJE DLA NOWYCH WARSTW STACJI
-      // Kliknięcie w klaster -> Rozbija go (przybliża mapę)
+      // Kliknięcie w klaster
       map.current.on('click', 'clusters', (e) => {
         const features = map.current!.queryRenderedFeatures(e.point, { layers: ['clusters'] });
         const clusterId = features[0].properties.cluster_id;
-        (map.current!.getSource('stations-data') as maplibregl.GeoJSONSource).getClusterExpansionZoom(
-          clusterId,
-          (err, zoom) => {
-            if (err) return;
+        
+        // ZMODYFIKOWANA WERSJA POD VERCELA (Z UŻYCIEM PROMISE)
+        (map.current!.getSource('stations-data') as maplibregl.GeoJSONSource)
+          .getClusterExpansionZoom(clusterId)
+          .then((zoom) => {
             map.current!.easeTo({
               center: (features[0].geometry as any).coordinates,
               zoom: zoom
             });
-          }
-        );
+          })
+          .catch((err) => console.error("Error expanding cluster:", err));
       });
 
-      // Kliknięcie w pojedynczą stację -> Otwiera panel boczny
+      // Kliknięcie w pojedynczą stację
       map.current.on('click', 'unclustered-point', (e) => {
         const properties = e.features![0].properties;
         const stationData = JSON.parse(properties.station_data);
@@ -252,14 +251,11 @@ export default function ChargeMap() {
         setContextMenu(null);
       });
 
-      // Zmiany kursora na łapkę nad stacjami
       map.current.on('mouseenter', 'clusters', () => { map.current!.getCanvas().style.cursor = 'pointer'; });
       map.current.on('mouseleave', 'clusters', () => { map.current!.getCanvas().style.cursor = ''; });
       map.current.on('mouseenter', 'unclustered-point', () => { map.current!.getCanvas().style.cursor = 'pointer'; });
       map.current.on('mouseleave', 'unclustered-point', () => { map.current!.getCanvas().style.cursor = ''; });
 
-
-      // Ładowanie stref geograficznych (nie zmienione)
       map.current.addSource('saved-regions', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.current.addLayer({ id: 'saved-regions-layer', type: 'fill', source: 'saved-regions', layout: { visibility: 'none' }, paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.1 } });
       map.current.addLayer({ id: 'saved-regions-outline', type: 'line', source: 'saved-regions', layout: { visibility: 'none' }, paint: { 'line-color': ['get', 'color'], 'line-width': 3, 'line-dasharray': [2, 2] } });
@@ -395,13 +391,12 @@ export default function ChargeMap() {
         console.error("Błąd ładowania danych geolokalizacyjnych:", error);
       }
 
-      setIsMapLoaded(true); // Informujemy aplikację, że można ładować stacje do klastrów
+      setIsMapLoaded(true);
       loadStations();
       loadSavedSectors();
 
     });
   }, [loadStations, loadSavedSectors]); 
-
 
   // WSTRZYKIWANIE STACJI DO SILNIKA KLASTROWANIA
   useEffect(() => {
@@ -424,7 +419,7 @@ export default function ChargeMap() {
         geometry: { type: 'Point', coordinates: [station.lng, station.lat] },
         properties: {
           status: station.status || 'Brak akcji',
-          station_data: JSON.stringify(station) // Przekazujemy dane dla prawego panelu
+          station_data: JSON.stringify(station)
         }
       }));
 

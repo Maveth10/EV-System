@@ -29,6 +29,7 @@ const COUNTRY_SOURCES = [
 ];
 
 const IconFilter = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>;
+const IconRoute = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>;
 
 export default function ChargeMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -55,13 +56,17 @@ export default function ChargeMap() {
     client: '', technician: '', model: '', status: '', dateFrom: '', dateTo: ''
   });
 
+  // OPTYMALIZATOR TRASY
+  const [isRouteMenuOpen, setIsRouteMenuOpen] = useState(false);
+  const [routeTechId, setRouteTechId] = useState('');
+  const [isRouting, setIsRouting] = useState(false);
+
   const [isDrawingActive, setIsDrawingActive] = useState(false);
   const isDrawingActiveRef = useRef(false);
 
   const [drawMethod, setDrawMethod] = useState<'manual' | 'click'>('manual');
   const drawMethodRef = useRef<'manual' | 'click'>('manual');
 
-  // Uniwersalne referencje dla wszystkich krajów
   const regionsGeoJsonRef = useRef<any>(null);
   const masterBoundaryRef = useRef<any>(null); 
   const selectedRegionIds = useRef<Set<number>>(new Set());
@@ -161,7 +166,29 @@ export default function ChargeMap() {
       });
       map.current.on('click', () => setContextMenu(null));
 
-      // ŹRÓDŁO KLASTRÓW
+      // WARSTWY TRASY (OSRM)
+      map.current.addSource('optimized-route', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] }
+      });
+
+      map.current.addLayer({
+        id: 'optimized-route-line-glow',
+        type: 'line',
+        source: 'optimized-route',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': '#3b82f6', 'line-width': 10, 'line-opacity': 0.3 }
+      });
+
+      map.current.addLayer({
+        id: 'optimized-route-line',
+        type: 'line',
+        source: 'optimized-route',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': '#2563eb', 'line-width': 4, 'line-dasharray': [2, 2] }
+      });
+
+      // ŹRÓDŁO KLASTRÓW STACJI
       map.current.addSource('stations-data', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
@@ -170,7 +197,6 @@ export default function ChargeMap() {
         clusterRadius: 50
       });
 
-      // Warstwa klastrów
       map.current.addLayer({
         id: 'clusters',
         type: 'circle',
@@ -189,7 +215,6 @@ export default function ChargeMap() {
         }
       });
 
-      // Cyferki w klastrach
       map.current.addLayer({
         id: 'cluster-count',
         type: 'symbol',
@@ -203,7 +228,6 @@ export default function ChargeMap() {
         paint: { 'text-color': '#ffffff' }
       });
 
-      // Pojedyncze punkty
       map.current.addLayer({
         id: 'unclustered-point',
         type: 'circle',
@@ -226,12 +250,9 @@ export default function ChargeMap() {
         }
       });
 
-      // Kliknięcie w klaster
       map.current.on('click', 'clusters', (e) => {
         const features = map.current!.queryRenderedFeatures(e.point, { layers: ['clusters'] });
         const clusterId = features[0].properties.cluster_id;
-        
-        // ZMODYFIKOWANA WERSJA POD VERCELA (Z UŻYCIEM PROMISE)
         (map.current!.getSource('stations-data') as maplibregl.GeoJSONSource)
           .getClusterExpansionZoom(clusterId)
           .then((zoom) => {
@@ -243,7 +264,6 @@ export default function ChargeMap() {
           .catch((err) => console.error("Error expanding cluster:", err));
       });
 
-      // Kliknięcie w pojedynczą stację
       map.current.on('click', 'unclustered-point', (e) => {
         const properties = e.features![0].properties;
         const stationData = JSON.parse(properties.station_data);
@@ -256,6 +276,7 @@ export default function ChargeMap() {
       map.current.on('mouseenter', 'unclustered-point', () => { map.current!.getCanvas().style.cursor = 'pointer'; });
       map.current.on('mouseleave', 'unclustered-point', () => { map.current!.getCanvas().style.cursor = ''; });
 
+      // Strefy i Województwa
       map.current.addSource('saved-regions', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.current.addLayer({ id: 'saved-regions-layer', type: 'fill', source: 'saved-regions', layout: { visibility: 'none' }, paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.1 } });
       map.current.addLayer({ id: 'saved-regions-outline', type: 'line', source: 'saved-regions', layout: { visibility: 'none' }, paint: { 'line-color': ['get', 'color'], 'line-width': 3, 'line-dasharray': [2, 2] } });
@@ -433,6 +454,75 @@ export default function ChargeMap() {
 
   }, [allStations, filters, isMapLoaded]);
 
+  // LOGIKA WYZNACZANIA TRASY (OSRM)
+  const handleCalculateRoute = async () => {
+    if (!map.current || !routeTechId) return;
+
+    setIsRouting(true);
+    try {
+      // 1. Pobierz aktywne zgłoszenia tego technika
+      const { data: tickets } = await supabase.from('tickets')
+        .select('station_id')
+        .eq('technician_id', routeTechId)
+        .neq('status', 'Zakończone');
+
+      if (!tickets || tickets.length < 2) {
+        alert('Technik musi mieć przypisane co najmniej 2 otwarte zadania, aby wyznaczyć zoptymalizowaną trasę.');
+        clearRoute();
+        return;
+      }
+
+      // 2. Wyciągnij unikalne współrzędne stacji
+      const stationIds = [...new Set(tickets.map(t => t.station_id))];
+      const stationsToVisit = allStations.filter(s => stationIds.includes(s.id) && s.lng && s.lat);
+
+      if (stationsToVisit.length < 2) {
+        alert('Część stacji nie ma poprawnych współrzędnych GPS. Nie można wyznaczyć trasy.');
+        return;
+      }
+
+      // 3. Połączenie z API OSRM (Open Source Routing Machine)
+      // Generuje najszybszą trasę odwiedzającą wszystkie punkty
+      const coordsString = stationsToVisit.map(s => `${s.lng},${s.lat}`).join(';');
+      const response = await fetch(`https://router.project-osrm.org/trip/v1/driving/${coordsString}?source=first&roundtrip=false&geometries=geojson`);
+      const data = await response.json();
+
+      if (data.code !== 'Ok' || !data.trips || data.trips.length === 0) {
+        alert('Błąd silnika drogowego. Spróbuj ponownie za chwilę.');
+        return;
+      }
+
+      const routeGeometry = data.trips[0].geometry;
+
+      // 4. Narysowanie linii
+      const source = map.current.getSource('optimized-route') as maplibregl.GeoJSONSource;
+      if (source) {
+        source.setData(routeGeometry);
+      }
+
+      // 5. Zmiana widoku kamery (Zoom na trasę)
+      const coordinates = routeGeometry.coordinates;
+      const bounds = coordinates.reduce((bounds: any, coord: any) => {
+        return bounds.extend(coord);
+      }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
+
+      map.current.fitBounds(bounds, { padding: 80, duration: 1500 });
+      setIsRouteMenuOpen(false);
+
+    } catch (err) {
+      console.error(err);
+      alert('Wystąpił krytyczny błąd podczas łączenia z silnikiem mapowym OSRM.');
+    } finally {
+      setIsRouting(false);
+    }
+  };
+
+  const clearRoute = () => {
+    const source = map.current?.getSource('optimized-route') as maplibregl.GeoJSONSource;
+    if (source) source.setData({ type: 'FeatureCollection', features: [] });
+    setRouteTechId('');
+    setIsRouteMenuOpen(false);
+  };
 
   const selectAllPoland = useCallback(() => {}, []);
 
@@ -602,7 +692,7 @@ export default function ChargeMap() {
             </button>
 
             <div className="relative">
-              <button onClick={() => setIsFilterOpen(!isFilterOpen)} className={`backdrop-blur-md shadow-lg border px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${isFilterOpen || activeFiltersCount > 0 ? 'bg-green-50 text-[#58b347] border-[#58b347]' : 'bg-white/95 border-slate-200 text-slate-700 hover:bg-green-50 hover:text-[#58b347]'}`}>
+              <button onClick={() => { setIsFilterOpen(!isFilterOpen); setIsRouteMenuOpen(false); }} className={`backdrop-blur-md shadow-lg border px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${isFilterOpen || activeFiltersCount > 0 ? 'bg-green-50 text-[#58b347] border-[#58b347]' : 'bg-white/95 border-slate-200 text-slate-700 hover:bg-green-50 hover:text-[#58b347]'}`}>
                 <IconFilter /> Filtry mapy {activeFiltersCount > 0 && `(${activeFiltersCount})`}
               </button>
 
@@ -641,6 +731,45 @@ export default function ChargeMap() {
                 </div>
               )}
             </div>
+
+            {/* NOWE MENU OPTYMALIZACJI TRASY */}
+            <div className="relative">
+              <button onClick={() => { setIsRouteMenuOpen(!isRouteMenuOpen); setIsFilterOpen(false); }} className={`backdrop-blur-md shadow-lg border px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${isRouteMenuOpen ? 'bg-blue-50 text-blue-600 border-blue-600' : 'bg-white/95 border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600'}`}>
+                <IconRoute /> Trasy logistyczne
+              </button>
+
+              {isRouteMenuOpen && (
+                <div className="absolute top-12 left-0 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 p-5 z-[100] flex flex-col gap-4">
+                  <div className="border-b border-slate-100 pb-2">
+                    <h3 className="font-bold text-slate-800 text-sm">Wyznacz optymalną trasę</h3>
+                    <p className="text-xs text-slate-500 mt-1">Połącz otwarte zadania technika najszybszą drogą drogową (API OSRM).</p>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">Wybierz technika mobilnego</label>
+                      <select value={routeTechId} onChange={(e) => setRouteTechId(e.target.value)} className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-blue-600">
+                        <option value="">Wybierz...</option>
+                        {savedSectorsList.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      </select>
+                    </div>
+                    
+                    <button 
+                      onClick={handleCalculateRoute} 
+                      disabled={isRouting || !routeTechId}
+                      className="w-full bg-blue-600 text-white font-medium py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
+                    >
+                      {isRouting ? 'Wyznaczanie...' : 'Rozwiąż problem komiwojażera'}
+                    </button>
+                    
+                    <button onClick={clearRoute} className="w-full text-xs text-slate-500 hover:text-red-500 font-medium py-1">
+                      Wyczyść linię z mapy
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         </>
       )}

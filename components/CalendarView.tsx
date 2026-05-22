@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from '../app/supabase';
 
 // --- TYPY ---
@@ -46,8 +46,6 @@ export default function CalendarView() {
   const [clients, setClients] = useState<Client[]>([]);
 
   const [dragState, setDragState] = useState<{ type: 'NEW' | 'MOVE' | 'RESIZE', payloadId: string } | null>(null);
-
-  // Referencja do kontenera z przewijaniem, żeby ustawić auto-scroll na 07:00
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const fetchData = async () => {
@@ -70,17 +68,27 @@ export default function CalendarView() {
 
   useEffect(() => { fetchData(); }, []);
 
-  // AUTO-SCROLL do 07:00 rano po załadowaniu kalendarza
+  // AUTO-SCROLL do 07:00 rano
   useEffect(() => {
     if (viewMode !== 'month' && scrollContainerRef.current) {
-      // 7 godzin * 80px (wysokość jednej godziny) = 560px
       setTimeout(() => {
-        if (scrollContainerRef.current) {
-          scrollContainerRef.current.scrollTop = 7 * 80;
-        }
-      }, 50); // Minimalne opóźnienie dla pewności, że DOM wyrenderował siatkę
+        if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 7 * 80;
+      }, 50);
     }
   }, [viewMode, isLoading]);
+
+  // --- LOGIKA KOLIZJI (OVERLAP) ---
+  const checkOverlap = (techId: string | null, start: Date, end: Date, excludeEventId?: string) => {
+    if (!techId) return false; // Ignoruj kolizje dla nieprzypisanych
+    return events.some(ev => {
+      if (ev.id === excludeEventId) return false;
+      if (ev.technician_id !== techId) return false;
+      const evStart = new Date(ev.start_time).getTime();
+      const evEnd = new Date(ev.end_time).getTime();
+      // Warunek nakładania się w czasie:
+      return start.getTime() < evEnd && end.getTime() > evStart;
+    });
+  };
 
   // --- INTERAKCJE DRAG / DROP / RESIZE ---
   const handleDragStart = (e: React.DragEvent, type: 'NEW' | 'MOVE' | 'RESIZE', id: string) => {
@@ -92,23 +100,27 @@ export default function CalendarView() {
     e.preventDefault();
     if (!dragState) return;
 
-    const startTime = new Date(targetDate);
-    const mins = hourValue % 1 === 0 ? 0 : 30;
-    startTime.setHours(Math.floor(hourValue), mins, 0, 0);
-
     if (dragState.type === 'NEW') {
       const ticket = tickets.find(t => t.id === dragState.payloadId);
       if (!ticket) return;
       const station = stations.find(s => s.id === ticket.station_id);
       
-      const endTime = new Date(startTime.getTime() + 2 * 3600000); // Domyślnie 2h
+      const startTime = new Date(targetDate);
+      startTime.setHours(Math.floor(hourValue), hourValue % 1 === 0 ? 0 : 30, 0, 0);
+      const endTime = new Date(startTime.getTime() + 2 * 3600000); // Zawsze domyślnie 2h
+      const targetTechId = selectedTechId !== 'ALL' ? selectedTechId : ticket.technician_id;
+
+      if (checkOverlap(targetTechId, startTime, endTime)) {
+        alert('Kolizja! Ten technik ma już zaplanowane zadanie w tym przedziale czasowym.');
+        setDragState(null); return;
+      }
 
       const newEvent = {
         title: `${ticket.ticket_code} - ${station?.name || 'Stacja'}`,
         start_time: startTime.toISOString(),
         end_time: endTime.toISOString(),
         event_type: ticket.ticket_type === 'Awaria' ? 'repair' : 'inspection',
-        technician_id: selectedTechId !== 'ALL' ? selectedTechId : ticket.technician_id,
+        technician_id: targetTechId,
         ticket_id: ticket.id
       };
 
@@ -120,8 +132,15 @@ export default function CalendarView() {
       const event = events.find(ev => ev.id === dragState.payloadId);
       if (!event) return;
 
+      const startTime = new Date(targetDate);
+      startTime.setHours(Math.floor(hourValue), hourValue % 1 === 0 ? 0 : 30, 0, 0);
       const duration = new Date(event.end_time).getTime() - new Date(event.start_time).getTime();
       const newEndTime = new Date(startTime.getTime() + duration);
+
+      if (checkOverlap(event.technician_id, startTime, newEndTime, event.id)) {
+        alert('Kolizja! Ten technik ma już zaplanowane inne zadanie w tym slocie.');
+        setDragState(null); return;
+      }
 
       setEvents(prev => prev.map(ev => ev.id === event.id ? { ...ev, start_time: startTime.toISOString(), end_time: newEndTime.toISOString() } : ev));
       await supabase.from('calendar_events').update({ start_time: startTime.toISOString(), end_time: newEndTime.toISOString() }).eq('id', event.id);
@@ -130,22 +149,34 @@ export default function CalendarView() {
       const event = events.find(ev => ev.id === dragState.payloadId);
       if (!event) return;
 
-      const proposedEndTime = new Date(startTime.getTime() + 30 * 60000);
+      // Logika skracania/wydłużania: ustalamy nowy end_time na KONIEC slota, na którym upuszczono uchwyt
+      const newEndTime = new Date(targetDate);
+      if (hourValue % 1 === 0) {
+        newEndTime.setHours(Math.floor(hourValue), 30, 0, 0);
+      } else {
+        newEndTime.setHours(Math.floor(hourValue) + 1, 0, 0, 0);
+      }
+
       const currentStartTime = new Date(event.start_time);
-      const durationMs = proposedEndTime.getTime() - currentStartTime.getTime();
+      const durationMs = newEndTime.getTime() - currentStartTime.getTime();
 
-      if (durationMs < 30 * 60000) { alert('Minimalny czas trwania usterki/przeglądu to 30 minut.'); setDragState(null); return; }
-      if (durationMs > 24 * 3600000) { alert('Maksymalny czas trwania pojedynczego slotu w kalendarzu wynosi 24 godziny.'); setDragState(null); return; }
+      if (durationMs < 30 * 60000) { alert('Minimalny czas trwania zadania to 30 minut.'); setDragState(null); return; }
+      if (durationMs > 24 * 3600000) { alert('Maksymalny czas trwania to 24 godziny.'); setDragState(null); return; }
 
-      setEvents(prev => prev.map(ev => ev.id === event.id ? { ...ev, end_time: proposedEndTime.toISOString() } : ev));
-      await supabase.from('calendar_events').update({ end_time: proposedEndTime.toISOString() }).eq('id', event.id);
+      if (checkOverlap(event.technician_id, currentStartTime, newEndTime, event.id)) {
+        alert('Kolizja przy rozciąganiu! Nakładasz to zadanie na inne zdarzenie w grafiku tego technika.');
+        setDragState(null); return;
+      }
+
+      setEvents(prev => prev.map(ev => ev.id === event.id ? { ...ev, end_time: newEndTime.toISOString() } : ev));
+      await supabase.from('calendar_events').update({ end_time: newEndTime.toISOString() }).eq('id', event.id);
     }
     setDragState(null);
   };
 
   const handleDeleteEvent = async (e: React.MouseEvent, eventId: string) => {
     e.stopPropagation();
-    if (!confirm('Usunąć planowaną wizytę z kalendarza? Zgłoszenie pozostanie bezpieczne na liście do ponownego zaplanowania.')) return;
+    if (!confirm('Usunąć planowaną wizytę z kalendarza? Zgłoszenie pozostanie bezpieczne na liście.')) return;
     setEvents(prev => prev.filter(ev => ev.id !== eventId));
     await supabase.from('calendar_events').delete().eq('id', eventId);
   };
@@ -170,8 +201,7 @@ export default function CalendarView() {
       if (sortMode === 'SLA') return getSlaHoursLeft(a.created_at, a.station_id) - getSlaHoursLeft(b.created_at, b.station_id);
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tickets, events, searchQuery, sortMode, stations]);
+  }, [tickets, events, searchQuery, sortMode, stations, clients]);
 
   const daysToRender = useMemo(() => {
     if (viewMode === 'day') return [currentDate];
@@ -196,16 +226,16 @@ export default function CalendarView() {
   return (
     <div className="absolute inset-0 left-[72px] bg-slate-50 z-40 p-6 flex gap-6 h-full overflow-hidden">
       
-      {/* PANEL LEWY: BACKLOG ZGŁOSZEŃ */}
+      {/* PANEL LEWY: BACKLOG */}
       <div className="w-80 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col shrink-0 overflow-hidden">
         <div className="bg-slate-800 p-4 text-white">
           <h2 className="font-bold flex items-center gap-2"><IconFilter /> Filtr Zgłoszeń</h2>
-          <p className="text-xs text-slate-400 mt-1">Lista zadań oczekujących na wyznaczenie terminu.</p>
+          <p className="text-xs text-slate-400 mt-1">Oczekujące na wyznaczenie terminu.</p>
         </div>
         <div className="p-3 border-b border-slate-200 space-y-3 bg-slate-50">
           <div className="relative">
             <div className="absolute left-3 top-2.5"><IconSearch /></div>
-            <input type="text" placeholder="Szukaj stacji (np. QP-...) lub miasta" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#58b347]" />
+            <input type="text" placeholder="Szukaj (QP-...) lub miasta" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#58b347]" />
           </div>
           <div className="flex gap-2">
             <button onClick={() => setSortMode('SLA')} className={`flex-1 py-1.5 text-xs font-bold rounded-md border ${sortMode === 'SLA' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-white text-slate-600 border-slate-200'}`}>⚠️ Pilne wg SLA</button>
@@ -237,8 +267,6 @@ export default function CalendarView() {
 
       {/* PANEL PRAWY: HARMONOGRAM */}
       <div className="flex-1 flex flex-col min-w-0 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden relative">
-        
-        {/* Pasek kontrolny */}
         <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 text-xl">👨‍🔧</div>
@@ -268,11 +296,9 @@ export default function CalendarView() {
           </div>
         </div>
 
-        {/* --- STRUKTURA SIATKI W ZALEŻNOŚCI OD WIDOKU --- */}
         <div className="flex-1 overflow-y-auto flex bg-slate-50 relative" ref={scrollContainerRef}>
-          
           {viewMode === 'month' ? (
-            /* WIDOK: PEŁNY MIESIĄC (SIATKA DNI 7x6) */
+            /* MIESIĄC */
             <div className="w-full h-full flex flex-col min-h-[600px]">
               <div className="grid grid-cols-7 bg-slate-100 border-b border-slate-200 shrink-0 text-center py-2 text-[10px] font-black text-slate-500 uppercase sticky top-0 z-20">
                 {WEEKDAYS.map(d => <div key={d}>{d}</div>)}
@@ -291,13 +317,13 @@ export default function CalendarView() {
                   });
 
                   return (
-                    <div key={idx} onDragOver={e => e.preventDefault()} onDrop={e => handleDrop(e, dateObj, 8)} className={`border-r border-b border-slate-100 p-1 flex flex-col min-h-[90px] ${!isCurrentMonth ? 'bg-slate-50/50 opacity-40' : ''}`}>
+                    <div key={idx} className={`border-r border-b border-slate-100 p-1 flex flex-col min-h-[90px] ${!isCurrentMonth ? 'bg-slate-50/50 opacity-40' : ''}`}>
                       <div className="flex justify-end p-1">
                         <span className={`w-5 h-5 flex items-center justify-center font-bold text-[11px] rounded-full ${isToday ? 'bg-[#58b347] text-white shadow' : 'text-slate-700'}`}>{dateObj.getDate()}</span>
                       </div>
                       <div className="flex-1 overflow-y-auto space-y-1 max-h-[75px] scrollbar-hide">
                         {dayEvents.map(e => (
-                          <div key={e.id} onClick={() => alert(`${e.title}\nCzas: ${new Date(e.start_time).toLocaleTimeString()} - ${new Date(e.end_time).toLocaleTimeString()}`)} className="text-[9px] px-1 py-0.5 rounded shadow-sm border truncate font-bold text-slate-800 cursor-pointer hover:scale-[1.02] transition-transform" style={{ backgroundColor: `${getTechColor(e.technician_id)}20`, borderColor: getTechColor(e.technician_id) }}>
+                          <div key={e.id} className="text-[9px] px-1 py-0.5 rounded shadow-sm border truncate font-bold text-slate-800" style={{ backgroundColor: `${getTechColor(e.technician_id)}20`, borderColor: getTechColor(e.technician_id) }}>
                             {e.title.split('-')[0]}
                           </div>
                         ))}
@@ -308,9 +334,8 @@ export default function CalendarView() {
               </div>
             </div>
           ) : (
-            /* WIDOK: DZIEŃ / TYDEŃ (PIONOWA SIATKA Z LINIAMI 30 MINUT) */
+            /* DZIEŃ / TYDZIEŃ */
             <>
-              {/* Oś Czasu (Y) - Skala 00:00 - 24:00 */}
               <div className="w-16 shrink-0 border-r border-slate-200 bg-white sticky left-0 z-20">
                 <div className="h-10 border-b border-slate-200 sticky top-0 bg-white z-30"></div>
                 {GENERATED_SLOTS.slice(0, -1).map(slot => {
@@ -323,7 +348,6 @@ export default function CalendarView() {
                 })}
               </div>
 
-              {/* Siatka Kolumnowa */}
               <div className="flex-1 flex">
                 {daysToRender.map((dateObj, dIdx) => {
                   const dateStr = dateObj.toISOString().split('T')[0];
@@ -339,13 +363,11 @@ export default function CalendarView() {
                   return (
                     <div key={dIdx} className="flex-1 border-r border-slate-200 min-w-[130px] relative">
                       
-                      {/* Nagłówek Dnia */}
                       <div className={`h-10 border-b border-slate-200 flex flex-col items-center justify-center sticky top-0 z-30 ${isToday ? 'bg-green-50' : 'bg-white'}`}>
                         <span className={`text-[9px] font-bold uppercase ${isToday ? 'text-[#58b347]' : 'text-slate-400'}`}>{WEEKDAYS[dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1].slice(0, 3)}</span>
                         <span className={`text-xs font-black ${isToday ? 'text-[#58b347]' : 'text-slate-800'}`}>{dateObj.getDate()}</span>
                       </div>
 
-                      {/* Dropzony i Linie Pomocnicze (Półgodzinne od 00:00 do 24:00) */}
                       <div className="relative">
                         {GENERATED_SLOTS.slice(0, -1).map(slot => {
                           const isWholeHour = slot % 1 === 0;
@@ -359,12 +381,10 @@ export default function CalendarView() {
                           );
                         })}
 
-                        {/* Rendering Kafelków Zadań */}
                         {dayEvents.map(event => {
                           const sDate = new Date(event.start_time);
                           const eDate = new Date(event.end_time);
                           
-                          // Matematyka pikseli: blok 30 minut (slot) = 40px wysokości, czyli 1 godzina = 80px. Start od 00:00.
                           const startHour = sDate.getHours() + (sDate.getMinutes() / 60);
                           const durationHours = (eDate.getTime() - sDate.getTime()) / 3600000;
                           
@@ -387,23 +407,23 @@ export default function CalendarView() {
                                 boxShadow: `0 4px 6px -1px ${techColor}20`
                               }}
                             >
-                              <div>
+                              <div className="flex-1 overflow-hidden">
                                 <div className="flex justify-between items-start">
-                                  <div className="text-[10px] font-black text-slate-800 leading-tight truncate pr-4">{event.title}</div>
+                                  {/* Zmiana formatowania tekstu: break-words pozwala na przechodzenie do nowej linii */}
+                                  <div className="text-xs font-black text-slate-800 leading-tight pr-4 break-words">{event.title}</div>
                                   <button onClick={e => handleDeleteEvent(e, event.id)} className="opacity-0 group-hover:opacity-100 text-red-500 hover:bg-slate-100 rounded p-0.5 transition-opacity">
                                     <IconTrash />
                                   </button>
                                 </div>
-                                <div className="text-[9px] text-slate-400 font-mono mt-0.5">
+                                <div className="text-[10px] text-slate-500 font-mono mt-1 font-bold">
                                   {sDate.toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'})} - {eDate.toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'})}
                                 </div>
                               </div>
 
-                              {/* WYDAJNY UCHWYT RESIZE (Dolna krawędź kafelka) */}
                               <div 
                                 draggable
                                 onDragStart={e => { e.stopPropagation(); handleDragStart(e, 'RESIZE', event.id); }}
-                                className="h-2 bg-slate-200/40 hover:bg-slate-300 border-t border-slate-200 cursor-row-resize rounded-b-lg flex items-center justify-center -mx-2 -mb-2 transition-colors"
+                                className="h-3 bg-slate-200/40 hover:bg-slate-300 border-t border-slate-200 cursor-row-resize rounded-b-lg flex items-center justify-center -mx-2 -mb-2 transition-colors"
                                 title="Przeciągnij by wydłużyć/skrócić"
                               >
                                 <div className="w-6 h-0.5 bg-slate-400 rounded-full"></div>

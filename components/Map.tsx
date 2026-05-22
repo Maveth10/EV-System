@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
@@ -35,7 +35,6 @@ export default function ChargeMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const drawRef = useRef<MapboxDraw | null>(null);
-  const markersRef = useRef<maplibregl.Marker[]>([]);
   
   const [isAppLoading, setIsAppLoading] = useState(true);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
@@ -51,13 +50,18 @@ export default function ChargeMap() {
   const [savedRegionsList, setSavedRegionsList] = useState<Sector[]>([]);
 
   const [allStations, setAllStations] = useState<Station[]>([]);
+  
+  // Stany i Refy do zamykania okienek
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isRouteMenuOpen, setIsRouteMenuOpen] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
+  const routeRef = useRef<HTMLDivElement>(null);
+
   const [filters, setFilters] = useState({
     client: '', technician: '', model: '', status: '', dateFrom: '', dateTo: ''
   });
 
   // OPTYMALIZATOR TRASY
-  const [isRouteMenuOpen, setIsRouteMenuOpen] = useState(false);
   const [routeTechId, setRouteTechId] = useState('');
   const [isRouting, setIsRouting] = useState(false);
 
@@ -74,9 +78,41 @@ export default function ChargeMap() {
   const [showSectors, setShowSectors] = useState(false);
   const showSectorsRef = useRef(false);
 
+  const [activeDrawContext, setActiveDrawContext] = useState<{
+    mode: 'insert' | 'append' | 'update'; techName: string; color: string; sectorId?: string; targetType: 'technician' | 'region';
+  } | null>(null);
+
   useEffect(() => {
     const timer = setTimeout(() => setIsAppLoading(false), 2000);
     return () => clearTimeout(timer);
+  }, []);
+
+  // --- ZAMYKANIE OKIENEK (ESC + CLICK OUTSIDE) ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsFilterOpen(false);
+        setIsRouteMenuOpen(false);
+        setContextMenu(null);
+      }
+    };
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+        setIsFilterOpen(false);
+      }
+      if (routeRef.current && !routeRef.current.contains(e.target as Node)) {
+        setIsRouteMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   const setDrawingState = (isActive: boolean) => {
@@ -92,10 +128,6 @@ export default function ChargeMap() {
     else if (method === 'manual') drawRef.current.changeMode('draw_polygon');
     else drawRef.current.changeMode('simple_select');
   };
-
-  const [activeDrawContext, setActiveDrawContext] = useState<{
-    mode: 'insert' | 'append' | 'update'; techName: string; color: string; sectorId?: string; targetType: 'technician' | 'region';
-  } | null>(null);
 
   const toggleSectorsVisibility = (forceShow?: boolean) => {
     const newState = forceShow !== undefined ? forceShow : !showSectors;
@@ -177,7 +209,7 @@ export default function ChargeMap() {
         type: 'line',
         source: 'optimized-route',
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#3b82f6', 'line-width': 10, 'line-opacity': 0.3 }
+        paint: { 'line-color': '#58b347', 'line-width': 10, 'line-opacity': 0.3 }
       });
 
       map.current.addLayer({
@@ -185,7 +217,7 @@ export default function ChargeMap() {
         type: 'line',
         source: 'optimized-route',
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#2563eb', 'line-width': 4, 'line-dasharray': [2, 2] }
+        paint: { 'line-color': '#499b3a', 'line-width': 4, 'line-dasharray': [2, 2] }
       });
 
       // ŹRÓDŁO KLASTRÓW STACJI
@@ -266,9 +298,11 @@ export default function ChargeMap() {
 
       map.current.on('click', 'unclustered-point', (e) => {
         const properties = e.features![0].properties;
-        const stationData = JSON.parse(properties.station_data);
-        setSelectedStation(stationData);
-        setContextMenu(null);
+        try {
+          const stationData = JSON.parse(properties.station_data);
+          setSelectedStation(stationData);
+          setContextMenu(null);
+        } catch(err) {}
       });
 
       map.current.on('mouseenter', 'clusters', () => { map.current!.getCanvas().style.cursor = 'pointer'; });
@@ -460,57 +494,60 @@ export default function ChargeMap() {
 
     setIsRouting(true);
     try {
-      // 1. Pobierz aktywne zgłoszenia tego technika
-      const { data: tickets } = await supabase.from('tickets')
+      const { data: tickets, error } = await supabase.from('tickets')
         .select('station_id')
         .eq('technician_id', routeTechId)
         .neq('status', 'Zakończone');
 
+      if (error) throw new Error(error.message);
+
       if (!tickets || tickets.length < 2) {
-        alert('Technik musi mieć przypisane co najmniej 2 otwarte zadania, aby wyznaczyć zoptymalizowaną trasę.');
+        alert('Technik musi mieć przypisane co najmniej 2 otwarte zadania, aby wyznaczyć zoptymalizowaną trasę przejazdu.');
         clearRoute();
         return;
       }
 
-      // 2. Wyciągnij unikalne współrzędne stacji - POPRAWKA DLA TYPESCRIPT (BEZ SPREAD OPERATORA NA SET)
       const stationIds = Array.from(new Set(tickets.map(t => t.station_id)));
       const stationsToVisit = allStations.filter(s => stationIds.includes(s.id) && s.lng && s.lat);
 
       if (stationsToVisit.length < 2) {
-        alert('Część stacji nie ma poprawnych współrzędnych GPS. Nie można wyznaczyć trasy.');
+        alert('Część docelowych stacji nie ma ustawionych poprawnych współrzędnych GPS na mapie.');
         return;
       }
 
-      // 3. Połączenie z API OSRM (Open Source Routing Machine)
-      const coordsString = stationsToVisit.map(s => `${s.lng},${s.lat}`).join(';');
+      const coordsString = stationsToVisit.map(s => `${Number(s.lng)},${Number(s.lat)}`).join(';');
       const response = await fetch(`https://router.project-osrm.org/trip/v1/driving/${coordsString}?source=first&roundtrip=false&geometries=geojson`);
+      
+      if (!response.ok) {
+        throw new Error(`Serwer drogowy OSRM odrzucił zapytanie (Kod ${response.status}). Spróbuj ponownie później.`);
+      }
+
       const data = await response.json();
 
       if (data.code !== 'Ok' || !data.trips || data.trips.length === 0) {
-        alert('Błąd silnika drogowego. Spróbuj ponownie za chwilę.');
+        alert('Błąd silnika drogowego: Nie potrafię połączyć tych punktów trasą dla samochodów.');
         return;
       }
 
       const routeGeometry = data.trips[0].geometry;
-
-      // 4. Narysowanie linii
       const source = map.current.getSource('optimized-route') as maplibregl.GeoJSONSource;
       if (source) {
         source.setData(routeGeometry);
       }
 
-      // 5. Zmiana widoku kamery (Zoom na trasę)
       const coordinates = routeGeometry.coordinates;
-      const bounds = coordinates.reduce((bounds: any, coord: any) => {
-        return bounds.extend(coord);
-      }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
+      if (coordinates && coordinates.length > 0) {
+        const bounds = coordinates.reduce((bounds: any, coord: any) => {
+          return bounds.extend(coord);
+        }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
+        map.current.fitBounds(bounds, { padding: 80, duration: 1500 });
+      }
 
-      map.current.fitBounds(bounds, { padding: 80, duration: 1500 });
       setIsRouteMenuOpen(false);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Wystąpił krytyczny błąd podczas łączenia z silnikiem mapowym OSRM.');
+      alert(`Wystąpił problem: ${err.message || 'Nieudane wyznaczanie trasy'}`);
     } finally {
       setIsRouting(false);
     }
@@ -690,14 +727,15 @@ export default function ChargeMap() {
               {showSectors ? 'Ukryj strefy' : 'Pokaż strefy'}
             </button>
 
-            <div className="relative">
+            {/* KONTENER FILTRÓW */}
+            <div className="relative" ref={filterRef}>
               <button onClick={() => { setIsFilterOpen(!isFilterOpen); setIsRouteMenuOpen(false); }} className={`backdrop-blur-md shadow-lg border px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${isFilterOpen || activeFiltersCount > 0 ? 'bg-green-50 text-[#58b347] border-[#58b347]' : 'bg-white/95 border-slate-200 text-slate-700 hover:bg-green-50 hover:text-[#58b347]'}`}>
                 <IconFilter /> Filtry mapy {activeFiltersCount > 0 && `(${activeFiltersCount})`}
               </button>
 
               {isFilterOpen && (
                 <div className="absolute top-12 left-0 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 p-5 z-[100] flex flex-col gap-4">
-                  <div className="border-b border-slate-100 pb-2">
+                  <div className="border-b border-slate-100 pb-2 flex justify-between items-center">
                     <h3 className="font-bold text-slate-800 text-sm">Filtruj stacje</h3>
                     {activeFiltersCount > 0 && <button onClick={() => setFilters({ client: '', technician: '', model: '', status: '', dateFrom: '', dateTo: '' })} className="text-xs text-red-500 hover:underline font-medium">Wyczyść filtry</button>}
                   </div>
@@ -731,8 +769,8 @@ export default function ChargeMap() {
               )}
             </div>
 
-            <div className="relative">
-              <button onClick={() => { setIsRouteMenuOpen(!isRouteMenuOpen); setIsFilterOpen(false); }} className={`backdrop-blur-md shadow-lg border px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${isRouteMenuOpen ? 'bg-blue-50 text-blue-600 border-blue-600' : 'bg-white/95 border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600'}`}>
+            <div className="relative" ref={routeRef}>
+              <button onClick={() => { setIsRouteMenuOpen(!isRouteMenuOpen); setIsFilterOpen(false); }} className={`backdrop-blur-md shadow-lg border px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${isRouteMenuOpen ? 'bg-green-50 text-[#58b347] border-[#58b347]' : 'bg-white/95 border-slate-200 text-slate-700 hover:bg-green-50 hover:text-[#58b347]'}`}>
                 <IconRoute /> Trasy logistyczne
               </button>
 
@@ -746,7 +784,7 @@ export default function ChargeMap() {
                   <div className="space-y-3">
                     <div>
                       <label className="block text-xs font-medium text-slate-500 mb-1">Wybierz technika mobilnego</label>
-                      <select value={routeTechId} onChange={(e) => setRouteTechId(e.target.value)} className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-blue-600">
+                      <select value={routeTechId} onChange={(e) => setRouteTechId(e.target.value)} className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-[#58b347]">
                         <option value="">Wybierz...</option>
                         {savedSectorsList.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                       </select>
@@ -755,12 +793,12 @@ export default function ChargeMap() {
                     <button 
                       onClick={handleCalculateRoute} 
                       disabled={isRouting || !routeTechId}
-                      className="w-full bg-blue-600 text-white font-medium py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
+                      className="w-full bg-[#58b347] text-white font-medium py-2 rounded-lg text-sm hover:bg-[#499b3a] transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
                     >
-                      {isRouting ? 'Wyznaczanie...' : 'Rozwiąż problem komiwojażera'}
+                      {isRouting ? 'Wyznaczanie...' : 'Oblicz optymalną trasę'}
                     </button>
                     
-                    <button onClick={clearRoute} className="w-full text-xs text-slate-500 hover:text-red-500 font-medium py-1">
+                    <button onClick={clearRoute} className="w-full text-xs text-slate-500 hover:text-red-500 font-medium py-1 transition-colors">
                       Wyczyść linię z mapy
                     </button>
                   </div>

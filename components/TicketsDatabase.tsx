@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+'use client';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../app/supabase';
 
 // --- TYPY DANYCH ---
@@ -17,6 +18,16 @@ const IconSync = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" 
 const IconCheck = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
 const IconAlert = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>;
 const IconPlus = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+
+// --- FUNKCJA MATEMATYCZNA: OBLICZANIE ODLEGŁOŚCI GPS (Haversine) ---
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371; // Promień Ziemi w km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+};
 
 // --- PARSER CSV ---
 const parseCSV = (text: string, delimiter: string): string[][] => {
@@ -61,7 +72,7 @@ export default function TicketsDatabase() {
   const [closingForm, setClosingForm] = useState({ status: 'W toku', resolution_notes: '', part_id: '', part_qty: 1, consumePart: false });
 
   // Stany dla skanera arkusza
-  const [sheetUrl, setSheetUrl] = useState(() => localStorage.getItem('ekoen_tickets_sheet_url') || '');
+  const [sheetUrl, setSheetUrl] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -70,6 +81,10 @@ export default function TicketsDatabase() {
   const [newTicket, setNewTicket] = useState({ station_id: '', ticket_type: 'Awaria', priority: 'Normalny', description: '', technician_id: '' });
 
   const [draggedTicketId, setDraggedTicketId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSheetUrl(localStorage.getItem('ekoen_tickets_sheet_url') || '');
+  }, []);
 
   // Zasadnicze pobieranie z bazy Supabase
   const loadSupabaseData = async () => {
@@ -182,6 +197,7 @@ export default function TicketsDatabase() {
       setIsLoading(false);
     };
     init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stations.length, technicians.length]);
 
   // --- MANUALNE TWORZENIE ZGŁOSZENIA ---
@@ -204,7 +220,6 @@ export default function TicketsDatabase() {
 
   const handleCreateManualTicket = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Generowanie kodu dla zgłoszeń z systemu, by uniknąć konfliktów z arkuszem Google
     const generatedCode = `SYS-${Math.floor(Math.random() * 100000)}`;
 
     const payload = {
@@ -256,7 +271,7 @@ export default function TicketsDatabase() {
     return null;
   };
 
-  const getSlaInfo = (createdAt: string, stationId: string, status: string) => {
+  const getSlaInfo = useCallback((createdAt: string, stationId: string, status: string) => {
     if (status === 'Zakończone') return { label: 'Zakończone', hoursLeft: 9999, style: 'bg-slate-100 text-slate-500 border-slate-200' };
 
     const station = stations.find(s => s.id === stationId);
@@ -274,7 +289,7 @@ export default function TicketsDatabase() {
       return { label: `Pilne! ${Math.floor(timeLeft)}h`, hoursLeft: timeLeft, style: 'bg-orange-50 text-orange-700 border-orange-300 ring-1 ring-orange-400' };
     }
     return { label: `Zostało ${Math.floor(timeLeft)}h`, hoursLeft: timeLeft, style: 'bg-white text-slate-600 border-slate-200' };
-  };
+  }, [stations, clients]);
 
   const sortedAndFilteredTickets = useMemo(() => {
     const base = tickets.filter(t => {
@@ -288,7 +303,8 @@ export default function TicketsDatabase() {
       const slaB = getSlaInfo(b.created_at, b.station_id, b.status);
       return slaA.hoursLeft - slaB.hoursLeft;
     });
-  }, [tickets, statusFilter, stations, clients]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tickets, statusFilter, getSlaInfo]);
 
   useEffect(() => {
     if (activeTicket && activeTicket.technician_id) {
@@ -402,7 +418,6 @@ export default function TicketsDatabase() {
             <option value="ALL">📋 Wszystkie</option>
           </select>
 
-          {/* Przycisk dodawania manualnego */}
           <button onClick={() => setIsNewModalOpen(true)} className="bg-[#58b347] text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-[#499b3a] flex items-center gap-1.5 shadow-sm transition-all">
             <IconPlus /> Dodaj ręcznie
           </button>
@@ -534,7 +549,6 @@ export default function TicketsDatabase() {
                   )}
                 </label>
                 
-                {/* WIDGET ASYSTENTA AI */}
                 {newTicket.station_id && getClosestTechnicianSuggestion(newTicket.station_id) && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 flex gap-3 items-start animate-fadeIn">
                     <div className="text-lg mt-0.5">💡</div>
@@ -581,7 +595,7 @@ export default function TicketsDatabase() {
             
             <form onSubmit={handleUpdateTicketStatus} className="p-6 space-y-5 text-sm">
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-slate-700 italic text-xs">
-                <strong className="block text-[10px] uppercase font-bold text-slate-400 not-italic mb-1">Opis problemu:</strong>
+                <strong className="block text-[10px] uppercase font-bold text-slate-400 not-italic mb-1">Opis problemu (z Arkusza):</strong>
                 {activeTicket.description || 'Brak dodatkowego opisu usterki.'}
               </div>
 

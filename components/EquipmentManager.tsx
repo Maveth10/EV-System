@@ -150,14 +150,12 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
     if (partsRes.data) setParts(partsRes.data);
     if (techRes.data) {
       setTechnicians(techRes.data as Technician[]);
-      if (techRes.data.length > 0 && expandedTechIds.length === 0) {
-        setExpandedTechIds([techRes.data[0].id]);
-      }
+      setExpandedTechIds(prev => prev.length === 0 && techRes.data.length > 0 ? [techRes.data[0].id] : prev);
     }
     if (invRes.data) setTechInventory(invRes.data);
     if (logsRes.data) setLogs(logsRes.data);
     setIsLoading(false);
-  }, [expandedTechIds.length]);
+  }, []);
 
   useEffect(() => { 
     fetchData(); 
@@ -208,8 +206,8 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
     if (!payload.insurance_date) payload.insurance_date = null;
 
     // Blokada ilości na 1 dla pojazdów i narzędzi z wpisanym numerem
-    const isUnique = (payload.category === 'Pojazd' && payload.vehicle_plate?.trim()) || 
-                     (payload.category === 'Narzędzie' && payload.serial_number?.trim());
+    const isUnique = Boolean((payload.category === 'Pojazd' && payload.vehicle_plate && payload.vehicle_plate.trim().length > 0) || 
+                             (payload.category === 'Narzędzie' && payload.serial_number && payload.serial_number.trim().length > 0));
                      
     if (isUnique) {
       payload.main_stock = 1;
@@ -252,8 +250,8 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
     if (!payload.inspection_date) payload.inspection_date = null;
     if (!payload.insurance_date) payload.insurance_date = null;
 
-    const isUnique = (payload.category === 'Pojazd' && payload.vehicle_plate?.trim()) || 
-                     (payload.category === 'Narzędzie' && payload.serial_number?.trim());
+    const isUnique = Boolean((payload.category === 'Pojazd' && payload.vehicle_plate && payload.vehicle_plate.trim().length > 0) || 
+                             (payload.category === 'Narzędzie' && payload.serial_number && payload.serial_number.trim().length > 0));
 
     if (isUnique) {
       payload.main_stock = 1;
@@ -505,8 +503,8 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
     const isVehicle = cat === 'Pojazd';
     const isTool = cat === 'Narzędzie';
     
-    const isUnique = (isVehicle && formState.vehicle_plate && formState.vehicle_plate.trim().length > 0) || 
-                     (isTool && formState.serial_number && formState.serial_number.trim().length > 0);
+    const isUnique = Boolean((isVehicle && formState.vehicle_plate && formState.vehicle_plate.trim().length > 0) || 
+                             (isTool && formState.serial_number && formState.serial_number.trim().length > 0));
 
     return (
       <div className="grid grid-cols-12 gap-5">
@@ -1057,7 +1055,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                                                 <div 
                                                   key={item.id} 
                                                   onMouseEnter={() => setHoveredPartId(p.id)}
-                                                  className="relative flex items-center justify-between px-6 py-3 cursor-pointer group hover:bg-[#58b347]/5 border-b border-slate-50 last:border-0 transition-colors"
+                                                  className="relative flex items-center justify-between px-6 py-3 cursor-pointer group hover:bg-[#58b347]/5 border-b border-slate-50 last:border-b-0 transition-colors"
                                                 >
                                                   {/* ABSOLUTNY WSKAŹNIK HOVER */}
                                                   <div className={`absolute left-0 top-0 bottom-0 w-1 transition-colors ${hoveredPartId === p.id ? 'bg-[#58b347]' : 'bg-transparent group-hover:bg-[#58b347]'}`} />
@@ -1431,7 +1429,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                     {(() => {
                       const currentCat = editingPart ? editingPart.category : newPart.category;
                       const currentVal = editingPart ? (currentCat === 'Pojazd' ? editingPart.vehicle_plate : editingPart.serial_number) : (currentCat === 'Pojazd' ? newPart.vehicle_plate : newPart.serial_number);
-                      const isUnique = (currentCat === 'Pojazd' || currentCat === 'Narzędzie') && currentVal && currentVal.trim().length > 0;
+                      const isUnique = Boolean((currentCat === 'Pojazd' || currentCat === 'Narzędzie') && currentVal && currentVal.trim().length > 0);
                       
                       return (
                         <>

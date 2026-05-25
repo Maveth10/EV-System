@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../app/supabase';
 
 // --- TYPY ---
@@ -35,12 +35,12 @@ const IconChevronUp = () => <svg className="w-4 h-4 text-[#58b347]" viewBox="0 0
 const IconLayers = () => <svg className="w-5 h-5 text-[#58b347]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>;
 const IconTool = () => <svg className="w-3.5 h-3.5 text-[#58b347]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>;
 const IconDrop = () => <svg className="w-3.5 h-3.5 text-[#58b347]/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>;
+const IconImport = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
 const IconAlert = () => <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
 const IconCar = () => <svg className="w-4 h-4 text-[#58b347]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="10" width="18" height="8" rx="2" ry="2"/><path d="M5 10V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>;
 const IconPlus = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>;
 const IconInfo = () => <svg className="w-6 h-6 text-[#58b347]/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>;
 const IconEdit = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
-const IconImport = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
 const IconCalendar = () => <svg className="w-3.5 h-3.5 text-slate-400 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
 const IconShield = () => <svg className="w-3.5 h-3.5 text-slate-400 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
 const IconBell = () => <svg className="w-4 h-4 text-slate-300 hover:text-red-500 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
@@ -150,12 +150,14 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
     if (partsRes.data) setParts(partsRes.data);
     if (techRes.data) {
       setTechnicians(techRes.data as Technician[]);
-      if (techRes.data.length > 0 && expandedTechIds.length === 0) setExpandedTechIds([techRes.data[0].id]);
+      if (techRes.data.length > 0 && expandedTechIds.length === 0) {
+        setExpandedTechIds([techRes.data[0].id]);
+      }
     }
     if (invRes.data) setTechInventory(invRes.data);
     if (logsRes.data) setLogs(logsRes.data);
     setIsLoading(false);
-  }, []);
+  }, [expandedTechIds.length]);
 
   useEffect(() => { 
     fetchData(); 
@@ -515,7 +517,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
           <select 
             value={formState.category} 
             onChange={e => setFormState({...formState, category: e.target.value} as any)} 
-            className="w-full px-3 py-2.5 border border-slate-200 bg-white rounded-xl text-xs font-bold text-[#58b347] focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm cursor-pointer"
+            className="w-full px-4 py-3 border border-slate-200 bg-white rounded-xl text-sm font-bold text-[#58b347] focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm cursor-pointer"
           >
             <option>Materiał eksploatacyjny</option>
             <option>Część zamienna</option>
@@ -578,7 +580,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
             </div>
 
             <div className={`col-span-12 ${isVehicle ? 'sm:col-span-2' : 'sm:col-span-4'}`}>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Przegląd / UDT</label>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">{isVehicle ? 'Ważność UDT / Badania' : 'Kalibracja/UDT'}</label>
               <input type="date" value={formState.inspection_date || ''} onChange={e => setFormState({...formState, inspection_date: e.target.value} as any)} className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg text-[10px] font-bold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm text-slate-700" />
             </div>
 
@@ -703,8 +705,8 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                       <div className="flex gap-3 items-center text-orange-700">
                         <div className="p-2 bg-orange-100 rounded-full"><IconAlert /></div>
                         <div>
-                          <h4 className="font-bold text-sm">Wymagane akcje operacyjne!</h4>
-                          <p className="text-xs font-medium opacity-90">Znaleziono {expiringPartsCount} pozycji ze zbliżającym się terminem przeglądu/ubezpieczenia.</p>
+                          <h4 className="font-bold text-sm">Wymagane akcje logistyczne!</h4>
+                          <p className="text-xs font-medium opacity-90">Znaleziono {expiringPartsCount} pozycji ze zbliżającym się terminem UDT/Ubezpieczenia.</p>
                         </div>
                       </div>
                       <button 
@@ -871,7 +873,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                                       </div>
                                       
                                       <div className="w-1/4 pr-4 flex flex-col gap-1.5 pt-1">
-                                        {isVehicle && p.vehicle_type && <span className="text-[9px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded uppercase tracking-wider w-max">{p.vehicle_type}</span>}
+                                        {isVehicle && p.vehicle_type && <span className="text-[9px] font-bold text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider w-max">{p.vehicle_type}</span>}
                                         
                                         {(isVehicle || isTool) && p.service_status && p.service_status !== 'Sprawny' && (
                                           <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-widest w-max ${p.service_status === 'Uszkodzony' ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-orange-50 text-orange-600 border-orange-200'}`}>
@@ -904,7 +906,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                                         ) : p.main_stock <= 3 ? (
                                           <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-widest mb-1 ${p.is_muted ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-orange-50 text-orange-600 border-orange-200'}`}>Niski Stan</span>
                                         ) : (
-                                          <span className="inline-flex px-2 py-0.5 bg-[#58b347]/10 text-[#499b3a] rounded text-[9px] font-bold border border-[#58b347]/20 uppercase tracking-widest mb-1">Dostępne</span>
+                                          <span className="inline-flex px-2 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-bold border border-green-200 uppercase tracking-widest mb-1">Dostępne</span>
                                         )}
                                         <span className={`text-lg font-bold tabular-nums ${p.main_stock === 0 && !p.is_muted ? 'text-red-500' : 'text-slate-800'}`}>
                                           {p.main_stock} <span className="font-bold text-[10px] text-slate-400 uppercase">{p.unit}</span>
@@ -1102,13 +1104,30 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                 <div className="w-[380px] bg-white border border-slate-200 rounded-2xl flex flex-col shrink-0 shadow-sm overflow-hidden relative">
                   {activePartDetails ? (
                     <div className="flex flex-col h-full bg-white animate-fadeIn relative">
+                      
+                      {/* Przycisk Wyciszenia (Wodotrysk) */}
+                      {['Część zamienna', 'Materiał eksploatacyjny'].includes(activePartDetails.part.category) && (
+                        <button
+                          onClick={(e) => handleToggleMute(e, activePartDetails.part)}
+                          className={`absolute top-4 right-14 p-2 rounded-xl transition-colors shadow-sm border ${activePartDetails.part.is_muted ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 border-slate-200'}`}
+                          title={activePartDetails.part.is_muted ? "Włącz powiadomienia o brakach dla tego elementu" : "Zignoruj powiadomienia o brakach dla tego elementu"}
+                        >
+                          {activePartDetails.part.is_muted ? <IconBellOff /> : <IconBell />}
+                        </button>
+                      )}
+
                       <div className="p-6 border-b border-slate-100 bg-slate-50 shrink-0 flex flex-col justify-center items-center text-center pt-10">
                         <div className="w-12 h-12 bg-white rounded-xl border border-slate-200 shadow-sm flex items-center justify-center text-[#58b347] mb-4">
                           {getCategoryIcon(activePartDetails.part.category)}
                         </div>
                         <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">{activePartDetails.part.category}</div>
                         <h2 className="text-base font-bold text-slate-900 leading-snug">{activePartDetails.part.name}</h2>
-                        <div className="text-[10px] font-bold font-mono text-slate-400 bg-white border border-slate-200 px-3 py-1 rounded-full mt-3 uppercase tracking-wider">{activePartDetails.part.sku}</div>
+                        <div className="flex items-center gap-2 mt-3">
+                          <div className="text-[10px] font-bold font-mono text-slate-500 bg-white border border-slate-200 px-3 py-1 rounded-full uppercase tracking-wider">{activePartDetails.part.sku}</div>
+                          {activePartDetails.part.is_muted && (
+                            <div className="text-[10px] font-bold text-slate-500 bg-slate-200 px-3 py-1 rounded-full uppercase tracking-wider">WYCISZONY</div>
+                          )}
+                        </div>
                         
                         {(activePartDetails.part.serial_number || activePartDetails.part.vehicle_plate) && (
                           <div className="text-[9px] font-bold font-mono text-slate-500 uppercase flex items-center gap-1 mt-2">
@@ -1117,7 +1136,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                           </div>
                         )}
                         {activePartDetails.part.notes && (
-                          <div className="mt-3 text-xs font-medium italic text-slate-500 border-t border-slate-200 pt-3 w-full">"{activePartDetails.part.notes}"</div>
+                          <div className="mt-3 text-xs font-medium italic text-slate-500 border-t border-slate-200 pt-3 w-full">&quot;{activePartDetails.part.notes}&quot;</div>
                         )}
                       </div>
 
@@ -1383,7 +1402,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                     </div>
 
                     <div className={`col-span-12 ${(editingPart ? editingPart.category : newPart.category) === 'Pojazd' ? 'sm:col-span-2' : 'sm:col-span-4'}`}>
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Przegląd / UDT</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">{(editingPart ? editingPart.category : newPart.category) === 'Pojazd' ? 'Ważność UDT / Badania' : 'Kalibracja/UDT'}</label>
                       <input type="date" value={editingPart ? (editingPart.inspection_date || '') : newPart.inspection_date} onChange={e => editingPart ? setEditingPart({...editingPart, inspection_date: e.target.value} as any) : setNewPart({...newPart, inspection_date: e.target.value})} className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg text-[10px] font-bold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm text-slate-700" />
                     </div>
 

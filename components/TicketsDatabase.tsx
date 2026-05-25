@@ -11,13 +11,20 @@ type TechInventory = { id: string; part_id: string; quantity: number; };
 type Client = { id: string; name: string; sla_hours: number; };
 
 // --- IKONY ---
-const IconClock = () => <svg className="w-3.5 h-3.5 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
-const IconKanban = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M8 3v18"/><path d="M16 3v18"/></svg>;
-const IconList = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>;
+const IconClock = () => <svg className="w-3.5 h-3.5 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+const IconKanban = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M8 3v18"/><path d="M16 3v18"/></svg>;
+const IconList = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>;
 const IconSync = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>;
 const IconCheck = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
-const IconAlert = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>;
+const IconAlert = () => <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
 const IconPlus = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+const IconSettings = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
+const IconCheckCircle = () => <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
+const IconTrendingUp = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>;
+const IconCalendar = () => <svg className="w-4 h-4 text-[#58b347]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+const IconSearch = () => <svg className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
+const IconInfo = () => <svg className="w-5 h-5 inline-block text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>;
+const IconTruck = () => <svg className="w-3.5 h-3.5 inline-block mr-1 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5"/><path d="M14 17h1"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>;
 
 // --- FUNKCJA MATEMATYCZNA: OBLICZANIE ODLEGŁOŚCI GPS (Haversine) ---
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -56,7 +63,11 @@ const parseCSV = (text: string, delimiter: string): string[][] => {
   return rows.map(row => row.map(cell => cell.replace(/^["']|["']$/g, '').trim()));
 };
 
-export default function TicketsDatabase() {
+interface TicketsDatabaseProps {
+  isSidebarHovered?: boolean;
+}
+
+export default function TicketsDatabase({ isSidebarHovered = false }: TicketsDatabaseProps) {
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
   
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -67,9 +78,15 @@ export default function TicketsDatabase() {
   const [techInventory, setTechInventory] = useState<TechInventory[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>('ACTIVE');
   const [activeTicket, setActiveTicket] = useState<Ticket | null>(null);
   const [closingForm, setClosingForm] = useState({ status: 'W toku', resolution_notes: '', part_id: '', part_qty: 1, consumePart: false });
+
+  // --- STANY FILTROWANIA ---
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('ACTIVE');
+  const [filterClient, setFilterClient] = useState<string>('');
+  const [filterCity, setFilterCity] = useState<string>('');
+  const [filterRadius, setFilterRadius] = useState<number>(30); // Domyślnie 30km
 
   // Stany dla skanera arkusza
   const [sheetUrl, setSheetUrl] = useState('');
@@ -200,6 +217,18 @@ export default function TicketsDatabase() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stations.length, technicians.length]);
 
+  // Globalny nasłuch na ESC aby zamknąć modale
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsNewModalOpen(false);
+        setActiveTicket(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // --- MANUALNE TWORZENIE ZGŁOSZENIA ---
   const handleStationChange = (stationId: string) => {
     const station = stations.find(s => s.id === stationId);
@@ -271,6 +300,7 @@ export default function TicketsDatabase() {
     return null;
   };
 
+  // Ujednolicony i odświeżony design dla SLA
   const getSlaInfo = useCallback((createdAt: string, stationId: string, status: string) => {
     if (status === 'Zakończone') return { label: 'Zakończone', hoursLeft: 9999, style: 'bg-slate-100 text-slate-500 border-slate-200' };
 
@@ -283,28 +313,83 @@ export default function TicketsDatabase() {
     const timeLeft = (deadline - Date.now()) / 3600000;
 
     if (timeLeft < 0) {
-      return { label: `Po terminie! (${Math.abs(Math.round(timeLeft))}h)`, hoursLeft: timeLeft, style: 'bg-red-50 text-red-700 border-red-300 ring-2 ring-red-500 animate-pulse' };
+      return { label: `Po terminie! (${Math.abs(Math.round(timeLeft))}h)`, hoursLeft: timeLeft, style: 'bg-red-50 text-red-600 border-red-200' };
     }
     if (timeLeft < 12) {
-      return { label: `Pilne! ${Math.floor(timeLeft)}h`, hoursLeft: timeLeft, style: 'bg-orange-50 text-orange-700 border-orange-300 ring-1 ring-orange-400' };
+      return { label: `Pilne! ${Math.floor(timeLeft)}h`, hoursLeft: timeLeft, style: 'bg-orange-50 text-orange-600 border-orange-200' };
     }
-    return { label: `Zostało ${Math.floor(timeLeft)}h`, hoursLeft: timeLeft, style: 'bg-white text-slate-600 border-slate-200' };
+    return { label: `Zostało ${Math.floor(timeLeft)}h`, hoursLeft: timeLeft, style: 'bg-[#58b347]/10 text-[#499b3a] border-[#58b347]/20' };
   }, [stations, clients]);
 
+
+  // --- DANE DLA FILTRÓW ZAAWANSOWANYCH ---
+  const uniqueCitiesWithCoords = useMemo(() => {
+    const cities = new Map<string, { lat: number, lng: number }>();
+    stations.forEach(s => {
+      if (s.city && s.lat && s.lng && !cities.has(s.city)) {
+        cities.set(s.city, { lat: s.lat, lng: s.lng });
+      }
+    });
+    return Array.from(cities.entries()).map(([city, coords]) => ({ city, ...coords })).sort((a, b) => a.city.localeCompare(b.city));
+  }, [stations]);
+
+  const uniqueClients = useMemo(() => {
+    const clientSet = new Set<string>();
+    stations.forEach(s => { if (s.client) clientSet.add(s.client); });
+    return Array.from(clientSet).sort();
+  }, [stations]);
+
+  // Główny silnik filtrowania (Szukajka + Klienci + Odległość + Status)
   const sortedAndFilteredTickets = useMemo(() => {
-    const base = tickets.filter(t => {
+    let result = tickets.filter(t => {
       if (statusFilter === 'ACTIVE') return t.status !== 'Zakończone';
       if (statusFilter === 'CLOSED') return t.status === 'Zakończone';
       return true;
     });
 
-    return base.sort((a, b) => {
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(t => {
+        const s = stations.find(st => st.id === t.station_id);
+        const tech = technicians.find(te => te.id === t.technician_id);
+        return t.ticket_code.toLowerCase().includes(q) ||
+               t.ticket_type.toLowerCase().includes(q) ||
+               s?.name.toLowerCase().includes(q) ||
+               s?.client?.toLowerCase().includes(q) ||
+               tech?.name.toLowerCase().includes(q);
+      });
+    }
+
+    if (filterClient) {
+      result = result.filter(t => {
+        const s = stations.find(st => st.id === t.station_id);
+        return s?.client === filterClient;
+      });
+    }
+
+    if (filterCity) {
+      const cityData = uniqueCitiesWithCoords.find(c => c.city === filterCity);
+      if (cityData) {
+        result = result.filter(t => {
+          const s = stations.find(st => st.id === t.station_id);
+          if (!s || !s.lat || !s.lng) return false;
+          const dist = calculateDistance(cityData.lat, cityData.lng, s.lat, s.lng);
+          return dist <= filterRadius;
+        });
+      }
+    }
+
+    return result.sort((a, b) => {
       const slaA = getSlaInfo(a.created_at, a.station_id, a.status);
       const slaB = getSlaInfo(b.created_at, b.station_id, b.status);
       return slaA.hoursLeft - slaB.hoursLeft;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tickets, statusFilter, getSlaInfo]);
+  }, [tickets, statusFilter, searchQuery, filterClient, filterCity, filterRadius, stations, technicians, uniqueCitiesWithCoords, getSlaInfo]);
+
+  // KPI Calculations
+  const activeTicketsCount = tickets.filter(t => t.status !== 'Zakończone').length;
+  const overdueTicketsCount = tickets.filter(t => t.status !== 'Zakończone' && getSlaInfo(t.created_at, t.station_id, t.status).hoursLeft < 0).length;
+  const urgentTicketsCount = tickets.filter(t => t.status !== 'Zakończone' && getSlaInfo(t.created_at, t.station_id, t.status).hoursLeft >= 0 && getSlaInfo(t.created_at, t.station_id, t.status).hoursLeft < 12).length;
 
   useEffect(() => {
     if (activeTicket && activeTicket.technician_id) {
@@ -346,36 +431,36 @@ export default function TicketsDatabase() {
   const getTechName = (id: string | null) => id ? technicians.find(t => t.id === id)?.name || 'Nieprzypisany' : 'Nieprzypisany';
   const getPartDetails = (id: string) => parts.find(p => p.id === id);
 
+  // Zmodernizowana Karta
   const TicketCard = ({ t }: { t: Ticket }) => {
     const sla = getSlaInfo(t.created_at, t.station_id, t.status);
     const station = stations.find(s => s.id === t.station_id);
-
-    let typeBg = 'bg-slate-50/60';
-    if (t.ticket_type === 'Awaria') typeBg = 'bg-red-50/40 border-red-200';
-    else if (t.ticket_type === 'Przegląd') typeBg = 'bg-blue-50/40 border-blue-200';
-    else if (t.ticket_type === 'Uruchomienie') typeBg = 'bg-purple-50/40 border-purple-200';
-    else if (t.ticket_type === 'Zlecenie jakościowe') typeBg = 'bg-orange-50/40 border-orange-200';
 
     return (
       <div 
         draggable={t.status !== 'Zakończone'}
         onDragStart={(e) => onDragStart(e, t.id)}
         onClick={() => { setActiveTicket(t); setClosingForm({ status: t.status, resolution_notes: t.resolution_notes || '', part_id: '', part_qty: 1, consumePart: false }); }}
-        className={`border p-3.5 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer relative overflow-hidden group border-slate-200 ${typeBg} ${sla.hoursLeft < 12 && t.status !== 'Zakończone' ? 'ring-2 ring-red-400 animate-pulse' : ''}`}
+        className={`bg-white border p-4 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer relative overflow-hidden group ${t.status === 'Zakończone' ? 'border-slate-200 opacity-60' : 'border-slate-200 hover:border-[#58b347]/50'}`}
       >
-        <div className="flex justify-between items-start mb-2">
-          <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${sla.style}`}>
+        {/* Delikatny wskaźnik SLA z lewej strony (wodotrysk) */}
+        {t.status !== 'Zakończone' && (
+           <div className={`absolute left-0 top-0 bottom-0 w-1 ${sla.hoursLeft < 0 ? 'bg-red-500 animate-pulse' : sla.hoursLeft < 12 ? 'bg-orange-500' : 'bg-[#58b347]'}`} />
+        )}
+
+        <div className="flex justify-between items-start mb-2.5">
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${sla.style}`}>
             <IconClock /> {sla.label}
           </span>
-          <span className="text-[9px] font-mono font-bold text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-200">{t.ticket_code}</span>
+          <span className="text-[9px] font-mono font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">{t.ticket_code}</span>
         </div>
         
-        <h4 className="font-bold text-slate-800 text-xs leading-tight mb-0.5 truncate">{station?.name || 'Stacja'}</h4>
-        <p className="text-[10px] text-slate-400 font-medium truncate mb-2">{t.ticket_type} • {station?.client}</p>
+        <h4 className="font-bold text-slate-800 text-sm leading-tight mb-1 truncate">{station?.name || 'Stacja'}</h4>
+        <p className="text-[10px] text-slate-500 font-medium truncate mb-3">{t.ticket_type} • {station?.client}</p>
         
-        <div className="flex justify-between items-center pt-2 border-t border-slate-100">
-          <span className="text-[9px] font-bold text-slate-500 uppercase">{t.status}</span>
-          <span className="text-[9px] font-bold text-slate-400 font-mono">{t.priority}</span>
+        <div className="flex justify-between items-center pt-2.5 border-t border-slate-100">
+          <span className={`text-[9px] font-bold uppercase ${t.status === 'Zakończone' ? 'text-slate-400' : 'text-[#58b347]'}`}>{t.status}</span>
+          <span className={`text-[9px] font-bold font-mono px-1.5 py-0.5 rounded ${t.priority === 'Krytyczny' ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-500'}`}>{t.priority}</span>
         </div>
       </div>
     );
@@ -384,83 +469,187 @@ export default function TicketsDatabase() {
   const kanbanColumns = [null, ...technicians];
 
   return (
-    <div className="absolute inset-0 left-[72px] bg-slate-50 z-40 p-6 flex flex-col h-full overflow-hidden">
+    <div className="absolute inset-0 left-[72px] bg-slate-100/60 backdrop-blur-2xl border-l border-white/20 z-40 overflow-hidden flex flex-col font-sans transition-all duration-300 ease-out shadow-[-10px_0_30px_rgba(0,0,0,0.05)]">
       
-      {/* PANEL STEROWANIA */}
-      <div className="max-w-[1600px] w-full mx-auto flex justify-between items-end mb-6 shrink-0">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
-            Dyspozytornia Regionalna FSM
-            {isSyncing && <span className="text-xs bg-green-100 text-[#58b347] px-2 py-1 rounded-full animate-spin">🔄</span>}
+      {/* Pasek nawigacji górnej */}
+      <div className="bg-white/70 backdrop-blur-md border-b border-white/40 px-6 py-4 flex items-center justify-between shrink-0">
+        <div className={`transition-all duration-300 ease-in-out ${isSidebarHovered ? 'ml-[184px]' : 'ml-0'}`}>
+          <h1 className="text-xl font-bold tracking-tight text-slate-800 flex items-center gap-2">
+            Centrum Zgłoszeń (Helpdesk)
+            {isSyncing && <span className="text-[10px] bg-[#58b347]/10 text-[#58b347] border border-[#58b347]/20 px-2 py-0.5 rounded-full animate-pulse uppercase tracking-wider font-bold">Synchronizacja...</span>}
           </h1>
-          <p className="text-sm text-slate-500 mt-1">Zlecenia pobierają się automatycznie z Arkusza Google i rozdzielają po strefach techników.</p>
+          <p className="text-xs text-slate-500 mt-0.5 font-medium">Dyspozytornia i obsługa SLA.</p>
         </div>
+        
         <div className="flex gap-3 items-center">
-          
           <button 
             onClick={() => handleScanSheet()} 
             disabled={isSyncing || !sheetUrl}
-            className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-50 flex items-center gap-1.5 shadow-sm disabled:opacity-40"
+            className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 flex items-center gap-1.5 shadow-sm disabled:opacity-40 transition-colors"
           >
-            <IconSync /> {isSyncing ? 'Skanowanie...' : 'Skanuj Arkusz teraz'}
+            <IconSync /> Skanuj zgłoszenia
           </button>
 
-          <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} className="bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-50 shadow-sm">⚙️ Link</button>
+          <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} className="bg-white border border-slate-200 text-slate-400 hover:text-slate-600 px-3 py-2 rounded-xl text-xs font-bold shadow-sm transition-colors"><IconSettings /></button>
 
-          <div className="flex bg-white rounded-lg p-1 border border-slate-200 shadow-sm">
-            <button onClick={() => setViewMode('kanban')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold transition-colors ${viewMode === 'kanban' ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}><IconKanban /> Tablica</button>
-            <button onClick={() => setViewMode('list')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold transition-colors ${viewMode === 'list' ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}><IconList /> Lista</button>
+          <div className="flex bg-slate-100/50 p-1 rounded-xl border border-slate-200/60 shadow-inner backdrop-blur-md ml-2">
+            <button onClick={() => setViewMode('kanban')} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'kanban' ? 'bg-white shadow-sm border border-slate-200 text-[#58b347]' : 'text-slate-500 hover:text-slate-700'}`}><IconKanban /> Tablica</button>
+            <button onClick={() => setViewMode('list')} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'list' ? 'bg-white shadow-sm border border-slate-200 text-[#58b347]' : 'text-slate-500 hover:text-slate-700'}`}><IconList /> Lista</button>
           </div>
 
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border border-slate-200 bg-white rounded-lg p-2 text-xs font-semibold text-slate-700 cursor-pointer shadow-sm focus:outline-none">
-            <option value="ACTIVE">⚡ Poukładane po SLA (Aktywne)</option>
-            <option value="CLOSED">✅ Zakończone zadania</option>
-            <option value="ALL">📋 Wszystkie</option>
-          </select>
-
-          <button onClick={() => setIsNewModalOpen(true)} className="bg-[#58b347] text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-[#499b3a] flex items-center gap-1.5 shadow-sm transition-all">
-            <IconPlus /> Dodaj ręcznie
+          <button onClick={() => setIsNewModalOpen(true)} className="bg-[#58b347] text-white border border-[#499b3a] px-4 py-2 rounded-xl text-xs font-bold hover:bg-[#499b3a] flex items-center gap-1.5 shadow-sm transition-all ml-2">
+            <IconPlus /> Ręczne zlecenie
           </button>
         </div>
       </div>
 
-      {isSettingsOpen && (
-        <div className="max-w-[1600px] w-full mx-auto mb-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex items-center gap-4 animate-fadeIn shrink-0">
-          <div className="flex-1">
-            <label className="block text-xs font-bold text-slate-600 mb-1">Link udostępniania Arkusza Google ze zleceniami:</label>
-            <input type="url" value={sheetUrl} onChange={e => setSheetUrl(e.target.value)} className="w-full px-3 py-1.5 border border-slate-200 rounded text-xs focus:outline-none focus:border-[#58b347]" placeholder="https://docs.google.com/spreadsheets/d/..." />
-          </div>
-          <button onClick={() => { setIsSettingsOpen(false); handleScanSheet(); }} className="bg-[#58b347] text-white font-bold px-4 py-2 rounded text-xs mt-5 hover:bg-[#499b3a]">Zapisz i Skanuj</button>
-        </div>
-      )}
-
-      {/* GŁÓWNY WIDOK */}
-      <div className="max-w-[1600px] w-full mx-auto flex-1 overflow-hidden">
+      {/* Kontener Główny */}
+      <div className="flex-1 overflow-hidden relative">
         {isLoading ? (
-          <div className="flex items-center justify-center h-full text-slate-400 font-medium">Synchronizacja bazy...</div>
+          <div className="flex w-full h-full items-center justify-center text-sm font-bold text-slate-400">Ładowanie bazy danych...</div>
         ) : (
-          <>
+          <div className="h-full w-full max-w-[1600px] mx-auto p-6 flex flex-col gap-6">
+            
+            {/* Opcjonalny Panel Ustawień (Wysuwany) */}
+            {isSettingsOpen && (
+              <div className="w-full bg-white/95 backdrop-blur-sm border border-slate-200 p-5 rounded-2xl shadow-sm flex items-end gap-4 animate-fadeIn shrink-0">
+                <div className="flex-1">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Link Arkusza Google ze zleceniami:</label>
+                  <input type="url" value={sheetUrl} onChange={e => setSheetUrl(e.target.value)} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all bg-slate-50" placeholder="https://docs.google.com/spreadsheets/d/..." />
+                </div>
+                <button onClick={() => { setIsSettingsOpen(false); handleScanSheet(); }} className="bg-slate-800 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-slate-700 transition-colors shadow-sm">Zapisz konfigurację</button>
+              </div>
+            )}
+
+            {/* KPI Dashboard */}
+            <div className="grid grid-cols-3 gap-6 shrink-0">
+              <div className="bg-white/80 backdrop-blur-md border border-white/60 rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Zgłoszenia w toku</p>
+                  <p className="text-3xl font-bold text-slate-700">{activeTicketsCount}</p>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
+                  <IconList />
+                </div>
+              </div>
+              
+              <div className={`bg-white/80 backdrop-blur-md border ${urgentTicketsCount > 0 ? 'border-orange-200' : 'border-white/60'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between`}>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Zagrożone SLA (&lt; 12h)</p>
+                  <p className={`text-3xl font-bold ${urgentTicketsCount > 0 ? 'text-orange-600' : 'text-slate-700'}`}>{urgentTicketsCount}</p>
+                </div>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${urgentTicketsCount > 0 ? 'bg-orange-50 text-orange-500' : 'bg-[#58b347]/10 text-[#58b347]'}`}>
+                  <IconClock />
+                </div>
+              </div>
+
+              <div className={`bg-white/80 backdrop-blur-md border ${overdueTicketsCount > 0 ? 'border-red-200' : 'border-white/60'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between`}>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Po terminie (Przekroczone SLA)</p>
+                  <p className={`text-3xl font-bold ${overdueTicketsCount > 0 ? 'text-red-600 animate-pulse' : 'text-slate-700'}`}>{overdueTicketsCount}</p>
+                </div>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${overdueTicketsCount > 0 ? 'bg-red-50 text-red-500' : 'bg-slate-50 text-slate-400'}`}>
+                  <IconAlert />
+                </div>
+              </div>
+            </div>
+
+            {/* Pasek Zaawansowanego Filtrowania (Wodotrysk) */}
+            <div className="bg-white/90 backdrop-blur-md border border-slate-200 rounded-2xl p-4 shadow-sm flex items-center gap-4 shrink-0 flex-wrap">
+              <div className="relative flex-1 min-w-[200px]">
+                <IconSearch />
+                <input 
+                  type="text" 
+                  placeholder="Szukaj (kod, stacja, technik)..." 
+                  value={searchQuery} 
+                  onChange={e => setSearchQuery(e.target.value)} 
+                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all bg-white"
+                />
+              </div>
+
+              <div className="min-w-[150px]">
+                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-600 cursor-pointer shadow-sm focus:outline-none focus:border-[#58b347]">
+                  <option value="ACTIVE">Status: Tylko Aktywne</option>
+                  <option value="CLOSED">Status: Tylko Zakończone</option>
+                  <option value="ALL">Status: Wszystkie</option>
+                </select>
+              </div>
+
+              <div className="w-px h-6 bg-slate-200 mx-2"></div>
+
+              <div className="min-w-[150px]">
+                <select value={filterClient} onChange={e => setFilterClient(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-600 cursor-pointer shadow-sm focus:outline-none focus:border-[#58b347]">
+                  <option value="">Wszyscy Klienci</option>
+                  {uniqueClients.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+
+              <div className="min-w-[160px]">
+                <select value={filterCity} onChange={e => setFilterCity(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-600 cursor-pointer shadow-sm focus:outline-none focus:border-[#58b347]">
+                  <option value="">Cała Polska (Bez lokalizacji)</option>
+                  {uniqueCitiesWithCoords.map(c => <option key={c.city} value={c.city}>{c.city}</option>)}
+                </select>
+              </div>
+
+              {filterCity && (
+                <div className="min-w-[130px] animate-fadeIn">
+                  <select value={filterRadius} onChange={e => setFilterRadius(Number(e.target.value))} className="w-full border border-[#58b347]/40 bg-[#58b347]/5 rounded-xl px-3 py-2 text-xs font-bold text-[#58b347] cursor-pointer shadow-sm focus:outline-none focus:border-[#58b347]">
+                    <option value={10}>Promień: 10 km</option>
+                    <option value={30}>Promień: 30 km</option>
+                    <option value={50}>Promień: 50 km</option>
+                    <option value={100}>Promień: 100 km</option>
+                    <option value={200}>Promień: 200 km</option>
+                  </select>
+                </div>
+              )}
+
+              {(searchQuery || filterClient || filterCity || statusFilter !== 'ACTIVE') && (
+                <button 
+                  onClick={() => { setSearchQuery(''); setFilterClient(''); setFilterCity(''); setStatusFilter('ACTIVE'); }} 
+                  className="text-[10px] text-slate-400 hover:text-red-500 font-bold uppercase tracking-widest px-2 transition-colors"
+                >
+                  Wyczyść
+                </button>
+              )}
+            </div>
+
+            {/* WIDOK: KANBAN */}
             {viewMode === 'kanban' && (
-              <div className="flex gap-4 h-full overflow-x-auto pb-4 px-1 snap-x scrollbar-thin scrollbar-thumb-slate-300">
+              <div className="flex gap-5 h-full overflow-x-auto pb-4 px-1 snap-x scrollbar-thin scrollbar-thumb-slate-300 flex-1">
                 {kanbanColumns.map((tech) => {
                   const techTickets = sortedAndFilteredTickets.filter(t => tech ? t.technician_id === tech.id : t.technician_id === null);
                   return (
                     <div 
                       key={tech ? tech.id : 'unassigned'} 
-                      className={`min-w-[280px] max-w-[280px] bg-slate-100/40 border border-slate-200 rounded-2xl flex flex-col snap-center ${!tech ? 'bg-orange-50/20 border-orange-100' : ''}`}
+                      className={`min-w-[320px] max-w-[320px] bg-white/40 backdrop-blur-md border border-white/60 rounded-2xl flex flex-col snap-center shadow-sm overflow-hidden ${!tech ? 'ring-1 ring-orange-200/50 bg-orange-50/10' : ''}`}
                       onDragOver={onDragOver}
                       onDrop={(e) => onDrop(e, tech ? tech.id : null)}
                     >
-                      <div className={`p-3.5 border-b border-slate-200 flex justify-between items-center ${!tech ? 'bg-orange-100/40 rounded-t-2xl' : 'bg-slate-50 rounded-t-2xl'}`}>
-                        <div>
-                          <h3 className="font-bold text-slate-700 text-xs truncate leading-none">{tech ? tech.name : '🚨 Nierozdzielone strefą'}</h3>
-                          {tech && <span className="text-[9px] text-slate-400 font-mono mt-1 block">{tech.car_plate || 'Brak pojazdu'}</span>}
+                      <div className={`p-4 border-b border-slate-100 flex justify-between items-center bg-white/60 shrink-0`}>
+                        <div className="flex items-center gap-3">
+                          {tech ? (
+                            <div className="w-8 h-8 rounded-full bg-[#58b347]/10 flex items-center justify-center text-[#58b347] font-bold text-xs">
+                              {tech.name.substring(0, 2).toUpperCase()}
+                            </div>
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-500 font-bold text-xs">
+                              !
+                            </div>
+                          )}
+                          <div>
+                            <h3 className="font-bold text-slate-800 text-sm truncate leading-tight">{tech ? tech.name : 'Nieprzypisane'}</h3>
+                            {tech && <span className="text-[9px] font-bold text-slate-400 font-mono uppercase tracking-wider block mt-0.5">{tech.car_plate ? <><IconTruck /> {tech.car_plate.split(',')[0]}</> : 'Brak pojazdu'}</span>}
+                          </div>
                         </div>
-                        <span className="bg-white border text-slate-700 text-[10px] font-black px-2 py-0.5 rounded-md shadow-sm">{techTickets.length}</span>
+                        <span className="bg-white border border-slate-200 text-slate-600 text-xs font-black px-2.5 py-0.5 rounded-lg shadow-sm">{techTickets.length}</span>
                       </div>
-                      <div className="p-3 flex-1 overflow-y-auto space-y-3 scrollbar-hide bg-white/40">
+                      <div className="p-4 flex-1 overflow-y-auto space-y-3 scrollbar-hide">
                         {techTickets.map(t => <TicketCard key={t.id} t={t} />)}
-                        {techTickets.length === 0 && <div className="text-center text-xs text-slate-400 py-12 italic border-2 border-dashed border-slate-200 rounded-xl bg-white/50">Brak zadań w toku</div>}
+                        {techTickets.length === 0 && (
+                          <div className="text-center text-xs font-bold text-slate-400 py-12 border-2 border-dashed border-slate-200/60 rounded-xl bg-white/30">
+                            Pusta strefa
+                          </div>
+                        )}
                       </div>
                     </div>
                   )
@@ -468,113 +657,144 @@ export default function TicketsDatabase() {
               </div>
             )}
 
+            {/* WIDOK: LISTA */}
             {viewMode === 'list' && (
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm h-full overflow-y-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead className="bg-slate-50 border-b border-slate-200 font-bold text-slate-500 uppercase sticky top-0 z-10">
-                    <tr>
-                      <th className="py-3 px-4">Kod</th>
-                      <th className="py-3 px-4">Typ akcji</th>
-                      <th className="py-3 px-4">Ładowarka / Klient</th>
-                      <th className="py-3 px-4">Opiekun strefy</th>
-                      <th className="py-3 px-4">Czas SLA (Priorytet)</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4 text-center">Obsługa</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-700">
-                    {sortedAndFilteredTickets.map(t => {
-                      const sla = getSlaInfo(t.created_at, t.station_id, t.status);
-                      const station = stations.find(s => s.id === t.station_id);
-                      return (
-                        <tr key={t.id} className="hover:bg-slate-50/50">
-                          <td className="py-3 px-4 font-mono font-bold text-slate-400">{t.ticket_code}</td>
-                          <td className="py-3 px-4 font-bold">{t.ticket_type}</td>
-                          <td className="py-3 px-4"><div className="font-bold text-slate-800">{station?.name}</div><div className="text-[10px] text-slate-500">{station?.client}</div></td>
-                          <td className="py-3 px-4 font-medium text-slate-600">{getTechName(t.technician_id)}</td>
-                          <td className="py-3 px-4"><span className={`px-2 py-0.5 rounded border font-bold text-[10px] ${sla.style}`}>{sla.label}</span></td>
-                          <td className="py-3 px-4 font-bold uppercase text-[10px]">{t.status}</td>
-                          <td className="py-3 px-4 text-center">
-                            <button onClick={() => { setActiveTicket(t); setClosingForm({ status: t.status, resolution_notes: t.resolution_notes || '', part_id: '', part_qty: 1, consumePart: false }); }} className="bg-white border border-slate-200 hover:border-[#58b347] text-slate-700 hover:text-[#58b347] px-3 py-1.5 rounded font-medium shadow-sm transition-colors text-[11px]">Zarządzaj</button>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+              <div className="w-full bg-white/95 backdrop-blur-sm border border-white/60 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col overflow-hidden flex-1">
+                <div className="flex-1 overflow-y-auto scrollbar-hide">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50/80 backdrop-blur-sm border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-widest sticky top-0 z-10">
+                      <tr>
+                        <th className="px-6 py-4">Kod</th>
+                        <th className="px-6 py-4">Typ akcji</th>
+                        <th className="px-6 py-4">Ładowarka / Klient</th>
+                        <th className="px-6 py-4">Przypisanie</th>
+                        <th className="px-6 py-4">Czas SLA</th>
+                        <th className="px-6 py-4">Status</th>
+                        <th className="px-6 py-4 text-center">Akcje</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100/60 text-xs">
+                      {sortedAndFilteredTickets.map(t => {
+                        const sla = getSlaInfo(t.created_at, t.station_id, t.status);
+                        const station = stations.find(s => s.id === t.station_id);
+                        return (
+                          <tr key={t.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="px-6 py-4 font-mono font-bold text-slate-400 uppercase tracking-wider">{t.ticket_code}</td>
+                            <td className="px-6 py-4 font-bold text-slate-700">{t.ticket_type}</td>
+                            <td className="px-6 py-4">
+                              <div className="font-bold text-slate-800 leading-tight">{station?.name}</div>
+                              <div className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">{station?.client} {station?.city ? `(${station.city})` : ''}</div>
+                            </td>
+                            <td className="px-6 py-4 font-bold text-slate-600">{getTechName(t.technician_id)}</td>
+                            <td className="px-6 py-4">
+                              <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-bold border uppercase tracking-widest ${sla.style}`}>
+                                {sla.label}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`text-[10px] font-bold uppercase tracking-widest ${t.status === 'Zakończone' ? 'text-slate-400' : 'text-[#58b347]'}`}>
+                                {t.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <button 
+                                onClick={() => { setActiveTicket(t); setClosingForm({ status: t.status, resolution_notes: t.resolution_notes || '', part_id: '', part_qty: 1, consumePart: false }); }} 
+                                className="bg-white border border-slate-200 text-slate-600 hover:text-[#58b347] hover:border-[#58b347] px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-colors"
+                              >
+                                Zarządzaj
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                      {sortedAndFilteredTickets.length === 0 && (
+                        <tr><td colSpan={7} className="text-center p-12 text-slate-400 font-bold">Brak zgłoszeń spełniających wybrane kryteria wyszukiwania.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
 
-      {/* MODAL: TWORZENIE RĘCZNEGO ZGŁOSZENIA (Awaryjne) */}
+      {/* --- MODALE --- */}
+
+      {/* MODAL: TWORZENIE RĘCZNEGO ZGŁOSZENIA */}
       {isNewModalOpen && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 animate-fadeIn">
-            <div className="bg-slate-800 px-6 py-4 flex justify-between items-center text-white">
-              <h3 className="font-bold flex items-center gap-2"><IconAlert /> Dodaj zlecenie systemowe</h3>
-              <button onClick={() => setIsNewModalOpen(false)} className="text-slate-400 hover:text-white transition-colors">✕</button>
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 animate-slideUp">
+            <div className="bg-white px-6 py-5 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">Nowe zgłoszenie operacyjne</h3>
+              <button onClick={() => setIsNewModalOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors">✕</button>
             </div>
             
-            <form onSubmit={handleCreateManualTicket} className="p-6 space-y-5 text-sm">
+            <form onSubmit={handleCreateManualTicket} className="p-6 space-y-5 bg-slate-50/30">
               <div>
-                <label className="block font-bold text-slate-700 mb-1.5">Wybierz stację ładowania</label>
-                <select required value={newTicket.station_id} onChange={e => handleStationChange(e.target.value)} className="w-full border-2 border-slate-200 rounded-lg p-3 bg-slate-50 focus:bg-white focus:border-[#58b347] focus:ring-4 focus:ring-[#58b347]/20 transition-all outline-none font-medium">
-                  <option value="">-- Wyszukaj i wybierz --</option>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Wybierz stację ładowania *</label>
+                <select required value={newTicket.station_id} onChange={e => handleStationChange(e.target.value)} className="w-full border border-slate-200 bg-white rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm cursor-pointer">
+                  <option value="">-- Wyszukaj z bazy danych --</option>
                   {stations.map(s => <option key={s.id} value={s.id}>{s.name} ({s.city || 'Brak miasta'})</option>)}
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-5">
                 <div>
-                  <label className="block font-medium text-slate-600 mb-1">Typ usterki</label>
-                  <select value={newTicket.ticket_type} onChange={e => setNewTicket({...newTicket, ticket_type: e.target.value})} className="w-full border border-slate-200 rounded-lg p-2.5 bg-white focus:border-[#58b347] outline-none">
-                    <option>Awaria</option><option>Przegląd</option><option>Uruchomienie</option><option>Zlecenie jakościowe</option><option>Naprawa odpłatna</option>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Typ akcji</label>
+                  <select value={newTicket.ticket_type} onChange={e => setNewTicket({...newTicket, ticket_type: e.target.value})} className="w-full border border-slate-200 bg-white rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm cursor-pointer">
+                    <option>Awaria</option>
+                    <option>Przegląd</option>
+                    <option>Uruchomienie</option>
+                    <option>Zlecenie jakościowe</option>
+                    <option>Naprawa odpłatna</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-medium text-slate-600 mb-1">Priorytet SLA</label>
-                  <select value={newTicket.priority} onChange={e => setNewTicket({...newTicket, priority: e.target.value})} className="w-full border border-slate-200 rounded-lg p-2.5 bg-white font-bold text-slate-800 focus:border-[#58b347] outline-none">
-                    <option>Niski</option><option>Normalny</option><option>Wysoki</option><option className="text-red-600">Krytyczny</option>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Priorytet SLA</label>
+                  <select value={newTicket.priority} onChange={e => setNewTicket({...newTicket, priority: e.target.value})} className="w-full border border-slate-200 bg-white rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm cursor-pointer">
+                    <option>Niski</option>
+                    <option>Normalny</option>
+                    <option>Wysoki</option>
+                    <option className="text-red-600 font-black">Krytyczny</option>
                   </select>
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                <label className="block font-bold text-slate-700 flex justify-between items-center">
-                  Przypisanie technika (Dispatch)
+              <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-4 shadow-inner">
+                <label className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                  Przypisanie (Dispatch)
                   {isAutoAssignedFromZone && (
-                    <span className="text-[#58b347] bg-green-100 text-[10px] px-2 py-0.5 rounded font-black tracking-wide border border-green-200">✓ AUTO-PRZYPISANIE ZE STREFY</span>
+                    <span className="text-[#58b347] bg-[#58b347]/10 text-[9px] px-2 py-0.5 rounded-md font-black tracking-widest border border-[#58b347]/20">✓ AUTO-PRZYPISANIE Z REJONU</span>
                   )}
                 </label>
                 
                 {newTicket.station_id && getClosestTechnicianSuggestion(newTicket.station_id) && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 flex gap-3 items-start animate-fadeIn">
-                    <div className="text-lg mt-0.5">💡</div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-800 flex gap-3 items-start animate-fadeIn shadow-sm">
+                    <div className="text-lg mt-0.5"><IconInfo /></div>
                     <div>
-                      <strong className="block mb-0.5">Sugestia Dyspozytora AI:</strong>
+                      <strong className="block mb-1 text-[10px] uppercase tracking-widest text-blue-600">Sztuczna Inteligencja podpowiada:</strong>
                       Zaraz obok jest <strong>{getClosestTechnicianSuggestion(newTicket.station_id)?.technician}</strong>. 
-                      Aktualnie obsługuje zgłoszenie na stacji <em>{getClosestTechnicianSuggestion(newTicket.station_id)?.stationName}</em> (ok. {getClosestTechnicianSuggestion(newTicket.station_id)?.distance} km).
-                      <button type="button" onClick={() => setNewTicket({...newTicket, technician_id: getClosestTechnicianSuggestion(newTicket.station_id)!.technicianId!})} className="block mt-1.5 font-bold text-blue-600 hover:underline">Przypisz do niego zadanie</button>
+                      Aktualnie obsługuje stację <em>{getClosestTechnicianSuggestion(newTicket.station_id)?.stationName}</em> (ok. {getClosestTechnicianSuggestion(newTicket.station_id)?.distance} km stąd).
+                      <button type="button" onClick={() => setNewTicket({...newTicket, technician_id: getClosestTechnicianSuggestion(newTicket.station_id)!.technicianId!})} className="block mt-2 font-bold text-blue-600 hover:text-blue-800 underline transition-colors">Przypisz zadanie do tego technika</button>
                     </div>
                   </div>
                 )}
 
-                <select value={newTicket.technician_id} onChange={e => setNewTicket({...newTicket, technician_id: e.target.value})} className={`w-full border rounded-lg p-2.5 outline-none transition-colors ${isAutoAssignedFromZone ? 'border-[#58b347] bg-green-50 focus:border-[#58b347]' : 'border-slate-300 bg-white focus:border-blue-500'}`}>
-                  <option value="">-- Zostaw w puli nieprzypisanych (Kanban) --</option>
-                  {technicians.map(t => <option key={t.id} value={t.id}>{t.name} {t.car_plate ? `[${t.car_plate}]` : ''}</option>)}
+                <select value={newTicket.technician_id} onChange={e => setNewTicket({...newTicket, technician_id: e.target.value})} className={`w-full border rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none transition-all cursor-pointer shadow-sm ${isAutoAssignedFromZone ? 'border-[#58b347] bg-[#58b347]/5 focus:ring-1 focus:ring-[#58b347]/30' : 'border-slate-200 bg-white focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30'}`}>
+                  <option value="">-- Pozostaw w puli nieprzypisanych --</option>
+                  {technicians.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="block font-medium text-slate-600 mb-1">Uwagi dla serwisu w terenie</label>
-                <textarea rows={3} value={newTicket.description} onChange={e => setNewTicket({...newTicket, description: e.target.value})} className="w-full border border-slate-200 rounded-lg p-3 focus:border-[#58b347] outline-none" placeholder="Co zgłosił klient? Jakie części mogą być potrzebne?" />
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Opis / Uwagi od Klienta</label>
+                <textarea rows={3} value={newTicket.description} onChange={e => setNewTicket({...newTicket, description: e.target.value})} className="w-full border border-slate-200 bg-white rounded-xl px-4 py-3 text-sm font-medium text-slate-700 focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm resize-none" placeholder="Co się stało? Jakie części mogą być potrzebne?" />
               </div>
 
-              <div className="flex gap-3 pt-3">
-                <button type="button" onClick={() => setIsNewModalOpen(false)} className="flex-1 bg-white border-2 border-slate-200 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-50 transition-colors">Odrzuć</button>
-                <button type="submit" className="flex-1 bg-[#58b347] text-white font-bold py-3 rounded-xl hover:bg-[#499b3a] shadow-lg shadow-green-600/30 transition-all">Utwórz zadanie</button>
+              <div className="flex gap-3 pt-3 border-t border-slate-200 mt-4">
+                <button type="button" onClick={() => setIsNewModalOpen(false)} className="flex-1 bg-white border border-slate-200 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-50 transition-colors shadow-sm text-xs">Anuluj</button>
+                <button type="submit" className="flex-1 bg-[#58b347] text-white font-bold py-3 rounded-xl hover:bg-[#499b3a] shadow-lg shadow-green-600/30 transition-all text-xs">Utwórz zadanie</button>
               </div>
             </form>
           </div>
@@ -583,54 +803,57 @@ export default function TicketsDatabase() {
 
       {/* MODAL: ZARZĄDZANIE / ZAMYKANIE ZGŁOSZENIA */}
       {activeTicket && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200">
-            <div className="bg-slate-800 px-6 py-4 flex justify-between items-center text-white">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 animate-slideUp">
+            <div className="bg-white px-6 py-5 border-b border-slate-100 flex justify-between items-center">
               <div>
-                <h3 className="font-bold text-sm">{activeTicket.ticket_code} • {activeTicket.ticket_type}</h3>
-                <p className="text-xs text-slate-400 mt-0.5">{getStationName(activeTicket.station_id)}</p>
+                <h3 className="font-extrabold text-sm text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                  <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-mono text-[10px] border border-slate-200">{activeTicket.ticket_code}</span> 
+                  {activeTicket.ticket_type}
+                </h3>
+                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">{getStationName(activeTicket.station_id)}</p>
               </div>
-              <button onClick={() => setActiveTicket(null)} className="text-slate-400 hover:text-white transition-colors">✕</button>
+              <button onClick={() => setActiveTicket(null)} className="text-slate-400 hover:text-slate-700 transition-colors">✕</button>
             </div>
             
-            <form onSubmit={handleUpdateTicketStatus} className="p-6 space-y-5 text-sm">
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-slate-700 italic text-xs">
-                <strong className="block text-[10px] uppercase font-bold text-slate-400 not-italic mb-1">Opis problemu (z Arkusza):</strong>
-                {activeTicket.description || 'Brak dodatkowego opisu usterki.'}
+            <form onSubmit={handleUpdateTicketStatus} className="p-6 space-y-5 bg-slate-50/30">
+              <div className="bg-white p-4 rounded-xl border border-slate-200 text-slate-700 text-sm shadow-sm">
+                <strong className="block text-[10px] uppercase font-bold text-slate-400 mb-1.5 tracking-widest">Treść zgłoszenia klienta:</strong>
+                <p className="font-medium italic text-slate-600">{activeTicket.description || 'Brak dodatkowego opisu usterki.'}</p>
               </div>
 
               {activeTicket.status !== 'Zakończone' ? (
                 <>
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1.5">Zmień etap zadania</label>
-                    <select value={closingForm.status} onChange={e => setClosingForm({...closingForm, status: e.target.value})} className="w-full border-2 border-slate-200 rounded-lg p-3 bg-white font-bold text-slate-800 outline-none focus:border-[#58b347]">
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Zmień status operacyjny</label>
+                    <select value={closingForm.status} onChange={e => setClosingForm({...closingForm, status: e.target.value})} className="w-full px-4 py-3 border border-slate-200 bg-white rounded-xl text-sm font-bold text-[#58b347] focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm cursor-pointer">
                       <option value="Nowe">Nowe (Oczekuje na akcję)</option>
-                      <option value="W toku">W toku (Technik działa)</option>
+                      <option value="W toku">W toku (Technik w drodze / Działa)</option>
                       <option value="Oczekuje na części">Oczekuje na części (Zdiagnozowano)</option>
                       <option value="Zakończone">Zakończone (Naprawiono)</option>
                     </select>
                   </div>
 
                   {closingForm.status === 'Zakończone' && activeTicket.technician_id && (
-                    <div className="bg-orange-50/80 border border-orange-200 p-4 rounded-xl space-y-3">
-                      <div className="flex items-center gap-2">
-                        <input type="checkbox" id="consumePart" checked={closingForm.consumePart} onChange={e => setClosingForm({...closingForm, consumePart: e.target.checked})} className="rounded text-orange-500 focus:ring-orange-500 w-4 h-4 cursor-pointer" />
-                        <label htmlFor="consumePart" className="font-bold text-orange-800 cursor-pointer select-none">Zużyto części z auta technika</label>
+                    <div className="bg-orange-50 border border-orange-200 p-5 rounded-xl space-y-4 shadow-sm animate-fadeIn">
+                      <div className="flex items-center gap-3">
+                        <input type="checkbox" id="consumePart" checked={closingForm.consumePart} onChange={e => setClosingForm({...closingForm, consumePart: e.target.checked})} className="rounded text-orange-500 focus:ring-orange-500 w-4 h-4 cursor-pointer border-orange-300" />
+                        <label htmlFor="consumePart" className="text-xs font-bold text-orange-800 cursor-pointer select-none uppercase tracking-widest">Zużyto materiał z auta technika</label>
                       </div>
                       
                       {closingForm.consumePart && (
-                        <div className="grid grid-cols-3 gap-3 pt-2">
+                        <div className="grid grid-cols-3 gap-3 pt-2 border-t border-orange-200/50">
                           <div className="col-span-2">
-                            <select required={closingForm.consumePart} value={closingForm.part_id} onChange={e => setClosingForm({...closingForm, part_id: e.target.value})} className="w-full border border-orange-300 rounded-lg p-2 bg-white text-xs outline-none">
-                              <option value="">Wybierz z bagażnika...</option>
+                            <select required={closingForm.consumePart} value={closingForm.part_id} onChange={e => setClosingForm({...closingForm, part_id: e.target.value})} className="w-full border border-orange-300 bg-white rounded-lg p-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-1 focus:ring-orange-400 shadow-sm cursor-pointer">
+                              <option value="">Wybierz sprzęt z bagażnika...</option>
                               {techInventory.map(item => {
                                 const p = getPartDetails(item.part_id);
-                                return <option key={item.id} value={item.part_id}>{p?.name} (Dostępne: {item.quantity})</option>
+                                return <option key={item.id} value={item.part_id}>{p?.name} (Auto: {item.quantity} szt.)</option>
                               })}
                             </select>
                           </div>
                           <div>
-                            <input type="number" min="1" required={closingForm.consumePart} value={closingForm.part_qty} onChange={e => setClosingForm({...closingForm, part_qty: parseInt(e.target.value) || 1})} className="w-full border border-orange-300 rounded-lg p-2 text-center font-bold text-xs outline-none" />
+                            <input type="number" min="1" required={closingForm.consumePart} value={closingForm.part_qty} onChange={e => setClosingForm({...closingForm, part_qty: parseInt(e.target.value) || 1})} className="w-full border border-orange-300 bg-white rounded-lg p-2.5 text-center font-black text-sm text-slate-800 outline-none focus:ring-1 focus:ring-orange-400 shadow-sm" />
                           </div>
                         </div>
                       )}
@@ -638,25 +861,28 @@ export default function TicketsDatabase() {
                   )}
 
                   <div>
-                    <label className="block font-medium text-slate-600 mb-1.5">Raport zamknięcia</label>
-                    <textarea required={closingForm.status === 'Zakończone'} rows={3} value={closingForm.resolution_notes} onChange={e => setClosingForm({...closingForm, resolution_notes: e.target.value})} className="w-full border border-slate-200 rounded-lg p-3 outline-none focus:border-[#58b347]" placeholder="Wpisz krótki raport końcowy..." />
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Raport techniczny dla bazy</label>
+                    <textarea required={closingForm.status === 'Zakończone'} rows={3} value={closingForm.resolution_notes} onChange={e => setClosingForm({...closingForm, resolution_notes: e.target.value})} className="w-full border border-slate-200 bg-white rounded-xl px-4 py-3 text-sm font-medium text-slate-700 focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm resize-none" placeholder="Co dokładnie zrobiono? Jakie były przyczyny?" />
                   </div>
 
-                  <div className="flex gap-3 pt-3">
-                    <button type="submit" className="w-full bg-[#58b347] text-white font-bold py-3 rounded-xl hover:bg-[#499b3a] shadow-lg flex items-center justify-center gap-2"><IconCheck /> Zapisz i zaktualizuj stację</button>
+                  <div className="pt-3 border-t border-slate-200 mt-4">
+                    <button type="submit" className="w-full bg-[#58b347] text-white font-bold py-3.5 rounded-xl hover:bg-[#499b3a] shadow-sm transition-colors text-xs uppercase tracking-widest flex items-center justify-center gap-2">
+                      <IconCheck /> Zaktualizuj system
+                    </button>
                   </div>
                 </>
               ) : (
-                <div className="space-y-5">
-                  <div className="bg-green-50 p-4 rounded-xl border border-green-200">
-                    <span className="text-green-800 block font-black mb-1">✅ ZAKOŃCZONE</span>
-                    <span className="text-xs text-green-700">Naprawił: {getTechName(activeTicket.technician_id)}</span>
+                <div className="space-y-6 pt-2">
+                  <div className="bg-[#58b347]/10 p-5 rounded-xl border border-[#58b347]/20 flex flex-col items-center justify-center text-center">
+                    <IconCheckCircle />
+                    <span className="text-[#499b3a] block font-black uppercase tracking-widest mt-2 mb-1">Zgłoszenie Zamknięte</span>
+                    <span className="text-xs font-bold text-slate-500">Realizacja: {getTechName(activeTicket.technician_id)}</span>
                   </div>
                   <div>
-                    <label className="block font-bold text-slate-500 uppercase text-[10px] mb-1.5">Raport technika:</label>
-                    <div className="bg-slate-50 border border-slate-200 text-slate-800 p-4 rounded-xl font-medium whitespace-pre-wrap text-xs leading-relaxed">{activeTicket.resolution_notes || 'Brak raportu.'}</div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Oficjalny Raport:</label>
+                    <div className="bg-white border border-slate-200 text-slate-700 p-4 rounded-xl font-medium whitespace-pre-wrap text-sm leading-relaxed shadow-sm">{activeTicket.resolution_notes || 'Brak uwag serwisowych.'}</div>
                   </div>
-                  <button type="button" onClick={() => setActiveTicket(null)} className="w-full bg-slate-100 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-200">Zamknij podgląd</button>
+                  <button type="button" onClick={() => setActiveTicket(null)} className="w-full bg-slate-100 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-slate-200 transition-colors shadow-sm text-xs uppercase tracking-widest">Wróć do listy</button>
                 </div>
               )}
             </form>

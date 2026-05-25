@@ -934,7 +934,7 @@ export default function ChargeMap() {
 
       {activeView === 'stations' && <StationsDatabase onFocusStation={flyToStation} isSidebarHovered={isSidebarHovered} refreshTrigger={refreshDataTrigger} />}
       {activeView === 'technicians' && <TechniciansDatabase isSidebarHovered={isSidebarHovered} />}
-      {activeView === 'tickets' && <TicketsDatabase />}
+      {activeView === 'tickets' && <TicketsDatabase  isSidebarHovered={isSidebarHovered} />}
       {activeView === 'calendar' && <CalendarView />}
       {activeView === 'equipment' && <EquipmentManager isSidebarHovered={isSidebarHovered} />}
       {activeView === 'clients' && <ClientsDatabase />}

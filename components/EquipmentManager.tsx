@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../app/supabase';
 
 // --- TYPY ---
@@ -17,47 +17,34 @@ type Part = {
   insurance_date?: string | null;
   service_status?: string | null;
   notes?: string | null;
+  is_muted?: boolean;
 };
 type Technician = { id: string; name: string; car_plate?: string | null; car_category?: string | null; sep_expiry?: string | null; contract_expiry?: string | null; color?: string; };
 type TechInventory = { id: string; technician_id: string; part_id: string; quantity: number; };
 type Log = { id: string; part_id: string; technician_id: string; operation_type: string; quantity: number; created_at: string; notes?: string; };
 
-type SortConfig = { key: keyof Technician | 'stationCount'; direction: 'asc' | 'desc' } | null;
-
 // --- IKONY BAZOWE ---
-const IconSort = () => <svg className="w-3.5 h-3.5 inline-block ml-1 opacity-40 hover:opacity-100 transition-opacity" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>;
-const IconTrash = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
-const IconEdit = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
-const IconImport = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
-const IconMapPin = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>;
+const IconPackage = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>;
+const IconTruck = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5"/><path d="M14 17h1"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>;
+const IconHistory = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>;
 const IconSearch = () => <svg className="w-4 h-4 text-[#58b347]/60 absolute left-3 top-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
 const IconArrowLeft = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
 const IconArrowRight = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>;
 const IconChevronDown = () => <svg className="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>;
 const IconChevronUp = () => <svg className="w-4 h-4 text-[#58b347]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>;
 const IconLayers = () => <svg className="w-5 h-5 text-[#58b347]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>;
-const IconTool = () => <svg className="w-3.5 h-3.5 text-[#58b347]/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>;
+const IconTool = () => <svg className="w-3.5 h-3.5 text-[#58b347]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>;
 const IconDrop = () => <svg className="w-3.5 h-3.5 text-[#58b347]/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>;
 const IconAlert = () => <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
 const IconCar = () => <svg className="w-4 h-4 text-[#58b347]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="10" width="18" height="8" rx="2" ry="2"/><path d="M5 10V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>;
 const IconPlus = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>;
 const IconInfo = () => <svg className="w-6 h-6 text-[#58b347]/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>;
-const IconPackage = () => <svg className="w-5 h-5 text-[#58b347]/70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>;
-const IconTruck = () => <svg className="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5"/><path d="M14 17h1"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>;
-const IconHistory = () => <svg className="w-5 h-5 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>;
-const IconCheck = () => <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
+const IconEdit = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
+const IconImport = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
 const IconCalendar = () => <svg className="w-3.5 h-3.5 text-slate-400 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
 const IconShield = () => <svg className="w-3.5 h-3.5 text-slate-400 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
-
-// --- KOMPONENTY WSPOMAGAJĄCE ---
-const CustomCheckbox = ({ checked, onChange }: { checked: boolean, onChange: () => void }) => (
-  <div 
-    onClick={(e) => { e.stopPropagation(); onChange(); }}
-    className={`w-4 h-4 rounded-[4px] flex items-center justify-center cursor-pointer transition-colors duration-200 ${checked ? 'bg-[#58b347] border-[#58b347]' : 'border border-slate-300 bg-white hover:border-[#58b347]/50'}`}
-  >
-    {checked && <IconCheck />}
-  </div>
-);
+const IconBell = () => <svg className="w-4 h-4 text-slate-300 hover:text-red-500 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
+const IconBellOff = () => <svg className="w-4 h-4 text-red-500 hover:text-slate-400 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8.7 3A6 6 0 0 1 18 8a21.3 21.3 0 0 0 .6 5M17 17H3s3-2 3-9a4.67 4.67 0 0 1 .3-1.7M10.3 21a1.94 1.94 0 0 0 3.4 0"/><line x1="2" y1="2" x2="22" y2="22"/></svg>;
 
 // --- FUNKCJE POMOCNICZE ---
 const getInitials = (name: string) => {
@@ -124,7 +111,11 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(true);
   const [expandedTechIds, setExpandedTechIds] = useState<string[]>([]);
   const [hoveredPartId, setHoveredPartId] = useState<string | null>(null);
+  
+  // Filtrowanie (Alerty operacyjne)
   const [showOnlyExpiring, setShowOnlyExpiring] = useState(false);
+  const [showOnlyLowStock, setShowOnlyLowStock] = useState(false);
+  const [showOnlyMuted, setShowOnlyMuted] = useState(false);
   
   // Akordeony Centralne
   const [centralExpandedCats, setCentralExpandedCats] = useState<string[]>(['Pojazd', 'Narzędzie', 'Część zamienna', 'Materiał eksploatacyjny']);
@@ -187,7 +178,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
   // --- LOGIKA BIZNESOWA ---
   const handleCreatePart = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = { ...newPart };
+    const payload: any = { ...newPart, is_muted: false };
     
     // Czyszczenie i dopasowywanie pól wg Kategorii
     if (payload.category === 'Część zamienna' || payload.category === 'Materiał eksploatacyjny' || payload.category === 'Inne') {
@@ -210,7 +201,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
       if (!payload.service_status) payload.service_status = 'Sprawny';
     }
 
-    // Zamiana pustych tekstów dat na null, żeby baza Postgresa się nie obraziła
+    // Zamiana pustych dat na czysty null
     if (!payload.inspection_date) payload.inspection_date = null;
     if (!payload.insurance_date) payload.insurance_date = null;
 
@@ -234,7 +225,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
   const handleUpdatePart = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingPart) return;
-    const payload = { ...editingPart };
+    const payload: any = { ...editingPart };
 
     if (payload.category === 'Część zamienna' || payload.category === 'Materiał eksploatacyjny' || payload.category === 'Inne') {
       payload.inspection_date = null;
@@ -256,7 +247,6 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
       if (!payload.service_status) payload.service_status = 'Sprawny';
     }
 
-    // Zamiana pustych tekstów dat na null, żeby baza Postgresa się nie obraziła
     if (!payload.inspection_date) payload.inspection_date = null;
     if (!payload.insurance_date) payload.insurance_date = null;
 
@@ -270,6 +260,20 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
     const { error } = await supabase.from('parts').update(payload).eq('id', editingPart.id);
     if (error) alert(`Błąd: ${error.message}`);
     else { setEditingPart(null); fetchData(); }
+  };
+
+  // Optymistyczne wyciszanie powiadomień
+  const handleToggleMute = async (e: React.MouseEvent, part: Part) => {
+    e.stopPropagation();
+    const newStatus = !part.is_muted;
+    
+    // Optymistyczna aktualizacja UI
+    setParts(currentParts => 
+      currentParts.map(p => p.id === part.id ? { ...p, is_muted: newStatus } : p)
+    );
+
+    // Aktualizacja bazy w tle
+    await supabase.from('parts').update({ is_muted: newStatus }).eq('id', part.id);
   };
 
   const handleIssuePart = async (e: React.FormEvent) => {
@@ -298,11 +302,11 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
       if (!issueForm.technician_id) return;
       const existing = techInventory.find(i => i.technician_id === issueForm.technician_id && i.part_id === issueModalPart.id);
       
-      if (!existing || existing.quantity < issueForm.quantity) { alert("Błąd: Próbujesz zwrócić więcej niż technik posiada na aucie!"); return; }
+      if (!existing || existing.quantity < issueForm.quantity) { alert("Błąd: Próbujesz zwrócić więcej niż technik posiada!"); return; }
 
       await supabase.from('technician_inventory').update({ quantity: existing.quantity - issueForm.quantity }).eq('id', existing.id);
       await supabase.from('parts').update({ main_stock: issueModalPart.main_stock + issueForm.quantity }).eq('id', issueModalPart.id);
-      await supabase.from('inventory_logs').insert([{ part_id: issueModalPart.id, technician_id: issueForm.technician_id, operation_type: 'ZWROT', quantity: issueForm.quantity, notes: 'Zwrot z terenu na magazyn główny' }]);
+      await supabase.from('inventory_logs').insert([{ part_id: issueModalPart.id, technician_id: issueForm.technician_id, operation_type: 'ZWROT', quantity: issueForm.quantity, notes: 'Zwrot do centrali' }]);
     }
 
     setIssueModalPart(null);
@@ -370,8 +374,18 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
         return (insp && (insp.isExpired || insp.isExpiring)) || (ins && (ins.isExpired || ins.isExpiring));
       });
     }
+    if (showOnlyLowStock) {
+      result = result.filter(p => 
+        !p.is_muted && 
+        ['Część zamienna', 'Materiał eksploatacyjny'].includes(p.category) && 
+        p.main_stock <= 3
+      );
+    }
+    if (showOnlyMuted) {
+      result = result.filter(p => p.is_muted);
+    }
     return result;
-  }, [parts, searchQuery, showOnlyExpiring]);
+  }, [parts, searchQuery, showOnlyExpiring, showOnlyLowStock, showOnlyMuted]);
 
   const centralSummary = useMemo(() => {
     const groups: Record<string, Part[]> = { 'Pojazd': [], 'Narzędzie': [], 'Część zamienna': [], 'Materiał eksploatacyjny': [], 'Inne': [] };
@@ -406,12 +420,21 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
 
     const groups: Record<string, typeof sum[string][]> = { 'Pojazd': [], 'Narzędzie': [], 'Część zamienna': [], 'Materiał eksploatacyjny': [], 'Inne': [] };
     Object.values(sum).forEach(i => {
+      // Zastosowanie filtrów z centrali, żeby widoki były spójne (o ile filtry są włączone)
+      if (showOnlyLowStock && (i.part.is_muted || !['Część zamienna', 'Materiał eksploatacyjny'].includes(i.part.category) || i.part.main_stock > 3)) return;
+      if (showOnlyMuted && !i.part.is_muted) return;
+      if (showOnlyExpiring) {
+        const insp = i.part.inspection_date ? getExpiryStatus(i.part.inspection_date) : null;
+        const ins = i.part.insurance_date ? getExpiryStatus(i.part.insurance_date) : null;
+        if (!((insp && (insp.isExpired || insp.isExpiring)) || (ins && (ins.isExpired || ins.isExpiring)))) return;
+      }
+
       const c = i.part.category || 'Inne';
       if (groups[c]) groups[c].push(i); else groups['Inne'].push(i);
     });
     Object.keys(groups).forEach(k => groups[k].sort((a, b) => a.part.name.localeCompare(b.part.name)));
     return groups;
-  }, [filteredTechInventory, parts, technicians]);
+  }, [filteredTechInventory, parts, technicians, showOnlyLowStock, showOnlyExpiring, showOnlyMuted]);
 
   // Automatyczne zaznaczenie pierwszego elementu po załadowaniu
   useEffect(() => {
@@ -452,9 +475,19 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
     return techInventory.filter(inv => brokenItemIds.includes(inv.part_id) && inv.quantity > 0).map(inv => inv.technician_id);
   }, [parts, techInventory]);
 
-  // KPI
+  // KPI Calculations
   const totalPartsInField = useMemo(() => techInventory.reduce((acc, curr) => acc + (curr.quantity || 0), 0), [techInventory]);
-  const lowStockAlerts = useMemo(() => parts.filter(p => p.main_stock === 0).length, [parts]);
+  
+  // Niskie stany (zignorowanie wyciszonych)
+  const lowStockPartsList = useMemo(() => parts.filter(p => 
+    !p.is_muted && 
+    ['Część zamienna', 'Materiał eksploatacyjny'].includes(p.category) && 
+    p.main_stock <= 3
+  ), [parts]);
+  
+  const lowStockAlerts = lowStockPartsList.length;
+  const mutedAlertsCount = useMemo(() => parts.filter(p => p.is_muted).length, [parts]);
+
   const expiringPartsCount = useMemo(() => parts.filter(p => {
     const insp = p.inspection_date ? getExpiryStatus(p.inspection_date) : null;
     const ins = p.insurance_date ? getExpiryStatus(p.insurance_date) : null;
@@ -482,7 +515,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
           <select 
             value={formState.category} 
             onChange={e => setFormState({...formState, category: e.target.value} as any)} 
-            className="w-full px-4 py-3 border border-slate-200 bg-white rounded-xl text-sm font-bold text-[#58b347] focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm cursor-pointer"
+            className="w-full px-3 py-2.5 border border-slate-200 bg-white rounded-xl text-xs font-bold text-[#58b347] focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm cursor-pointer"
           >
             <option>Materiał eksploatacyjny</option>
             <option>Część zamienna</option>
@@ -509,7 +542,14 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
               <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">{isVehicle ? 'Nr Rejestracyjny' : 'Nr seryjny (S/N)'}</label>
               <input 
                 value={isVehicle ? (formState.vehicle_plate || '') : (formState.serial_number || '')} 
-                onChange={e => isVehicle ? setFormState({...formState, vehicle_plate: e.target.value.toUpperCase()} as any) : setFormState({...formState, serial_number: e.target.value.toUpperCase()} as any)} 
+                onChange={e => {
+                  const val = e.target.value.toUpperCase();
+                  if (isVehicle) {
+                    setFormState({...formState, vehicle_plate: val} as any);
+                  } else {
+                    setFormState({...formState, serial_number: val} as any);
+                  }
+                }} 
                 className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg text-xs font-mono font-bold uppercase focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm" 
                 placeholder="Opcjonalnie..." 
               />
@@ -538,7 +578,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
             </div>
 
             <div className={`col-span-12 ${isVehicle ? 'sm:col-span-2' : 'sm:col-span-4'}`}>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">{isVehicle ? 'Ważność UDT' : 'Kalibracja/UDT'}</label>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Przegląd / UDT</label>
               <input type="date" value={formState.inspection_date || ''} onChange={e => setFormState({...formState, inspection_date: e.target.value} as any)} className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg text-[10px] font-bold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm text-slate-700" />
             </div>
 
@@ -636,7 +676,10 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                 </div>
               </div>
 
-              <div className={`bg-white/80 backdrop-blur-md border ${lowStockAlerts > 0 ? 'border-red-200' : 'border-white/60'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between`}>
+              <div 
+                onClick={() => { setShowOnlyLowStock(!showOnlyLowStock); setShowOnlyExpiring(false); setShowOnlyMuted(false); }}
+                className={`bg-white/80 backdrop-blur-md border ${lowStockAlerts > 0 ? 'border-red-200 cursor-pointer hover:bg-red-50/50 transition-colors' : 'border-white/60'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between`}
+              >
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Krytyczne braki magazynowe</p>
                   <p className={`text-3xl font-bold ${lowStockAlerts > 0 ? 'text-red-600 animate-pulse' : 'text-slate-700'}`}>{lowStockAlerts}</p>
@@ -654,17 +697,18 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                 {/* Lewa kolumna: Lista (Centralna lub Mobilna) */}
                 <div className="flex-1 flex flex-col h-full bg-white/95 backdrop-blur-sm border border-white/60 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
                   
-                  {activeTab === 'central' && expiringPartsCount > 0 && (
+                  {/* Wodotrysk - Alert o wygasających przeglądach */}
+                  {expiringPartsCount > 0 && (
                     <div className="bg-orange-50/90 backdrop-blur-md border-b border-orange-200 p-4 flex justify-between items-center shrink-0">
                       <div className="flex gap-3 items-center text-orange-700">
                         <div className="p-2 bg-orange-100 rounded-full"><IconAlert /></div>
                         <div>
-                          <h4 className="font-bold text-sm">Wymagane akcje logistyczne!</h4>
-                          <p className="text-xs font-medium opacity-90">Znaleziono {expiringPartsCount} pozycji (pojazdów lub narzędzi) ze zbliżającym się terminem UDT/Ubezpieczenia.</p>
+                          <h4 className="font-bold text-sm">Wymagane akcje operacyjne!</h4>
+                          <p className="text-xs font-medium opacity-90">Znaleziono {expiringPartsCount} pozycji ze zbliżającym się terminem przeglądu/ubezpieczenia.</p>
                         </div>
                       </div>
                       <button 
-                        onClick={() => setShowOnlyExpiring(!showOnlyExpiring)} 
+                        onClick={() => { setShowOnlyExpiring(!showOnlyExpiring); setShowOnlyLowStock(false); setShowOnlyMuted(false); }} 
                         className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${showOnlyExpiring ? 'bg-white text-orange-700 border border-orange-200' : 'bg-orange-500 text-white border border-orange-600 hover:bg-orange-600'}`}
                       >
                         {showOnlyExpiring ? 'Pokaż pełny katalog' : 'Izoluj wygasające'}
@@ -672,16 +716,65 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                     </div>
                   )}
 
+                  {/* Wodotrysk - Alert o niskich stanach */}
+                  {showOnlyLowStock && (
+                    <div className="bg-red-50/90 backdrop-blur-md border-b border-red-200 p-4 flex justify-between items-center shrink-0">
+                      <div className="flex gap-3 items-center text-red-700">
+                        <div className="p-2 bg-red-100 rounded-full"><IconAlert /></div>
+                        <div>
+                          <h4 className="font-bold text-sm">Krytyczne braki na magazynie centralnym</h4>
+                          <p className="text-xs font-medium opacity-90">Wyświetlanie tylko aktywnych pozycji poniżej bezpiecznego minimum (≤ 3).</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setShowOnlyLowStock(false)} 
+                        className="px-5 py-2.5 bg-white text-red-700 border border-red-200 rounded-xl text-xs font-bold hover:bg-red-50 transition-all shadow-sm"
+                      >
+                        Zamknij filtr
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Wodotrysk - Alert o wyciszonych */}
+                  {showOnlyMuted && (
+                    <div className="bg-slate-100/90 backdrop-blur-md border-b border-slate-300 p-4 flex justify-between items-center shrink-0">
+                      <div className="flex gap-3 items-center text-slate-700">
+                        <div className="p-2 bg-white rounded-full border border-slate-200"><IconBellOff /></div>
+                        <div>
+                          <h4 className="font-bold text-sm">Przeglądasz wyciszone pozycje</h4>
+                          <p className="text-xs font-medium opacity-90">Te elementy są trwale ukryte w powiadomieniach o niskich stanach.</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setShowOnlyMuted(false)} 
+                        className="px-5 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-50 transition-all shadow-sm"
+                      >
+                        Zamknij filtr
+                      </button>
+                    </div>
+                  )}
+
                   <div className="p-5 border-b border-slate-100/60 bg-white shrink-0 flex justify-between items-center">
-                    <div className="relative w-full max-w-[320px]">
-                      <IconSearch />
-                      <input 
-                        type="text" 
-                        placeholder={activeTab === 'central' ? "Szukaj po SKU, nazwie..." : "Wyszukaj sprzęt w autach..."}
-                        value={searchQuery} 
-                        onChange={e => setSearchQuery(e.target.value)} 
-                        className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 shadow-sm transition-all bg-white"
-                      />
+                    <div className="flex items-center gap-4 w-full max-w-[480px]">
+                      <div className="relative flex-1">
+                        <IconSearch />
+                        <input 
+                          type="text" 
+                          placeholder={activeTab === 'central' ? "Szukaj po SKU, nazwie..." : "Wyszukaj sprzęt w autach..."}
+                          value={searchQuery} 
+                          onChange={e => setSearchQuery(e.target.value)} 
+                          className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 shadow-sm transition-all bg-white"
+                        />
+                      </div>
+                      {mutedAlertsCount > 0 && (
+                        <button 
+                          onClick={() => { setShowOnlyMuted(!showOnlyMuted); setShowOnlyLowStock(false); setShowOnlyExpiring(false); }}
+                          className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 px-3 py-2 rounded-lg border transition-colors shadow-sm ${showOnlyMuted ? 'bg-slate-700 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`} 
+                          title="Kliknij aby zobaczyć tylko wyciszone pozycje"
+                        >
+                          <IconBellOff /> Wyciszone: {mutedAlertsCount}
+                        </button>
+                      )}
                     </div>
                     {activeTab === 'central' && (
                       <div className="flex gap-3">
@@ -719,11 +812,11 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                           
                           {isOpen && (
                             <div className="flex flex-col w-full overflow-hidden">
-                              <div className="flex bg-slate-50 border-b border-slate-200 text-[9px] font-bold text-slate-400 uppercase tracking-widest px-5 py-2.5">
-                                <div className="w-1/4">SKU / Index</div>
-                                <div className="w-1/3">Asortyment / Nr Seryjny</div>
-                                <div className="w-1/4">Status / Ważność</div>
-                                <div className="w-24 text-center">Stan</div>
+                              <div className="flex bg-slate-50 border-b border-slate-200 text-[9px] font-bold text-slate-400 uppercase tracking-widest px-6 py-2.5">
+                                <div className="w-1/4 pr-4">SKU / Index</div>
+                                <div className="w-1/3 pr-4">Asortyment / Nr Seryjny</div>
+                                <div className="w-1/4 pr-4">Status / Ważność</div>
+                                <div className="w-20 text-center shrink-0">Stan</div>
                                 <div className="flex-1 text-right">Akcje</div>
                               </div>
                               <div className="divide-y divide-slate-100/60 flex flex-col">
@@ -739,21 +832,38 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                                     <div 
                                       key={p.id} 
                                       onMouseEnter={() => setHoveredPartId(p.id)}
-                                      className="relative flex items-start px-5 py-4 group hover:bg-[#58b347]/5 border-b border-slate-50 last:border-0 cursor-pointer transition-colors"
+                                      className="relative flex items-start px-6 py-4 group hover:bg-[#58b347]/5 border-b border-slate-50 last:border-0 cursor-pointer transition-colors"
                                     >
                                       {/* ABSOLUTNY WSKAŹNIK HOVER - Zawsze działa! */}
                                       <div className={`absolute left-0 top-0 bottom-0 w-1 transition-colors ${hoveredPartId === p.id ? 'bg-[#58b347]' : 'bg-transparent group-hover:bg-[#58b347]'}`} />
                                       
-                                      <div className="w-1/4 pr-4 pt-1">
+                                      <div className="w-1/4 pr-4 pt-1 flex flex-col">
                                         <span className="font-mono font-bold text-slate-400 uppercase tracking-wider text-xs">{p.sku}</span>
+                                        {p.is_muted && <span className="inline-flex mt-1.5 px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-bold border border-slate-200 uppercase tracking-widest w-max">Wyciszony</span>}
                                       </div>
                                       
                                       <div className="w-1/3 pr-4">
                                         <div className="flex items-center gap-2 mb-1.5">
                                           <span className="text-sm font-bold text-slate-800 leading-tight">{p.name}</span>
                                           <button onClick={(e) => { e.stopPropagation(); setEditingPart(p); }} className="text-slate-300 hover:text-[#58b347] transition-colors p-1" title="Edytuj kartotekę"><IconEdit /></button>
+                                          
+                                          {/* DZWONEK DO WYCISZANIA */}
+                                          {['Część zamienna', 'Materiał eksploatacyjny'].includes(p.category) && (
+                                            <button 
+                                              onClick={(e) => handleToggleMute(e, p)} 
+                                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 ml-1" 
+                                              title={p.is_muted ? "Włącz powiadomienia o niskim stanie" : "Wycisz powiadomienia o niskim stanie"}
+                                            >
+                                              {p.is_muted ? <IconBellOff /> : <IconBell />}
+                                            </button>
+                                          )}
                                         </div>
-                                        {hasSerial && (
+                                        {isVehicle && p.vehicle_plate && (
+                                          <span className="text-[10px] font-bold font-mono text-slate-500 uppercase flex items-center gap-1 w-max border border-slate-200 bg-white px-2 py-0.5 rounded shadow-sm">
+                                            <IconCar /> {p.vehicle_plate}
+                                          </span>
+                                        )}
+                                        {isTool && hasSerial && (
                                           <span className="text-[10px] font-bold font-mono text-slate-500 uppercase flex items-center gap-1 w-max border border-slate-200 bg-white px-2 py-0.5 rounded shadow-sm">
                                             <IconTool /> S/N: {p.serial_number}
                                           </span>
@@ -761,7 +871,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                                       </div>
                                       
                                       <div className="w-1/4 pr-4 flex flex-col gap-1.5 pt-1">
-                                        {isVehicle && p.vehicle_type && <span className="text-[9px] font-bold text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider w-max">{p.vehicle_type}</span>}
+                                        {isVehicle && p.vehicle_type && <span className="text-[9px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded uppercase tracking-wider w-max">{p.vehicle_type}</span>}
                                         
                                         {(isVehicle || isTool) && p.service_status && p.service_status !== 'Sprawny' && (
                                           <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-widest w-max ${p.service_status === 'Uszkodzony' ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-orange-50 text-orange-600 border-orange-200'}`}>
@@ -788,25 +898,25 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                                         )}
                                       </div>
 
-                                      <div className="w-24 text-center shrink-0 flex flex-col items-center pt-1">
+                                      <div className="w-20 text-center shrink-0 flex flex-col items-center pt-1">
                                         {p.main_stock === 0 ? (
-                                          <span className="inline-flex px-2 py-0.5 bg-red-50 text-red-600 rounded text-[9px] font-bold border border-red-200 uppercase tracking-widest animate-pulse mb-1">Braki</span>
-                                        ) : p.main_stock < 5 ? (
-                                          <span className="inline-flex px-2 py-0.5 bg-orange-50 text-orange-600 rounded text-[9px] font-bold border border-orange-200 uppercase tracking-widest mb-1">Niski Stan</span>
+                                          <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-widest mb-1 ${p.is_muted ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-red-50 text-red-600 border-red-200 animate-pulse'}`}>Braki</span>
+                                        ) : p.main_stock <= 3 ? (
+                                          <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-widest mb-1 ${p.is_muted ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-orange-50 text-orange-600 border-orange-200'}`}>Niski Stan</span>
                                         ) : (
-                                          <span className="inline-flex px-2 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-bold border border-green-200 uppercase tracking-widest mb-1">Dostępne</span>
+                                          <span className="inline-flex px-2 py-0.5 bg-[#58b347]/10 text-[#499b3a] rounded text-[9px] font-bold border border-[#58b347]/20 uppercase tracking-widest mb-1">Dostępne</span>
                                         )}
-                                        <span className={`text-lg font-bold tabular-nums ${p.main_stock === 0 ? 'text-red-500' : 'text-slate-800'}`}>
+                                        <span className={`text-lg font-bold tabular-nums ${p.main_stock === 0 && !p.is_muted ? 'text-red-500' : 'text-slate-800'}`}>
                                           {p.main_stock} <span className="font-bold text-[10px] text-slate-400 uppercase">{p.unit}</span>
                                         </span>
                                       </div>
 
                                       <div className="flex-1 text-right flex flex-col items-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity pt-1">
-                                        <button onClick={() => { setIssueForm({ ...issueForm, type: 'DOSTAWA' }); setIssueModalPart(p); }} className="text-[10px] font-bold border border-slate-200 bg-white text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-50 shadow-sm transition-colors uppercase tracking-wider w-full text-center">
+                                        <button onClick={(e) => { e.stopPropagation(); setIssueForm({ ...issueForm, type: 'DOSTAWA' }); setIssueModalPart(p); }} className="text-[10px] font-bold border border-slate-200 bg-white text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-50 shadow-sm transition-colors uppercase tracking-wider w-full text-center">
                                           + Dostawa
                                         </button>
                                         <button 
-                                          onClick={() => { setIssueForm({ ...issueForm, type: 'WYDANIE' }); setIssueModalPart(p); }} 
+                                          onClick={(e) => { e.stopPropagation(); setIssueForm({ ...issueForm, type: 'WYDANIE' }); setIssueModalPart(p); }} 
                                           disabled={p.main_stock === 0 || isBroken} 
                                           className={`text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm transition-colors uppercase tracking-wider flex items-center justify-center gap-1 w-full ${isBroken ? 'border border-red-200 bg-red-50 text-red-500 opacity-60 cursor-not-allowed' : 'border border-[#58b347] bg-[#58b347] text-white hover:bg-[#499b3a] disabled:opacity-40 disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-400'}`}
                                           title={isBroken ? 'Wydanie zablokowane ze względu na status serwisowy!' : ''}
@@ -945,7 +1055,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                                                 <div 
                                                   key={item.id} 
                                                   onMouseEnter={() => setHoveredPartId(p.id)}
-                                                  className="relative flex items-center justify-between px-6 py-3 cursor-pointer group hover:bg-[#58b347]/5 border-b border-slate-50 last:border-b-0 transition-colors"
+                                                  className="relative flex items-center justify-between px-6 py-3 cursor-pointer group hover:bg-[#58b347]/5 border-b border-slate-50 last:border-0 transition-colors"
                                                 >
                                                   {/* ABSOLUTNY WSKAŹNIK HOVER */}
                                                   <div className={`absolute left-0 top-0 bottom-0 w-1 transition-colors ${hoveredPartId === p.id ? 'bg-[#58b347]' : 'bg-transparent group-hover:bg-[#58b347]'}`} />
@@ -989,10 +1099,10 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                 </div>
 
                 {/* Prawa kolumna leci z centrali (ponieważ ten sam kod zarządza stanem hoveredPartId) */}
-                <div className="w-[380px] bg-white border border-slate-200 rounded-2xl flex flex-col shrink-0 shadow-sm overflow-hidden">
+                <div className="w-[380px] bg-white border border-slate-200 rounded-2xl flex flex-col shrink-0 shadow-sm overflow-hidden relative">
                   {activePartDetails ? (
-                    <div className="flex flex-col h-full bg-white animate-fadeIn">
-                      <div className="p-6 border-b border-slate-100 bg-slate-50 shrink-0 flex flex-col justify-center items-center text-center">
+                    <div className="flex flex-col h-full bg-white animate-fadeIn relative">
+                      <div className="p-6 border-b border-slate-100 bg-slate-50 shrink-0 flex flex-col justify-center items-center text-center pt-10">
                         <div className="w-12 h-12 bg-white rounded-xl border border-slate-200 shadow-sm flex items-center justify-center text-[#58b347] mb-4">
                           {getCategoryIcon(activePartDetails.part.category)}
                         </div>
@@ -1097,7 +1207,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                           <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
                             <td className="px-6 py-4 text-[11px] font-bold text-slate-400 font-mono whitespace-nowrap uppercase tracking-wider">{new Date(log.created_at).toLocaleString('pl-PL')}</td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`text-[9px] font-bold px-2.5 py-1 rounded-md border uppercase tracking-widest ${log.operation_type === 'DOSTAWA' ? 'border-[#58b347]/50 text-[#499b3a] bg-[#58b347]/10' : log.operation_type === 'WYDANIE' ? 'border-orange-300 text-orange-600 bg-orange-50' : 'border-[#58b347] text-white bg-[#58b347]'}`}>{log.operation_type}</span>
+                              <span className={`text-[9px] font-bold px-2.5 py-1 rounded-md border uppercase tracking-widest ${log.operation_type === 'DOSTAWA' ? 'border-[#58b347]/50 text-[#499b3a] bg-[#58b347]/10' : log.operation_type === 'WYDANIE' ? 'border-orange-300 text-orange-600 bg-orange-50' : 'border-slate-300 text-slate-700 bg-slate-100'}`}>{log.operation_type}</span>
                             </td>
                             <td className="px-6 py-4">
                               <div className="text-slate-800 font-bold text-sm leading-tight">{part?.name || 'Usunięta część'}</div>
@@ -1202,7 +1312,136 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
             </div>
             
             <form onSubmit={editingPart ? handleUpdatePart : handleCreatePart} className="p-6 space-y-5 bg-slate-50/30 max-h-[75vh] overflow-y-auto scrollbar-hide">
-              {renderFormFields(!!editingPart)}
+              
+              <div className="grid grid-cols-12 gap-5">
+                {/* Wiersz 1: Kategoria, SKU, Nazwa */}
+                <div className="col-span-12 sm:col-span-4">
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Kategoria asortymentu</label>
+                  <select 
+                    value={editingPart ? editingPart.category : newPart.category} 
+                    onChange={e => editingPart ? setEditingPart({...editingPart, category: e.target.value} as any) : setNewPart({...newPart, category: e.target.value})} 
+                    className="w-full px-4 py-3 border border-slate-200 bg-white rounded-xl text-sm font-bold text-[#58b347] focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm cursor-pointer"
+                  >
+                    <option>Materiał eksploatacyjny</option>
+                    <option>Część zamienna</option>
+                    <option>Narzędzie</option>
+                    <option>Pojazd</option>
+                    <option>Inne</option>
+                  </select>
+                </div>
+
+                <div className="col-span-12 sm:col-span-3">
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">SKU / Index *</label>
+                  <input required value={editingPart ? editingPart.sku : newPart.sku} onChange={e => editingPart ? setEditingPart({...editingPart, sku: e.target.value.toUpperCase()} as any) : setNewPart({...newPart, sku: e.target.value.toUpperCase()})} className="w-full px-3 py-2.5 border border-slate-200 bg-white rounded-xl text-xs font-mono font-bold uppercase focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm" />
+                </div>
+                
+                <div className="col-span-12 sm:col-span-5">
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Nazwa / Model *</label>
+                  <input required value={editingPart ? editingPart.name : newPart.name} onChange={e => editingPart ? setEditingPart({...editingPart, name: e.target.value} as any) : setNewPart({...newPart, name: e.target.value})} className="w-full px-3 py-2.5 border border-slate-200 bg-white rounded-xl text-xs font-bold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm" />
+                </div>
+                
+                {/* Wiersz 2 (Opcjonalny): Pola dla NARZĘDZI I POJAZDÓW */}
+                {((editingPart ? editingPart.category : newPart.category) === 'Pojazd' || (editingPart ? editingPart.category : newPart.category) === 'Narzędzie') && (
+                  <div className="col-span-12 grid grid-cols-12 gap-5 p-4 bg-slate-50 border border-slate-100 rounded-xl shadow-inner">
+                    <div className={`col-span-12 ${(editingPart ? editingPart.category : newPart.category) === 'Pojazd' ? 'sm:col-span-3' : 'sm:col-span-4'}`}>
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">{(editingPart ? editingPart.category : newPart.category) === 'Pojazd' ? 'Nr Rejestracyjny' : 'Nr seryjny (S/N)'}</label>
+                      <input 
+                        value={(editingPart ? editingPart.category : newPart.category) === 'Pojazd' ? (editingPart ? editingPart.vehicle_plate || '' : newPart.vehicle_plate) : (editingPart ? editingPart.serial_number || '' : newPart.serial_number)} 
+                        onChange={e => {
+                          const val = e.target.value.toUpperCase();
+                          if ((editingPart ? editingPart.category : newPart.category) === 'Pojazd') {
+                            editingPart ? setEditingPart({...editingPart, vehicle_plate: val} as any) : setNewPart({...newPart, vehicle_plate: val});
+                          } else {
+                            editingPart ? setEditingPart({...editingPart, serial_number: val} as any) : setNewPart({...newPart, serial_number: val});
+                          }
+                        }} 
+                        className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg text-xs font-mono font-bold uppercase focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm" 
+                        placeholder="Opcjonalnie..." 
+                      />
+                    </div>
+
+                    {(editingPart ? editingPart.category : newPart.category) === 'Pojazd' && (
+                      <div className="col-span-12 sm:col-span-3">
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Typ nadwozia</label>
+                        <select value={editingPart ? (editingPart.vehicle_type || 'Van / Bus') : newPart.vehicle_type} onChange={e => editingPart ? setEditingPart({...editingPart, vehicle_type: e.target.value} as any) : setNewPart({...newPart, vehicle_type: e.target.value})} className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg text-xs font-bold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm cursor-pointer">
+                          <option>Van / Bus</option>
+                          <option>Osobowy</option>
+                          <option>Kombi</option>
+                          <option>Podnośnik koszowy</option>
+                          <option>Inne</option>
+                        </select>
+                      </div>
+                    )}
+
+                    <div className={`col-span-12 ${(editingPart ? editingPart.category : newPart.category) === 'Pojazd' ? 'sm:col-span-2' : 'sm:col-span-4'}`}>
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Status</label>
+                      <select value={editingPart ? (editingPart.service_status || 'Sprawny') : newPart.service_status} onChange={e => editingPart ? setEditingPart({...editingPart, service_status: e.target.value} as any) : setNewPart({...newPart, service_status: e.target.value})} className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg text-xs font-bold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm cursor-pointer">
+                        <option>Sprawny</option>
+                        <option>W serwisie</option>
+                        <option>Uszkodzony</option>
+                      </select>
+                    </div>
+
+                    <div className={`col-span-12 ${(editingPart ? editingPart.category : newPart.category) === 'Pojazd' ? 'sm:col-span-2' : 'sm:col-span-4'}`}>
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Przegląd / UDT</label>
+                      <input type="date" value={editingPart ? (editingPart.inspection_date || '') : newPart.inspection_date} onChange={e => editingPart ? setEditingPart({...editingPart, inspection_date: e.target.value} as any) : setNewPart({...newPart, inspection_date: e.target.value})} className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg text-[10px] font-bold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm text-slate-700" />
+                    </div>
+
+                    {(editingPart ? editingPart.category : newPart.category) === 'Pojazd' && (
+                      <div className="col-span-12 sm:col-span-2">
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Polisa OC/AC</label>
+                        <input type="date" value={editingPart ? (editingPart.insurance_date || '') : newPart.insurance_date} onChange={e => editingPart ? setEditingPart({...editingPart, insurance_date: e.target.value} as any) : setNewPart({...newPart, insurance_date: e.target.value})} className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg text-[10px] font-bold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm text-slate-700" />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Wiersz 3: J.M, Ilość, Uwagi */}
+                <div className="col-span-12 sm:col-span-2">
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">J.M.</label>
+                  <select value={(editingPart ? editingPart.category : newPart.category) === 'Pojazd' ? 'szt.' : (editingPart ? editingPart.unit : newPart.unit)} disabled={(editingPart ? editingPart.category : newPart.category) === 'Pojazd'} onChange={e => editingPart ? setEditingPart({...editingPart, unit: e.target.value} as any) : setNewPart({...newPart, unit: e.target.value})} className="w-full px-3 py-2.5 border border-slate-200 bg-white rounded-xl text-xs font-semibold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm cursor-pointer disabled:opacity-50">
+                    <option>szt.</option>
+                    <option>mb</option>
+                    <option>kpl.</option>
+                  </select>
+                </div>
+
+                <div className="col-span-12 sm:col-span-3">
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Magazyn (Centrala)</label>
+                  <div className="relative">
+                    {(() => {
+                      const currentCat = editingPart ? editingPart.category : newPart.category;
+                      const currentVal = editingPart ? (currentCat === 'Pojazd' ? editingPart.vehicle_plate : editingPart.serial_number) : (currentCat === 'Pojazd' ? newPart.vehicle_plate : newPart.serial_number);
+                      const isUnique = (currentCat === 'Pojazd' || currentCat === 'Narzędzie') && currentVal && currentVal.trim().length > 0;
+                      
+                      return (
+                        <>
+                          <input 
+                            type="number" 
+                            min={isUnique ? "1" : "0"} 
+                            max={isUnique ? "1" : undefined}
+                            disabled={isUnique}
+                            required 
+                            value={isUnique ? 1 : (editingPart ? editingPart.main_stock : newPart.main_stock)} 
+                            onChange={e => {
+                              if (isUnique) return;
+                              editingPart ? setEditingPart({...editingPart, main_stock: parseInt(e.target.value) || 0} as any) : setNewPart({...newPart, main_stock: parseInt(e.target.value) || 0});
+                            }} 
+                            className={`w-full px-4 py-2.5 border border-slate-200 bg-white rounded-xl text-sm font-bold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm text-center ${isUnique ? 'text-slate-400 opacity-60 cursor-not-allowed bg-slate-50' : 'text-slate-800'}`} 
+                          />
+                          {isUnique && <div className="absolute top-1/2 left-2 -translate-y-1/2 w-2 h-2 rounded-full bg-orange-400 animate-pulse" title="Blokada na 1 szt. ze względu na wpisany numer"></div>}
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                <div className="col-span-12 sm:col-span-7">
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Uwagi / Notatki</label>
+                  <textarea rows={1} value={editingPart ? (editingPart.notes || '') : newPart.notes} onChange={e => editingPart ? setEditingPart({...editingPart, notes: e.target.value} as any) : setNewPart({...newPart, notes: e.target.value})} className="w-full px-4 py-2.5 border border-slate-200 bg-white rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm resize-none" placeholder="Opcjonalne informacje o sprzęcie..." />
+                </div>
+
+              </div>
               
               <div className="flex gap-3 pt-2 border-t border-slate-200 mt-4">
                 <button type="button" onClick={() => { setIsNewPartModalOpen(false); setEditingPart(null); }} className="mt-4 flex-1 border border-slate-200 bg-white text-slate-700 font-bold py-3 rounded-xl text-xs hover:bg-slate-50 transition-colors shadow-sm">Anuluj</button>

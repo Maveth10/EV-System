@@ -10,6 +10,7 @@ export type Technician = {
   car_plate: string | null;
   sep_expiry: string | null;
   contract_expiry: string | null;
+  shortcut_key: string | null;
 };
 
 type SortConfig = { key: keyof Technician | 'stationCount'; direction: 'asc' | 'desc' } | null;
@@ -28,7 +29,7 @@ const IconCalendar = () => <svg className="w-4 h-4 text-slate-400" viewBox="0 0 
 const IconBox = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>;
 const IconTrendingUp = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>;
 const IconCheckCircle = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
-
+const IconKeyboard = () => <svg className="w-3 h-3 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" ry="2"/><path d="M6 8h.001"/><path d="M10 8h.001"/><path d="M14 8h.001"/><path d="M18 8h.001"/><path d="M8 12h.001"/><path d="M12 12h.001"/><path d="M16 12h.001"/><path d="M7 16h10"/></svg>;
 const IconCheck = () => <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
 
 const CustomCheckbox = ({ checked, onChange }: { checked: boolean, onChange: () => void }) => (
@@ -40,18 +41,139 @@ const CustomCheckbox = ({ checked, onChange }: { checked: boolean, onChange: () 
   </div>
 );
 
-// NOWOCZESNY INPUT Z PIGUŁKAMI DLA POJAZDÓW
-const CarPlateInput = ({ value, onChange }: { value: string | null, onChange: (val: string) => void }) => {
-  const [inputValue, setInputValue] = useState('');
-  const tags = value ? value.split(',').map(t => t.trim()).filter(Boolean) : [];
+// --- KOMPONENT: NASŁUCHIWANIE SKRÓTÓW KLAWISZOWYCH (COMBO + F1-F12) ---
+const ShortcutInput = ({ value, onChange }: { value: string | null, onChange: (val: string | null) => void }) => {
+  const [isRecording, setIsRecording] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault(); // Blokujemy domyślne akcje przeglądarki (np. Ctrl+S, F3)
+    e.stopPropagation();
+
+    const { key, ctrlKey, altKey, shiftKey, metaKey } = e;
+
+    // Ignorujemy samo wciśnięcie klawiszy modyfikujących (czekamy na pełną kombinację)
+    if (['Control', 'Shift', 'Alt', 'Meta', 'Dead', 'CapsLock', 'Tab'].includes(key)) {
+      return;
+    }
+
+    // Wyjście awaryjne bez zmian
+    if (key === 'Escape') {
+      inputRef.current?.blur();
+      return;
+    }
+
+    // Usunięcie skrótu
+    if (key === 'Backspace' || key === 'Delete') {
+      onChange(null);
+      inputRef.current?.blur();
+      return;
+    }
+
+    // Budowanie kombinacji
+    const keys = [];
+    if (ctrlKey || metaKey) keys.push('Ctrl');
+    if (altKey) keys.push('Alt');
+    if (shiftKey) keys.push('Shift');
+
+    let displayKey = key.length === 1 ? key.toUpperCase() : key;
+    if (displayKey === ' ') displayKey = 'Space';
+
+    keys.push(displayKey);
+    onChange(keys.join('+'));
+    inputRef.current?.blur(); // Zdejmujemy focus po zapisaniu
+  };
+
+  return (
+    <div className="relative">
+      <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400">
+        <IconKeyboard />
+      </div>
+      <input
+        ref={inputRef}
+        type="text"
+        readOnly
+        value={isRecording ? 'Wciśnij kombinację...' : (value || '')}
+        onFocus={() => setIsRecording(true)}
+        onBlur={() => setIsRecording(false)}
+        onKeyDown={handleKeyDown}
+        placeholder="Kliknij by ustawić..."
+        className={`w-full pl-9 pr-10 py-2.5 border rounded-xl text-sm font-mono font-bold uppercase focus:outline-none transition-all shadow-sm cursor-pointer
+          ${isRecording ? 'border-[#58b347] ring-1 ring-[#58b347]/30 bg-[#58b347]/5 text-[#58b347]' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'}`}
+      />
+      {value && !isRecording && (
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-red-500 transition-colors font-bold text-lg leading-none"
+          title="Usuń przypisany skrót"
+        >
+          &times;
+        </button>
+      )}
+    </div>
+  );
+};
+
+
+// NOWOCZESNY INPUT Z PIGUŁKAMI I AUTOCOMPLETE DLA POJAZDÓW
+const CarPlateInput = ({ value, onChange, availableCars }: { value: string | null, onChange: (val: string) => void, availableCars: string[] }) => {
+  const [inputValue, setInputValue] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  const tags = value ? value.split(',').map(t => t.trim()).filter(Boolean) : [];
+
+  const filteredCars = availableCars.filter(car => 
+    car.toLowerCase().includes(inputValue.trim().toLowerCase()) && !tags.includes(car)
+  );
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (val.includes('  ') || val.includes(',') || val.includes(';')) {
+      const parts = val.split(/  |,|;/);
+      const newInputValue = parts.pop() || ''; 
+      
+      let currentTags = [...tags];
+      let tagsChanged = false;
+      
+      parts.forEach(p => {
+        const t = p.trim().toUpperCase();
+        if (t && !currentTags.includes(t)) {
+          currentTags.push(t);
+          tagsChanged = true;
+        }
+      });
+      
+      if (tagsChanged) {
+        onChange(currentTags.join(', '));
+      }
+      setInputValue(newInputValue);
+      setIsDropdownOpen(newInputValue.trim().length > 0);
+    } else {
+      setInputValue(val);
+      setIsDropdownOpen(val.trim().length > 0);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
       e.preventDefault();
       const newTag = inputValue.trim().toUpperCase();
       if (newTag && !tags.includes(newTag)) {
         onChange([...tags, newTag].join(', '));
         setInputValue('');
+        setIsDropdownOpen(false);
       }
     } else if (e.key === 'Backspace' && !inputValue && tags.length > 0) {
       const newTags = [...tags];
@@ -65,9 +187,18 @@ const CarPlateInput = ({ value, onChange }: { value: string | null, onChange: (v
     onChange(newTags.join(', '));
   };
 
+  const handleSelectCar = (carName: string) => {
+    if (!tags.includes(carName)) {
+      onChange([...tags, carName].join(', '));
+      setInputValue('');
+      setIsDropdownOpen(false);
+    }
+  };
+
   return (
     <div 
-      className="w-full min-h-[46px] flex flex-wrap items-center gap-2 px-3 py-2 border border-slate-200 bg-white rounded-xl shadow-sm focus-within:border-[#58b347] focus-within:ring-1 focus-within:ring-[#58b347]/30 transition-all cursor-text"
+      ref={containerRef}
+      className="w-full min-h-[46px] flex flex-wrap items-center gap-2 px-3 py-2 border border-slate-200 bg-white rounded-xl shadow-sm focus-within:border-[#58b347] focus-within:ring-1 focus-within:ring-[#58b347]/30 transition-all cursor-text relative"
       onClick={() => document.getElementById('car-plate-input')?.focus()}
     >
       {tags.map((tag, idx) => (
@@ -76,15 +207,36 @@ const CarPlateInput = ({ value, onChange }: { value: string | null, onChange: (v
           <button type="button" onClick={(e) => { e.stopPropagation(); removeTag(idx); }} className="text-slate-400 hover:text-red-500 transition-colors ml-1 leading-none text-sm">&times;</button>
         </span>
       ))}
-      <input
-        id="car-plate-input"
-        type="text"
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={tags.length === 0 ? "Wpisz nr i wciśnij Enter..." : ""}
-        className="flex-1 min-w-[120px] outline-none text-sm font-mono uppercase font-semibold text-slate-700 bg-transparent placeholder-slate-400"
-      />
+      <div className="flex-1 min-w-[150px] relative">
+        <input
+          id="car-plate-input"
+          type="text"
+          value={inputValue}
+          onChange={handleInputChange}
+          onFocus={() => { if(inputValue.trim()) setIsDropdownOpen(true); }}
+          onKeyDown={handleKeyDown}
+          placeholder={tags.length === 0 ? "Wpisz nr i wciśnij przecinek lub podwójną spację..." : ""}
+          className="w-full outline-none text-sm font-mono uppercase font-semibold text-slate-700 bg-transparent placeholder-slate-400"
+        />
+        
+        {/* DROPDOWN AUTOCOMPLETE */}
+        {isDropdownOpen && filteredCars.length > 0 && (
+          <div className="absolute top-full left-0 mt-2 w-max min-w-[200px] max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-[200] animate-fadeIn">
+            <div className="px-3 py-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 bg-slate-50">
+              Pojazdy z bazy logistycznej:
+            </div>
+            {filteredCars.map(car => (
+              <div 
+                key={car} 
+                onClick={(e) => { e.stopPropagation(); handleSelectCar(car); }} 
+                className="px-4 py-2.5 hover:bg-[#58b347]/10 hover:text-[#499b3a] cursor-pointer text-xs font-bold text-slate-700 transition-colors flex items-center gap-2 uppercase font-mono"
+              >
+                <IconCar /> {car}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -150,7 +302,7 @@ const getExpiryStatus = (dateString: string | null) => {
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
   if (diffDays < 0) return { text: `Wygasło (${Math.abs(diffDays)} dni temu)`, badge: 'bg-red-50 text-red-700 border-red-200 animate-pulse', isExpired: true, isExpiring: false };
-  if (diffDays <= 30) return { text: `Wygasa za ${diffDays} dni`, badge: 'bg-orange-50 text-orange-700 border-orange-200', isExpired: false, isExpiring: true };
+  if (diffDays <= 30) return { text: `Wkrótce (${diffDays}d)`, badge: 'bg-orange-50 text-orange-700 border-orange-200', isExpired: false, isExpiring: true };
   return { text: new Date(dateString).toLocaleDateString(), badge: 'bg-[#58b347]/10 text-[#499b3a] border-[#58b347]/20', isExpired: false, isExpiring: false };
 };
 
@@ -170,6 +322,7 @@ interface TechniciansDatabaseProps {
 export default function TechniciansDatabase({ isSidebarHovered = false, onChangeView }: TechniciansDatabaseProps) {
   const [technicians, setTechnicians] = useState<(Technician & { stationCount: number })[]>([]);
   const [allStations, setAllStations] = useState<any[]>([]);
+  const [availableCarsFromDB, setAvailableCarsFromDB] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sortConfig, setSortConfig] = useState<SortConfig>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -186,13 +339,14 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
   const [importStatus, setImportStatus] = useState('');
   const [isImporting, setIsImporting] = useState(false);
 
-  const [newTech, setNewTech] = useState({ name: '', phone: '', car_plate: '', sep_expiry: '', contract_expiry: '', color: '#58b347' });
+  const [newTech, setNewTech] = useState({ name: '', phone: '', car_plate: '', sep_expiry: '', contract_expiry: '', color: '#58b347', shortcut_key: '' });
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
-    const [techRes, statRes] = await Promise.all([
-      supabase.from('technicians').select('id, name, color, phone, car_plate, sep_expiry, contract_expiry'),
-      supabase.from('stations').select('name, city, street, technician, status')
+    const [techRes, statRes, partsRes] = await Promise.all([
+      supabase.from('technicians').select('id, name, color, phone, car_plate, sep_expiry, contract_expiry, shortcut_key'),
+      supabase.from('stations').select('name, city, street, technician, status'),
+      supabase.from('parts').select('vehicle_plate').eq('category', 'Pojazd').not('vehicle_plate', 'is', null)
     ]);
 
     if (techRes.data && statRes.data) {
@@ -204,6 +358,10 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
       setTechnicians(enrichedTechs);
       
       setViewingTechProfile((prev: any) => prev ? enrichedTechs.find(t => t.id === prev.id) || prev : null);
+    }
+    if (partsRes.data) {
+      const plates = partsRes.data.map(p => p.vehicle_plate).filter(Boolean) as string[];
+      setAvailableCarsFromDB(plates);
     }
     setIsLoading(false);
   }, []);
@@ -240,7 +398,8 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
       result = result.filter(t => 
         (t.name && t.name.toLowerCase().includes(q)) ||
         (t.phone && t.phone.toLowerCase().includes(q)) ||
-        (t.car_plate && t.car_plate.toLowerCase().includes(q))
+        (t.car_plate && t.car_plate.toLowerCase().includes(q)) ||
+        (t.shortcut_key && t.shortcut_key.toLowerCase().includes(q))
       );
     }
 
@@ -284,7 +443,8 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
         phone: editingTech.phone || null, 
         car_plate: editingTech.car_plate || null, 
         sep_expiry: editingTech.sep_expiry || null,
-        contract_expiry: editingTech.contract_expiry || null
+        contract_expiry: editingTech.contract_expiry || null,
+        shortcut_key: editingTech.shortcut_key || null
       })
       .eq('id', editingTech.id);
     
@@ -305,11 +465,12 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
       car_plate: newTech.car_plate || null, 
       sep_expiry: newTech.sep_expiry || null, 
       contract_expiry: newTech.contract_expiry || null,
-      color: newTech.color
+      color: newTech.color,
+      shortcut_key: newTech.shortcut_key || null
     }]);
     
     if (error) alert('Błąd dodawania: ' + error.message);
-    else { setIsAddModalOpen(false); setNewTech({ name: '', phone: '', car_plate: '', sep_expiry: '', contract_expiry: '', color: '#58b347' }); fetchData(); }
+    else { setIsAddModalOpen(false); setNewTech({ name: '', phone: '', car_plate: '', sep_expiry: '', contract_expiry: '', color: '#58b347', shortcut_key: '' }); fetchData(); }
   };
 
   const handleImportTechs = async (e: React.FormEvent) => {
@@ -444,14 +605,14 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
             
             {/* PASEK NARZĘDZI */}
             <div className="p-5 border-b border-slate-100/60 flex justify-between items-center bg-slate-50/50 shrink-0">
-              <div className="relative">
+              <div className="relative w-full max-w-[320px]">
                 <IconSearch />
                 <input 
                   type="text" 
-                  placeholder="Szukaj po nazwisku, aucie, nr telefonu..." 
+                  placeholder="Szukaj po nazwisku, aucie, nr tel, skrócie..." 
                   value={searchTerm} 
                   onChange={e => setSearchTerm(e.target.value)} 
-                  className="pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 w-[320px] shadow-sm transition-all"
+                  className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 shadow-sm transition-all bg-white"
                 />
               </div>
               
@@ -486,7 +647,7 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                     <th className="py-4 px-3 w-40 cursor-pointer hover:text-slate-800 hover:bg-slate-100/80 transition-colors" onClick={() => handleSort('car_plate')}>Pojazdy <IconSort /></th>
                     <th className="py-4 px-3 w-36 cursor-pointer hover:text-slate-800 hover:bg-slate-100/80 transition-colors" onClick={() => handleSort('sep_expiry')}>Status SEP <IconSort /></th>
                     <th className="py-4 px-3 w-36 cursor-pointer hover:text-slate-800 hover:bg-slate-100/80 transition-colors" onClick={() => handleSort('contract_expiry')}>Zakończenie Umowy <IconSort /></th>
-                    <th className="py-4 px-3 w-32 text-center cursor-pointer hover:text-slate-800 hover:bg-slate-100/80 transition-colors" onClick={() => handleSort('stationCount')}>Zasięg Terytorialny <IconSort /></th>
+                    <th className="py-4 px-3 w-32 text-center cursor-pointer hover:text-slate-800 hover:bg-slate-100/80 transition-colors" onClick={() => handleSort('stationCount')}>Zasięg <IconSort /></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100/60 text-xs">
@@ -498,6 +659,7 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                     processedTechs.map(tech => {
                       const sep = getExpiryStatus(tech.sep_expiry);
                       const contract = getExpiryStatus(tech.contract_expiry);
+                      // Dzielimy po przecinku, by zachować spójność z nowym zapisem
                       const cars = tech.car_plate ? tech.car_plate.split(',').map(c => c.trim()).filter(Boolean) : [];
                       
                       return (
@@ -518,15 +680,22 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                             <div className="w-4 h-4 rounded-full mx-auto shadow-sm ring-2 ring-white" style={{ backgroundColor: tech.color }} />
                           </td>
                           <td className="py-3 px-3">
-                            <span 
-                              className="cursor-pointer font-semibold text-slate-800 hover:text-[#58b347] transition-colors border-b border-transparent hover:border-[#58b347]/30 pb-0.5" 
-                              onClick={() => setViewingTechProfile(tech)} 
-                              title="Otwórz pełny profil pracownika"
-                            >
-                              {tech.name}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span 
+                                className="cursor-pointer font-semibold text-slate-800 hover:text-[#58b347] transition-colors border-b border-transparent hover:border-[#58b347]/30 pb-0.5" 
+                                onClick={() => setViewingTechProfile(tech)} 
+                                title="Otwórz pełny profil pracownika"
+                              >
+                                {tech.name}
+                              </span>
+                              {tech.shortcut_key && (
+                                <kbd className="text-[9px] font-mono font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200 flex items-center gap-1 w-max" title="Globalny skrót klawiszowy">
+                                  <IconKeyboard /> {tech.shortcut_key}
+                                </kbd>
+                              )}
+                            </div>
                           </td>
-                          <td className="py-3 px-3 text-slate-600 font-mono text-[11px]">{tech.phone || '-'}</td>
+                          <td className="py-3 px-3 text-slate-600 font-mono text-[11px] font-bold">{tech.phone || '-'}</td>
                           <td className="py-3 px-3">
                             <MultiCarBadge cars={cars} />
                           </td>
@@ -574,9 +743,16 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                   {getInitials(viewingTechProfile.name)}
                 </div>
                 <h2 className="text-xl font-bold text-slate-800 tracking-tight mt-5">{viewingTechProfile.name}</h2>
-                <p className="text-xs font-mono text-slate-500 mt-1.5 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">
-                  {viewingTechProfile.phone || 'Brak telefonu w bazie'}
-                </p>
+                <div className="flex flex-col gap-2 mt-2 items-center">
+                  <p className="text-xs font-mono font-bold text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm w-max">
+                    {viewingTechProfile.phone || 'Brak telefonu w bazie'}
+                  </p>
+                  {viewingTechProfile.shortcut_key && (
+                    <kbd className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200 shadow-sm flex items-center gap-1.5 w-max">
+                      <IconKeyboard /> SKRÓT: {viewingTechProfile.shortcut_key}
+                    </kbd>
+                  )}
+                </div>
               </div>
 
               <div className="p-6 space-y-6">
@@ -619,7 +795,8 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200 pb-1.5">Przypisana Flota Mobilna</p>
                   {viewingTechProfile.car_plate ? (
                     <div className="flex flex-col gap-2">
-                      {viewingTechProfile.car_plate.split(',').map((car: string, idx: number) => (
+                      {/* Dzielimy poprawnie na bazie przecinka z komponentu CarPlateInput */}
+                      {viewingTechProfile.car_plate.split(',').filter(Boolean).map((car: string, idx: number) => (
                         <div key={idx} className="flex items-center w-full px-3 py-2 rounded-xl bg-white border border-slate-200 shadow-sm gap-3">
                           <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
                             <IconCar />
@@ -630,7 +807,7 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                     </div>
                   ) : (
                     <div className="text-center py-4 bg-white border border-slate-200 rounded-xl shadow-sm">
-                      <p className="text-xs text-slate-400 font-medium">Brak przypisanego pojazdu</p>
+                      <p className="text-xs text-slate-400 font-bold">Brak przypisanego pojazdu</p>
                     </div>
                   )}
                 </div>
@@ -644,7 +821,7 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
               <div className="p-8 space-y-8">
                 <div>
                   <h3 className="text-lg font-bold text-slate-800">Panel Operacyjny</h3>
-                  <p className="text-xs text-slate-500">Przegląd bieżących zadań i stanów magazynowych na aucie.</p>
+                  <p className="text-xs text-slate-500 font-medium">Przegląd bieżących zadań i stanów magazynowych na aucie.</p>
                 </div>
 
                 {/* Szybkie KPI */}
@@ -707,7 +884,7 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                       </div>
                       <div>
                         <p className="text-sm font-bold text-slate-700">Wszystkie zadania wykonane</p>
-                        <p className="text-xs text-slate-500 mt-1 max-w-[200px] mx-auto">Pracownik nie ma dziś otwartych zgłoszeń priorytetowych.</p>
+                        <p className="text-xs text-slate-500 mt-1 max-w-[200px] mx-auto font-medium">Pracownik nie ma dziś otwartych zgłoszeń priorytetowych.</p>
                       </div>
                     </div>
                     <button 
@@ -716,7 +893,7 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                           setViewingTechProfile(null);
                           onChangeView('calendar');
                         } else {
-                          alert('Brak połączenia z głównym widokiem. Dodaj onChangeView w ChargeMap.tsx!');
+                          alert('Brak połączonego widoku kalendarza (dodaj w ChargeMap).');
                         }
                       }} 
                       className="mt-4 w-full py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-50 transition-colors shadow-sm"
@@ -747,8 +924,8 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                           <span className="text-xs font-bold text-slate-700">{item.name}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          {item.status === 'low' && <span className="text-[9px] font-bold text-red-500 uppercase tracking-widest bg-red-50 px-2 py-0.5 rounded">Braki</span>}
-                          <span className="text-xs font-mono font-bold text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-md min-w-[60px] text-center">
+                          {item.status === 'low' && <span className="text-[9px] font-bold text-red-500 uppercase tracking-widest bg-red-50 px-2 py-0.5 rounded border border-red-100">Braki</span>}
+                          <span className="text-xs font-mono font-bold text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-md min-w-[60px] text-center shadow-sm">
                             {item.qty} <span className="text-[9px] uppercase">{item.unit}</span>
                           </span>
                         </div>
@@ -778,7 +955,7 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
             
             <div className="p-6 overflow-y-auto bg-slate-50">
               {assignedStationsForView.length === 0 ? (
-                <p className="text-center text-sm text-slate-500 py-10 bg-white border border-slate-200 rounded-xl shadow-sm">
+                <p className="text-center text-sm text-slate-500 py-10 bg-white border border-slate-200 rounded-xl shadow-sm font-bold">
                   Brak stacji w tym rejonie operacyjnym.
                 </p>
               ) : (
@@ -832,36 +1009,41 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                 </div>
                 
                 <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Kolor mapy operacyjnej</label>
-                  <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Kolor operacyjny</label>
+                  <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm h-[46px]">
                     <input type="color" value={newTech.color} onChange={(e) => setNewTech({...newTech, color: e.target.value})} className="w-8 h-8 p-0 border-0 rounded cursor-pointer" />
                     <span className="text-[11px] text-slate-500 font-mono uppercase font-bold">{newTech.color}</span>
                   </div>
                 </div>
 
                 <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Numer telefonu</label>
-                  <input type="tel" value={newTech.phone} onChange={(e) => setNewTech({...newTech, phone: e.target.value})} placeholder="+48..." className="w-full px-4 py-2.5 border border-slate-200 bg-white rounded-xl text-sm font-mono focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm" />
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Klawisz skrótu</label>
+                  <ShortcutInput value={newTech.shortcut_key} onChange={(val) => setNewTech({...newTech, shortcut_key: val || ''})} />
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Pojazdy (Zatwierdź Enterem)</label>
-                  <CarPlateInput value={newTech.car_plate} onChange={(val) => setNewTech({...newTech, car_plate: val})} />
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Numer telefonu</label>
+                  <input type="tel" value={newTech.phone || ''} onChange={(e) => setNewTech({...newTech, phone: e.target.value})} placeholder="+48..." className="w-full px-4 py-2.5 border border-slate-200 bg-white rounded-xl text-sm font-mono font-bold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm" />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Pojazdy (Z bazy logistycznej)</label>
+                  <CarPlateInput value={newTech.car_plate} onChange={(val) => setNewTech({...newTech, car_plate: val})} availableCars={availableCarsFromDB} />
                 </div>
 
                 <div className="col-span-2 sm:col-span-1">
                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Ważność SEP</label>
-                  <input type="date" value={newTech.sep_expiry} onChange={(e) => setNewTech({...newTech, sep_expiry: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:border-[#58b347] transition-all shadow-sm" />
+                  <input type="date" value={newTech.sep_expiry || ''} onChange={(e) => setNewTech({...newTech, sep_expiry: e.target.value})} className="w-full px-4 py-2.5 border border-slate-200 bg-white rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm" />
                 </div>
 
                 <div className="col-span-2 sm:col-span-1">
                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Koniec Umowy</label>
-                  <input type="date" value={newTech.contract_expiry} onChange={(e) => setNewTech({...newTech, contract_expiry: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:border-[#58b347] transition-all shadow-sm" />
+                  <input type="date" value={newTech.contract_expiry || ''} onChange={(e) => setNewTech({...newTech, contract_expiry: e.target.value})} className="w-full px-4 py-2.5 border border-slate-200 bg-white rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm" />
                 </div>
               </div>
 
-              <div className="pt-4 flex gap-3">
-                <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 bg-slate-100 text-slate-700 font-bold py-3 rounded-xl text-sm hover:bg-slate-200 transition-colors">Anuluj</button>
+              <div className="pt-4 flex gap-3 border-t border-slate-200 mt-5">
+                <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 bg-slate-100 border border-slate-200 text-slate-700 font-bold py-3 rounded-xl text-sm hover:bg-slate-200 transition-colors shadow-sm">Anuluj</button>
                 <button type="submit" className="flex-1 bg-[#58b347] text-white font-bold py-3 rounded-xl text-sm hover:bg-[#499b3a] transition-colors shadow-sm">Zarejestruj pracownika</button>
               </div>
             </form>
@@ -869,7 +1051,7 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
         </div>
       )}
 
-      {/* MODAL EDYCJI DANYCH (Osobny modal odpala się przyciskiem z toolbara lub długopisem przy checku) */}
+      {/* MODAL EDYCJI DANYCH */}
       {editingTech && (
         <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fadeIn" onClick={() => setEditingTech(null)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 animate-slideUp" onClick={(e) => e.stopPropagation()}>
@@ -881,40 +1063,45 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
               <div className="grid grid-cols-2 gap-5">
                 <div className="col-span-2">
                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Imię i nazwisko *</label>
-                  <input required type="text" value={editingTech.name || ''} onChange={(e) => setEditingTech({...editingTech, name: e.target.value})} className="w-full px-4 py-2.5 border border-slate-200 bg-white rounded-xl text-sm font-semibold text-slate-800 focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm" />
+                  <input required type="text" value={editingTech.name || ''} onChange={(e) => setEditingTech({...editingTech, name: e.target.value})} className="w-full px-4 py-2.5 border border-slate-200 bg-white rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm" />
                 </div>
                 
                 <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Kolor mapy operacyjnej</label>
-                  <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Kolor operacyjny</label>
+                  <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm h-[46px]">
                     <input type="color" value={editingTech.color || '#000000'} onChange={(e) => setEditingTech({...editingTech, color: e.target.value})} className="w-8 h-8 p-0 border-0 rounded cursor-pointer" />
                     <span className="text-[11px] text-slate-500 font-mono uppercase font-bold">{editingTech.color}</span>
                   </div>
                 </div>
 
                 <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Numer telefonu</label>
-                  <input type="tel" value={editingTech.phone || ''} onChange={(e) => setEditingTech({...editingTech, phone: e.target.value})} className="w-full px-4 py-2.5 border border-slate-200 bg-white rounded-xl text-sm font-mono focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm" />
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Klawisz skrótu</label>
+                  <ShortcutInput value={editingTech.shortcut_key} onChange={(val) => setEditingTech({...editingTech, shortcut_key: val})} />
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Pojazdy (Zatwierdź Enterem)</label>
-                  <CarPlateInput value={editingTech.car_plate} onChange={(val) => setEditingTech({...editingTech, car_plate: val})} />
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Numer telefonu</label>
+                  <input type="tel" value={editingTech.phone || ''} onChange={(e) => setEditingTech({...editingTech, phone: e.target.value})} placeholder="+48..." className="w-full px-4 py-2.5 border border-slate-200 bg-white rounded-xl text-sm font-mono font-bold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm" />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Pojazdy (Z bazy logistycznej)</label>
+                  <CarPlateInput value={editingTech.car_plate} onChange={(val) => setEditingTech({...editingTech, car_plate: val})} availableCars={availableCarsFromDB} />
                 </div>
 
                 <div className="col-span-2 sm:col-span-1">
                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Ważność SEP</label>
-                  <input type="date" value={editingTech.sep_expiry || ''} onChange={(e) => setEditingTech({...editingTech, sep_expiry: e.target.value})} className="w-full px-4 py-2.5 border border-slate-200 bg-white rounded-xl text-sm focus:outline-none focus:border-[#58b347] transition-all shadow-sm" />
+                  <input type="date" value={editingTech.sep_expiry || ''} onChange={(e) => setEditingTech({...editingTech, sep_expiry: e.target.value})} className="w-full px-4 py-2.5 border border-slate-200 bg-white rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:border-[#58b347] transition-all shadow-sm" />
                 </div>
 
                 <div className="col-span-2 sm:col-span-1">
                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Zakończenie Umowy</label>
-                  <input type="date" value={editingTech.contract_expiry || ''} onChange={(e) => setEditingTech({...editingTech, contract_expiry: e.target.value})} className="w-full px-4 py-2.5 border border-slate-200 bg-white rounded-xl text-sm focus:outline-none focus:border-[#58b347] transition-all shadow-sm" />
+                  <input type="date" value={editingTech.contract_expiry || ''} onChange={(e) => setEditingTech({...editingTech, contract_expiry: e.target.value})} className="w-full px-4 py-2.5 border border-slate-200 bg-white rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:border-[#58b347] transition-all shadow-sm" />
                 </div>
               </div>
 
-              <div className="pt-4 flex gap-3">
-                <button type="button" onClick={() => setEditingTech(null)} className="flex-1 bg-slate-100 text-slate-700 font-bold py-3 rounded-xl text-sm hover:bg-slate-200 transition-colors">Anuluj</button>
+              <div className="pt-4 flex gap-3 border-t border-slate-200 mt-5">
+                <button type="button" onClick={() => setEditingTech(null)} className="flex-1 bg-slate-100 border border-slate-200 text-slate-700 font-bold py-3 rounded-xl text-sm hover:bg-slate-200 transition-colors shadow-sm">Anuluj</button>
                 <button form="tech-edit-form" type="submit" className="flex-1 bg-[#58b347] text-white font-bold py-3 rounded-xl text-sm hover:bg-[#499b3a] transition-colors shadow-sm">Zapisz poprawki</button>
               </div>
             </form>
@@ -943,7 +1130,7 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                 </div>
                 {importStatus && <p className="text-[11px] text-[#58b347] font-bold bg-[#58b347]/10 py-3 rounded-xl border border-[#58b347]/20 text-center animate-pulse">{importStatus}</p>}
                 <div className="flex gap-3 pt-3">
-                  <button type="button" disabled={isImporting} onClick={() => setIsImportModalOpen(false)} className="flex-1 bg-slate-100 text-slate-700 font-bold py-3 rounded-xl text-sm hover:bg-slate-200 transition-colors">Anuluj</button>
+                  <button type="button" disabled={isImporting} onClick={() => setIsImportModalOpen(false)} className="flex-1 bg-slate-100 border border-slate-200 text-slate-700 font-bold py-3 rounded-xl text-sm hover:bg-slate-200 transition-colors shadow-sm">Anuluj</button>
                   <button type="submit" disabled={isImporting} className="flex-1 bg-[#58b347] text-white font-bold py-3 rounded-xl text-sm hover:bg-[#499b3a] disabled:bg-slate-400 transition-colors shadow-sm shadow-[#58b347]/20">{isImporting ? 'Przetwarzanie...' : 'Uruchom Import'}</button>
                 </div>
               </form>

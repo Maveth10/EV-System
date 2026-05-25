@@ -1,3 +1,4 @@
+'use client';
 import React, { useState, useEffect } from 'react';
 
 export type Sector = { id: string; name: string; color: string; geometry?: any; };
@@ -7,7 +8,8 @@ type SectorEditorProps = {
   sectors: Sector[]; regions: Sector[];
   onStartDrawingNew: (name: string, color: string, mode: 'insert' | 'append' | 'update', targetType: 'technician' | 'region', sectorId?: string) => void;
   onEditExisting: (sector: Sector, targetType: 'technician' | 'region', appendMode?: boolean) => void; 
-  onDeleteSector: (id: string, targetType: 'technician' | 'region') => void;
+  onDeleteSector: (id: string, targetType: 'technician' | 'region') => void; // Czyszczenie mapy
+  onHardDeleteEntity?: (id: string, targetType: 'technician' | 'region') => void; // Twarde usuwanie z bazy
   isDrawingActive: boolean; onSaveDrawing: () => Promise<boolean>; onCancelDrawing: () => void;
   drawMethod: 'manual' | 'click'; onSetDrawMethod: (method: 'manual' | 'click') => void;
   onSelectAllPoland: () => void;
@@ -17,12 +19,13 @@ const IconMap = () => <svg className="w-4 h-4 text-[#58b347]" viewBox="0 0 24 24
 const IconDraw = () => <svg className="w-4 h-4 text-[#58b347]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/></svg>;
 const IconSave = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>;
 const IconEdit = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
-const IconTrash = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
+const IconTrash = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
 const IconArrowLeft = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
 const IconClose = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
 const IconPlus = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>;
+const IconChevronRight = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>;
 
-export default function SectorEditor({ isOpen, onClose, sectors, regions, onStartDrawingNew, onEditExisting, onDeleteSector, isDrawingActive, onSaveDrawing, onCancelDrawing, drawMethod, onSetDrawMethod, onSelectAllPoland }: SectorEditorProps) {
+export default function SectorEditor({ isOpen, onClose, sectors, regions, onStartDrawingNew, onEditExisting, onDeleteSector, onHardDeleteEntity, isDrawingActive, onSaveDrawing, onCancelDrawing, drawMethod, onSetDrawMethod, onSelectAllPoland }: SectorEditorProps) {
   const [activeTab, setActiveTab] = useState<'technicians' | 'regions'>('technicians');
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
@@ -111,7 +114,7 @@ export default function SectorEditor({ isOpen, onClose, sectors, regions, onStar
 
         {itemData.zones.length === 0 ? (
           <div className="text-center bg-slate-50 border border-slate-200 p-4 rounded-lg mb-4">
-            <p className="text-xs text-slate-500 mb-3">Ten obiekt nie ma przypisanego terytorium.</p>
+            <p className="text-xs text-slate-500 mb-3">Ten obiekt nie ma przypisanego terytorium na mapie.</p>
             <button onClick={() => onStartDrawingNew(selectedItem, itemData.color, 'update', activeTab === 'technicians' ? 'technician' : 'region', itemData.id)} className="w-full bg-[#58b347] text-white hover:bg-[#499b3a] font-medium py-2 rounded text-sm transition-colors flex items-center justify-center gap-2 shadow-sm"><IconDraw /> Narysuj strefę</button>
           </div>
         ) : (
@@ -122,7 +125,7 @@ export default function SectorEditor({ isOpen, onClose, sectors, regions, onStar
                   <span className="text-xs font-bold text-slate-600 uppercase tracking-wider flex-1">Obszar zdefiniowany</span>
                   <div className="flex gap-2">
                     <button onClick={() => onEditExisting(zone, activeTab === 'technicians' ? 'technician' : 'region')} className="text-[#58b347] hover:bg-green-50 p-1.5 rounded transition-colors" title="Edytuj granice"><IconEdit /></button>
-                    <button onClick={() => onDeleteSector(zone.id, activeTab === 'technicians' ? 'technician' : 'region')} className="text-red-600 hover:bg-red-50 p-1.5 rounded transition-colors" title="Wyczyść cały obszar"><IconTrash /></button>
+                    <button onClick={() => onDeleteSector(zone.id, activeTab === 'technicians' ? 'technician' : 'region')} className="text-orange-500 hover:bg-orange-50 p-1.5 rounded transition-colors" title="Wyczyść z mapy (Gumka)"><IconTrash /></button>
                   </div>
                 </div>
                 <button onClick={() => onEditExisting(zone, activeTab === 'technicians' ? 'technician' : 'region', true)} className="w-full bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-600 text-xs font-medium py-2 rounded transition-colors flex items-center justify-center gap-2">
@@ -152,14 +155,44 @@ export default function SectorEditor({ isOpen, onClose, sectors, regions, onStar
         <IconPlus /> Utwórz nowy {activeTab === 'technicians' ? 'zespół' : 'region'}
       </button>
 
-      <h4 className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Lista ({Object.keys(groupedItems).length})</h4>
+      <h4 className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Baza systemu ({Object.keys(groupedItems).length})</h4>
       {Object.keys(groupedItems).length === 0 ? (
-        <p className="text-xs text-slate-500">Brak obiektów w bazie.</p>
+        <p className="text-xs text-slate-500 bg-slate-50 p-4 text-center rounded-lg border border-slate-100">Brak obiektów w bazie.</p>
       ) : (
         <div className="overflow-y-auto space-y-2 pr-1">
           {Object.entries(groupedItems).map(([name, data]) => (
-            <div key={name} onClick={() => setSelectedItem(name)} className="flex justify-between items-center bg-white border border-slate-200 p-2.5 rounded cursor-pointer hover:border-slate-300 transition-colors">
-              <div className="flex items-center gap-2.5"><div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: data.color }} /><div><div className="text-xs font-medium text-slate-700">{name}</div><div className={`text-[10px] font-medium ${data.zones.length > 0 ? 'text-[#58b347]' : 'text-slate-400'}`}>{data.zones.length > 0 ? '✓ Strefa aktywna' : 'Brak przypisanej strefy'}</div></div></div><IconArrowLeft />
+            <div key={name} className="flex justify-between items-center bg-white border border-slate-200 p-2 rounded hover:border-slate-300 transition-colors group">
+              <div 
+                className="flex items-center gap-2.5 flex-1 cursor-pointer overflow-hidden" 
+                onClick={() => setSelectedItem(name)}
+              >
+                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: data.color }} />
+                <div className="truncate">
+                  <div className="text-xs font-medium text-slate-700 truncate">{name}</div>
+                  <div className={`text-[10px] font-medium ${data.zones.length > 0 ? 'text-[#58b347]' : 'text-slate-400'}`}>
+                    {data.zones.length > 0 ? '✓ Strefa na mapie' : 'Brak mapowania'}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-1 shrink-0 ml-2">
+                <button 
+                  onClick={() => setSelectedItem(name)} 
+                  className="p-1.5 text-slate-400 hover:text-[#58b347] hover:bg-green-50 rounded transition-colors" 
+                  title="Edytuj strefę na mapie"
+                >
+                  <IconEdit />
+                </button>
+                {onHardDeleteEntity && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); onHardDeleteEntity(data.id, activeTab === 'technicians' ? 'technician' : 'region'); }} 
+                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors" 
+                    title="Usuń całkowicie z bazy danych"
+                  >
+                    <IconTrash />
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>

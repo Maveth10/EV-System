@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+'use client';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../app/supabase';
 import AddStationModal from './AddStationModal';
 import StationAnalytics from './StationAnalytics';
@@ -35,35 +36,116 @@ interface ColumnDef {
 }
 
 const defaultColumns: ColumnDef[] = [
-  { key: 'select', label: '☑', visible: true, thClass: 'w-10 text-left', tdClass: '' },
+  { key: 'select', label: '☑', visible: true, thClass: 'w-10 text-center', tdClass: 'text-center' },
   { key: 'actions', label: 'Akcje', visible: true, thClass: 'w-20 text-center text-slate-400', tdClass: 'text-center' },
-  { key: 'name', label: 'Identyfikator', visible: true, sortableKey: 'name', thClass: 'min-w-[120px]', tdClass: 'font-bold text-slate-800' },
-  { key: 'client', label: 'Klient', visible: true, sortableKey: 'client', thClass: 'min-w-[150px]', tdClass: 'text-slate-600 font-medium truncate max-w-[200px]' },
-  { key: 'location', label: 'Lokalizacja', visible: true, sortableKey: 'city', thClass: 'min-w-[220px]', tdClass: 'text-slate-600 truncate max-w-[280px]' },
-  { key: 'region', label: 'Region', visible: true, sortableKey: 'region', thClass: 'min-w-[110px]', tdClass: '' },
-  { key: 'model', label: 'Model', visible: true, sortableKey: 'model', thClass: 'min-w-[120px]', tdClass: 'text-slate-600' },
-  { key: 'inspection_date', label: 'Przegląd', visible: true, sortableKey: 'inspection_date', thClass: 'min-w-[100px]', tdClass: 'text-slate-600 font-medium' },
-  { key: 'last_ticket_date', label: 'Zgłoszenie', visible: true, sortableKey: 'last_ticket_date', thClass: 'min-w-[110px]', tdClass: 'text-slate-500 font-mono text-[11px]' },
-  { key: 'technician', label: 'Opiekun', visible: true, sortableKey: 'technician', thClass: 'min-w-[120px]', tdClass: '' },
-  { key: 'status', label: 'Status / Zadanie', visible: true, sortableKey: 'status', thClass: 'min-w-[120px]', tdClass: '' },
-  { key: 'additional_info', label: 'Dodatkowe info', visible: false, sortableKey: 'additional_info', thClass: 'min-w-[150px]', tdClass: 'text-slate-500 truncate max-w-[200px]' },
-  { key: 'country', label: 'Kraj', visible: false, sortableKey: 'country', thClass: 'min-w-[100px]', tdClass: 'text-slate-600' },
-  { key: 'lat', label: 'Szerokość GPS', visible: false, sortableKey: 'lat', thClass: 'min-w-[110px]', tdClass: 'text-slate-400 font-mono text-[11px]' },
-  { key: 'lng', label: 'Długość GPS', visible: false, sortableKey: 'lng', thClass: 'min-w-[110px]', tdClass: 'text-slate-400 font-mono text-[11px]' },
-  { key: 'created_at', label: 'Data dodania', visible: false, sortableKey: 'created_at', thClass: 'min-w-[120px]', tdClass: 'text-slate-500 text-[11px]' },
+  { key: 'name', label: 'Identyfikator', visible: true, sortableKey: 'name', thClass: 'w-[11%] min-w-[100px]', tdClass: 'font-bold text-slate-800 truncate' },
+  { key: 'client', label: 'Klient', visible: true, sortableKey: 'client', thClass: 'w-[13%] min-w-[110px]', tdClass: 'text-slate-700 font-semibold truncate' },
+  { key: 'location', label: 'Lokalizacja', visible: true, sortableKey: 'city', thClass: 'w-[18%] min-w-[150px]', tdClass: 'text-slate-600' },
+  { key: 'region', label: 'Region', visible: true, sortableKey: 'region', thClass: 'w-[12%] min-w-[110px]', tdClass: '' },
+  { key: 'model', label: 'Model', visible: true, sortableKey: 'model', thClass: 'w-[10%] min-w-[90px]', tdClass: 'text-slate-600 font-medium truncate' },
+  { key: 'inspection_date', label: 'UDT', visible: true, sortableKey: 'inspection_date', thClass: 'w-[7%] min-w-[70px]', tdClass: 'text-slate-600 font-medium tabular-nums' },
+  { key: 'last_ticket_date', label: 'Zgłoszenie', visible: true, sortableKey: 'last_ticket_date', thClass: 'w-[7%] min-w-[70px]', tdClass: 'text-slate-500 font-mono text-[10px]' },
+  { key: 'technician', label: 'Opiekun', visible: true, sortableKey: 'technician', thClass: 'w-[14%] min-w-[130px]', tdClass: '' },
+  { key: 'status', label: 'Status', visible: true, sortableKey: 'status', thClass: 'w-[10%] min-w-[110px]', tdClass: '' },
+  { key: 'additional_info', label: 'Dodatkowe info', visible: false, sortableKey: 'additional_info', thClass: 'w-[10%] min-w-[150px]', tdClass: 'text-slate-500 truncate' },
+  { key: 'country', label: 'Kraj', visible: false, sortableKey: 'country', thClass: 'w-[8%] min-w-[100px]', tdClass: 'text-slate-600 truncate' },
+  { key: 'lat', label: 'Szer. GPS', visible: false, sortableKey: 'lat', thClass: 'w-[8%] min-w-[100px]', tdClass: 'text-slate-400 font-mono text-[10px]' },
+  { key: 'lng', label: 'Dł. GPS', visible: false, sortableKey: 'lng', thClass: 'w-[8%] min-w-[100px]', tdClass: 'text-slate-400 font-mono text-[10px]' },
+  { key: 'created_at', label: 'Data', visible: false, sortableKey: 'created_at', thClass: 'w-[8%] min-w-[100px]', tdClass: 'text-slate-500 text-[10px]' },
 ];
 
-const IconSort = () => <svg className="w-3 h-3 inline-block ml-1 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>;
-const IconTrash = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
+const IconSort = () => <svg className="w-3.5 h-3.5 inline-block ml-1 opacity-40 hover:opacity-100 transition-opacity" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>;
+const IconTrash = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
 const IconEdit = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
 const IconImport = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
-const IconMapPin = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>;
-const IconNoLocation = () => <svg className="w-3.5 h-3.5 text-red-400 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m2 2 20 20"/><path d="M8.36 8.36a6 6 0 0 1 8.28 8.28"/><path d="M19.38 19.38A11.9 11.9 0 0 0 20 10c0-6-8-12-8-12s-3.72 2.79-5.83 6.64"/></svg>;
-const IconColumns = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>;
+const IconMapPin = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>;
+const IconNoLocation = () => <svg className="w-3.5 h-3.5 text-orange-400 inline-block mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m2 2 20 20"/><path d="M8.36 8.36a6 6 0 0 1 8.28 8.28"/><path d="M19.38 19.38A11.9 11.9 0 0 0 20 10c0-6-8-12-8-12s-3.72 2.79-5.83 6.64"/></svg>;
+const IconColumns = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>;
 const IconSearch = () => <svg className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
 const IconArrowUp = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>;
 const IconArrowDown = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>;
-const IconRadar = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h.01"/><path d="M2.29 9.62A10 10 0 1 0 21.31 8.35"/><path d="M16.24 7.76A6 6 0 1 0 8.23 16.67"/><path d="M12 18h.01"/><path d="M17.99 11.66A6 6 0 0 1 15.77 16.67"/><circle cx="12" cy="12" r="2"/><path d="m13.41 10.59 5.66-5.66"/></svg>;
+const IconRadar = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h.01"/><path d="M2.29 9.62A10 10 0 1 0 21.31 8.35"/><path d="M16.24 7.76A6 6 0 1 0 8.23 16.67"/><path d="M12 18h.01"/><path d="M17.99 11.66A6 6 0 0 1 15.77 16.67"/><circle cx="12" cy="12" r="2"/><path d="m13.41 10.59 5.66-5.66"/></svg>;
+const IconPlus = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>;
+const IconCheck = () => <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
+
+const CustomCheckbox = ({ checked, onChange }: { checked: boolean, onChange: () => void }) => (
+  <div 
+    onClick={(e) => { e.stopPropagation(); onChange(); }}
+    className={`w-4 h-4 rounded-[4px] flex items-center justify-center cursor-pointer transition-colors duration-200 ${checked ? 'bg-[#58b347] border-[#58b347]' : 'border border-slate-300 bg-white hover:border-[#58b347]/50'}`}
+  >
+    {checked && <IconCheck />}
+  </div>
+);
+
+// --- ZAAWANSOWANY PARSER DANYCH Z BAZY ---
+const parseMultipleValues = (val: string | null) => {
+  if (!val || val.trim() === '') return [];
+  
+  let cleaned = val.trim();
+  if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
+    cleaned = cleaned.slice(1, -1);
+  }
+  
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (Array.isArray(parsed)) return parsed.map(String);
+  } catch (e) {
+  }
+  return cleaned.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+};
+
+// --- KOMPONENT WYSKAKUJĄCEJ LISTY ---
+const MultiItemBadge = ({ mainText, allItems, type }: { mainText: string, allItems: string[], type: 'tech' | 'region' }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const mainBadgeColors = type === 'tech' 
+    ? 'bg-[#58b347]/10 text-[#499b3a] border-[#58b347]/20' 
+    : 'bg-slate-100 text-slate-600 border-slate-200';
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-widest whitespace-nowrap ${mainBadgeColors}`}>
+        {mainText}
+      </span>
+      
+      <div 
+        className="relative flex items-center" 
+        ref={dropdownRef}
+        onMouseEnter={() => setIsOpen(true)}
+        onMouseLeave={() => setIsOpen(false)}
+        onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+      >
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-[#58b347]/15 hover:bg-[#58b347]/25 text-[#499b3a] border border-[#58b347]/30 uppercase tracking-wider cursor-help transition-colors">
+          +{allItems.length - 1}
+        </span>
+
+        {isOpen && (
+          <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 min-w-[180px] bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-xl shadow-2xl z-50 overflow-hidden animate-fadeIn p-2 flex flex-col gap-1">
+            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest px-2 py-1.5 border-b border-slate-100 mb-1 whitespace-nowrap">
+              {type === 'tech' ? 'Przypisani technicy' : 'Przypisane regiony'}
+            </div>
+            {allItems.map((item, idx) => (
+              <div key={idx} className="text-[11px] font-semibold text-slate-700 px-2 py-1.5 hover:bg-[#58b347]/10 hover:text-[#499b3a] rounded-lg transition-colors whitespace-nowrap cursor-default">
+                • {item}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const parseCSV = (text: string, delimiter: string): string[][] => {
   const rows: string[][] = [];
@@ -105,10 +187,10 @@ const parseCSV = (text: string, delimiter: string): string[][] => {
 };
 
 const getDaysSince = (dateString: string | null) => {
-  if (!dateString) return 'Brak';
+  if (!dateString) return 'Brak zgłoszeń';
   const diffTime = Math.abs(new Date().getTime() - new Date(dateString).getTime());
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays === 0 ? 'Dzisiaj' : `${diffDays} dni`;
+  return diffDays === 0 ? 'Dzisiaj' : `${diffDays} dni temu`;
 };
 
 const getStatusBadge = (status: string) => {
@@ -118,7 +200,7 @@ const getStatusBadge = (status: string) => {
     case 'Przegląd': return 'bg-blue-50 text-blue-700 border-blue-200';
     case 'Zlecenie jakościowe': return 'bg-orange-50 text-orange-700 border-orange-200';
     case 'Naprawa odpłatna': return 'bg-amber-50 text-amber-700 border-amber-200';
-    case 'Brak akcji': default: return 'bg-green-50 text-[#58b347] border-green-200';
+    case 'Brak akcji': default: return 'bg-[#58b347]/10 text-[#499b3a] border-[#58b347]/20';
   }
 };
 
@@ -133,7 +215,13 @@ const getStatusDot = (status: string) => {
   }
 };
 
-export default function StationsDatabase({ onFocusStation }: { onFocusStation: (station: Station) => void }) {
+interface StationsDatabaseProps {
+  onFocusStation: (station: Station) => void;
+  isSidebarHovered?: boolean;
+  refreshTrigger?: number; // DODANE: Odbieranie sygnału do odświeżenia tabeli
+}
+
+export default function StationsDatabase({ onFocusStation, isSidebarHovered = false, refreshTrigger = 0 }: StationsDatabaseProps) {
   const [stations, setStations] = useState<Station[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sortConfig, setSortConfig] = useState<SortConfig>(null);
@@ -155,6 +243,10 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
   const [isGeocodeModalOpen, setIsGeocodeModalOpen] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [geocodeStatus, setGeocodeStatus] = useState('');
+  const [singleGeocodingId, setSingleGeocodingId] = useState<string | null>(null);
+
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const nominateHeaders = { 'User-Agent': 'EkoenFSMDispatchSystem/6.0 (dispatch@ekoen.pl)' };
 
   const fetchStations = async () => {
     setIsLoading(true);
@@ -173,17 +265,35 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
 
   useEffect(() => { fetchStations(); }, []);
 
+  // DODANE: Nasłuchujemy na zapalnik z ChargeMap, aby przeładować tabelę w locie
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      fetchStations();
+    }
+  }, [refreshTrigger]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (isImportModalOpen && !isImporting) setIsImportModalOpen(false);
-        if (isGeocodeModalOpen && !isGeocoding) setIsGeocodeModalOpen(false);
+        if (isGeocodeModalOpen && !isGeocoding) handleCancelGeocode();
         if (isColumnSettingsOpen) setIsColumnSettingsOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isImportModalOpen, isImporting, isColumnSettingsOpen, isGeocodeModalOpen, isGeocoding]);
+
+  const handleCancelGeocode = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setIsGeocoding(false);
+    setSingleGeocodingId(null);
+    setIsGeocodeModalOpen(false);
+    setGeocodeStatus('');
+    fetchStations();
+  };
 
   const handleSort = (key: keyof Station) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -232,9 +342,9 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
   };
 
   const deleteSelected = async () => {
-    if (!confirm(`Na pewno usunąć wybrane stacje (${selectedIds.length})?`)) return;
+    if (!confirm(`Na pewno chcesz bezpowrotnie usunąć wybrane stacje (${selectedIds.length})?`)) return;
     const { error } = await supabase.from('stations').delete().in('id', selectedIds);
-    if (error) alert('Błąd usuwania. Użyj SQL Editora by usunąć wielkie zbiory danych naraz.');
+    if (error) alert('Błąd usuwania. Upewnij się, że stacje nie mają przypisanych otwartych zgłoszeń.');
     else { setSelectedIds([]); fetchStations(); }
   };
 
@@ -255,14 +365,48 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
 
   const missingGpsCount = stations.filter(s => !s.lat || !s.lng).length;
 
-  const handleGeocodeMissing = async () => {
-    const missing = stations.filter(s => !s.lat || !s.lng);
-    if (missing.length === 0) return;
+  const handleGeocodeSingle = async (station: Station) => {
+    if (isGeocoding || singleGeocodingId) return;
+    setSingleGeocodingId(station.id);
+    const cleanStreet = station.street ? station.street.replace(/\b(MOP|Mop|mop|A2|A1|A4|S3|S5|Mop Chociszewo|MOP Rogoziniec)\b/g, '').replace(/\s+/g, ' ').trim() : '';
+    const fullAddress = `${cleanStreet}, ${station.city || ''}, ${station.country || 'Polska'}`;
+
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}`, { headers: nominateHeaders });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.length > 0 && !isNaN(parseFloat(data[0].lat))) {
+          const lat = parseFloat(data[0].lat);
+          const lng = parseFloat(data[0].lon);
+          const { error } = await supabase.from('stations').update({ lat, lng }).eq('id', station.id);
+          if (error) alert(`Błąd zapisu współrzędnych: ${error.message}`);
+        } else {
+          alert('Adres nie został odnaleziony przez bazę map Nominatim.');
+        }
+      }
+    } catch (e) {
+      alert('Błąd sieci podczas geokodowania stacji.');
+    } finally {
+      setSingleGeocodingId(null);
+      fetchStations();
+    }
+  };
+
+  const handleGeocodeBatch = async (mode: 'selected' | 'all') => {
+    let targets = stations.filter(s => !s.lat || !s.lng);
+    if (mode === 'selected') {
+      targets = targets.filter(s => selectedIds.includes(s.id));
+    }
+    if (targets.length === 0) {
+      alert('Brak punktów spełniających kryteria geokodowania.');
+      return;
+    }
 
     setIsGeocoding(true);
-    
-    const addressGroups = new Map<string, typeof missing>();
-    missing.forEach(s => {
+    abortControllerRef.current = new AbortController();
+
+    const addressGroups = new Map<string, typeof targets>();
+    targets.forEach(s => {
       const c = s.city || '';
       const str = s.street || '';
       const ctry = s.country || 'Polska';
@@ -274,122 +418,141 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     let processed = 0;
     const totalGroups = addressGroups.size;
     let successUpdates = 0;
-    let failedUpdates = 0;
-    let lastDbError = '';
+    const groupsArray = Array.from(addressGroups.entries());
 
-    const nominateHeaders = { 'User-Agent': 'EkoenFSMDispatchSystem/6.0 (dispatch@ekoen.pl)' };
-
-    // FIX: Użycie Array.from() dla uniknięcia błędów ES5 Iterators podczas kompilacji Vercel
-    const addressGroupsEntries = Array.from(addressGroups.entries());
-
-    for (const [key, stList] of addressGroupsEntries) {
+    for (const [key, stList] of groupsArray) {
+      if (abortControllerRef.current?.signal.aborted) break;
       processed++;
-      setGeocodeStatus(`Szukanie adresu na mapie (${processed} z ${totalGroups} lokalizacji)...`);
+      setGeocodeStatus(`Szukanie lokalizacji (${processed} z ${totalGroups})...`);
 
       const [street, city, country] = key.split('|');
       let lat = null, lng = null;
+      const cleanStreet = street.replace(/\b(MOP|Mop|mop|A2|A1|A4|S3|S5|Mop Chociszewo|MOP Rogoziniec)\b/g, '').replace(/\s+/g, ' ').trim();
 
-      const cleanStreet = (str: string) => str.replace(/\b(MOP|Mop|mop|A2|A1|A4|S3|S5|Mop Chociszewo|MOP Rogoziniec)\b/g, '').replace(/\s+/g, ' ').trim();
-      const sClean = cleanStreet(street);
-      const cClean = city.trim();
-
-      if (sClean || cClean) {
+      if (cleanStreet || city) {
         try {
-          await new Promise(r => setTimeout(r, 1200)); 
-          let url = '';
-          if (sClean && cClean) {
-            url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${sClean}, ${cClean}, ${country}`)}`;
-          } else if (cClean) {
-            url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${cClean}, ${country}`)}`;
-          }
+          await new Promise((resolve, reject) => {
+            const timeout = setTimeout(resolve, 1200);
+            abortControllerRef.current?.signal.addEventListener('abort', () => {
+              clearTimeout(timeout);
+              reject(new Error('aborted'));
+            });
+          });
 
-          if (url) {
-            const res = await fetch(url, { headers: nominateHeaders });
-            if (res.ok) {
-              const data = await res.json();
-              if (data && data.length > 0 && !isNaN(parseFloat(data[0].lat))) {
-                lat = parseFloat(data[0].lat);
-                lng = parseFloat(data[0].lon);
-              }
+          const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${cleanStreet}, ${city}, ${country}`)}`;
+          const res = await fetch(url, { headers: nominateHeaders, signal: abortControllerRef.current?.signal });
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.length > 0 && !isNaN(parseFloat(data[0].lat))) {
+              lat = parseFloat(data[0].lat);
+              lng = parseFloat(data[0].lon);
             }
           }
         } catch (e) {
-          console.warn("Geocode error", e);
+          console.log("Przerwano zapytanie");
         }
       }
 
-      if (lat && lng) {
-        setGeocodeStatus(`Zapisywanie współrzędnych do bazy danych...`);
+      if (lat && lng && !abortControllerRef.current?.signal.aborted) {
         for (const s of stList) {
           const offsetLat = lat + (Math.random() - 0.5) * 0.0001;
           const offsetLng = lng + (Math.random() - 0.5) * 0.0001;
-          
-          const { error } = await supabase.from('stations')
-            .update({ lat: offsetLat, lng: offsetLng })
-            .eq('id', s.id);
-
-          if (error) {
-            console.error("Błąd zapisu bazy:", error);
-            lastDbError = error.message;
-            failedUpdates++;
-          } else {
-            successUpdates++;
-          }
+          await supabase.from('stations').update({ lat: offsetLat, lng: offsetLng }).eq('id', s.id);
+          successUpdates++;
         }
-      } else {
-        failedUpdates += stList.length;
       }
     }
 
-    setGeocodeStatus(`Zakończono! Zaktualizowano pomyślnie: ${successUpdates}. Brakujące adresy: ${failedUpdates}.`);
-    if (lastDbError) {
-      alert(`Wystąpił błąd Supabase podczas aktualizacji niektórych stacji: ${lastDbError}`);
-    }
-    
     setIsGeocoding(false);
+    setIsGeocodeModalOpen(false);
+    setGeocodeStatus('');
+    setSelectedIds([]);
     fetchStations();
   };
 
   const renderCellContent = (station: Station, key: ColumnKey) => {
     switch (key) {
       case 'select':
-        return <input type="checkbox" checked={selectedIds.includes(station.id)} onChange={() => toggleSelect(station.id)} className="rounded text-[#58b347] focus:ring-[#58b347] w-3.5 h-3.5" />;
+        return (
+          <div className="flex justify-center">
+            <CustomCheckbox checked={selectedIds.includes(station.id)} onChange={() => toggleSelect(station.id)} />
+          </div>
+        );
       case 'actions':
         return (
-          <div className="flex justify-center gap-1">
-            <button onClick={() => onFocusStation(station)} disabled={!station.lat} className={`${station.lat ? 'text-slate-400 hover:text-blue-500 hover:bg-blue-50 cursor-pointer' : 'text-slate-200 cursor-not-allowed'} p-1 rounded transition-colors`} title={station.lat ? "Zlokalizuj na mapie" : "Brak współrzędnych"}><IconMapPin /></button>
-            <button onClick={() => setEditingStation(station)} className="text-slate-400 hover:text-[#58b347] hover:bg-green-50 p-1 rounded transition-colors" title="Edytuj sprzęt"><IconEdit /></button>
+          <div className="flex justify-center gap-2">
+            <button onClick={() => onFocusStation(station)} disabled={!station.lat} className={`${station.lat ? 'text-slate-400 hover:text-blue-500 hover:bg-blue-50 cursor-pointer' : 'text-slate-200 cursor-not-allowed'} p-1.5 rounded-lg transition-colors`} title={station.lat ? "Pokaż lokalizację na mapie" : "Brak współrzędnych"}><IconMapPin /></button>
+            <button onClick={() => setEditingStation(station)} className="text-slate-400 hover:text-[#58b347] hover:bg-[#58b347]/10 p-1.5 rounded-lg transition-colors" title="Edytuj dane stacji"><IconEdit /></button>
           </div>
         );
       case 'name':
         return (
-          <span className="cursor-pointer hover:text-[#58b347] transition-colors" onClick={() => setAdvancedDetailsStation(station)} title="Analityka stacji">
+          <span className="cursor-pointer font-bold text-slate-800 hover:text-[#58b347] transition-colors border-b border-transparent hover:border-[#58b347]/30 pb-0.5" onClick={() => setAdvancedDetailsStation(station)} title={`Szczegóły: ${station.name}`}>
             {station.name}
           </span>
         );
-      case 'client': return station.client || '-';
+      case 'client': return <span title={station.client || ''}>{station.client || '-'}</span>;
       case 'location':
         return (
-          <div className="flex items-center gap-1.5">
-            {(!station.lat || !station.lng) && <span title="Brak koordynatów GPS - uzupełnij ręcznie w edycji lub geokoduj"><IconNoLocation /></span>}
-            {station.city ? `${station.city}, ${station.street}` : '-'}
+          <div className="flex items-center justify-between w-full h-full pr-1">
+            <span className="truncate" title={station.city ? `${station.city}, ${station.street}` : ''}>
+              {station.city ? `${station.city}, ${station.street}` : '-'}
+            </span>
+            {(!station.lat || !station.lng) && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleGeocodeSingle(station); }}
+                disabled={singleGeocodingId !== null || isGeocoding}
+                className="p-1 rounded-md hover:bg-orange-50 text-orange-500 hover:text-orange-600 transition-colors disabled:opacity-30 cursor-pointer shrink-0"
+                title="Geokoduj ten adres punktowo"
+              >
+                {singleGeocodingId === station.id ? (
+                  <div className="w-3.5 h-3.5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <IconNoLocation />
+                )}
+              </button>
+            )}
           </div>
         );
-      case 'region':
-        return station.region ? <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold border border-slate-200">{station.region}</span> : <span className="text-[10px] text-slate-400 italic">Brak</span>;
-      case 'model': return station.model || '-';
+      case 'region': {
+        const regions = parseMultipleValues(station.region);
+        if (regions.length === 0) {
+          return <span className="inline-flex px-2 py-0.5 bg-red-50 text-red-600 rounded text-[9px] font-bold border border-red-200 uppercase tracking-widest whitespace-nowrap">Poza regionem</span>;
+        }
+        if (regions.length > 1) {
+          return <MultiItemBadge mainText={regions[0]} allItems={regions} type="region" />;
+        }
+        return (
+          <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-bold border border-slate-200 uppercase tracking-widest whitespace-nowrap block truncate" title={regions[0]}>
+            {regions[0]}
+          </span>
+        );
+      }
+      case 'model': return <span title={station.model || ''}>{station.model || '-'}</span>;
       case 'inspection_date': return station.inspection_date || '-';
       case 'last_ticket_date': return getDaysSince(station.last_ticket_date);
-      case 'technician':
-        return station.technician ? <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-green-50 text-green-700 border border-green-200">{station.technician}</span> : <span className="text-[10px] text-slate-400 italic">Brak pokrycia</span>;
+      case 'technician': {
+        const techs = parseMultipleValues(station.technician);
+        if (techs.length === 0) {
+          return <span className="inline-flex px-2 py-0.5 bg-red-50 text-red-600 rounded text-[9px] font-bold border border-red-200 uppercase tracking-widest whitespace-nowrap">Brak opiekuna</span>;
+        }
+        if (techs.length > 1) {
+          return <MultiItemBadge mainText={techs[0]} allItems={techs} type="tech" />;
+        }
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-[#58b347]/10 text-[#499b3a] border border-[#58b347]/20 uppercase tracking-widest whitespace-nowrap block truncate" title={techs[0]}>
+            {techs[0]}
+          </span>
+        );
+      }
       case 'status':
         return (
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${getStatusBadge(station.status)}`}>
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[9px] font-bold border uppercase tracking-wider ${getStatusBadge(station.status)}`}>
             <div className={`w-1.5 h-1.5 rounded-full ${getStatusDot(station.status)}`} />
             {station.status}
           </span>
         );
-      case 'additional_info': return station.additional_info || '-';
+      case 'additional_info': return <span className="truncate block" title={station.additional_info || ''}>{station.additional_info || '-'}</span>;
       case 'country': return station.country || '-';
       case 'lat': return station.lat ? station.lat.toFixed(6) : '-';
       case 'lng': return station.lng ? station.lng.toFixed(6) : '-';
@@ -397,6 +560,10 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
       default: return null;
     }
   };
+
+  const selectedMissingGpsCount = useMemo(() => {
+    return stations.filter(s => (!s.lat || !s.lng) && selectedIds.includes(s.id)).length;
+  }, [stations, selectedIds]);
 
   const handleImportStations = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -435,22 +602,20 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     }
 
     if (isPrivate) {
-      alert("UWAGA: Twój arkusz jest zablokowany (Prywatny)!\n\nMusisz wejść w arkusz, kliknąć zielony przycisk 'Udostępnij' i zmienić dostęp na 'Każdy, kto ma link'.");
+      alert("UWAGA: Arkusz jest prywatny. Zmień uprawnienia na 'Każdy, kto ma link'.");
       setIsImporting(false); setImportStatus(''); return;
     }
 
     if (!csvText) {
-      alert('Nie udało się pobrać danych z arkusza. Upewnij się, że ma poprawne uprawnienia (Każdy, kto ma link).');
+      alert('Nie udało się pobrać danych z arkusza.');
       setIsImporting(false); setImportStatus(''); return;
     }
 
     const delimiter = csvText.split('\n')[0].includes(';') ? ';' : ',';
-    
     const parsedData = parseCSV(csvText, delimiter);
-    if (parsedData.length < 2) { alert('Arkusz nie zawiera wierszy z danymi.'); setIsImporting(false); return; }
+    if (parsedData.length < 2) { alert('Arkusz nie zawiera danych.'); setIsImporting(false); return; }
 
     const headers = parsedData[0].map(h => h.toLowerCase());
-
     const getColIndex = (names: string[]) => headers.findIndex(h => names.some(n => h === n || h.includes(n)));
     
     const idxName = getColIndex(['identyfikator', 'nazwa', 'name']);
@@ -462,25 +627,18 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     const idxDate = getColIndex(['przegląd', 'data', 'inspection']);
 
     if (idxName === -1) {
-      alert('Błąd: Nie odnaleziono nagłówka "Identyfikator" w arkuszu.');
+      alert('Błąd: Nie odnaleziono nagłówka "Identyfikator".');
       setIsImporting(false); return;
     }
 
     const rows = parsedData.slice(1);
-    
     setImportStatus(`Mapowanie ${rows.length} rekordów...`);
-    
     const finalPayloads = [];
-    let emptyIdCount = 0; 
 
     for (let i = 0; i < rows.length; i++) {
       const vals = rows[i];
       const nameVal = vals[idxName];
-      
-      if (!nameVal) {
-        emptyIdCount++;
-        continue;
-      }
+      if (!nameVal) continue;
 
       let cityVal = idxCity !== -1 ? vals[idxCity] : '';
       let streetVal = idxStreet !== -1 ? vals[idxStreet] : '';
@@ -499,178 +657,206 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
     }
 
     let successCount = 0;
-    let failedChunks = 0; 
-    let lastError = '';
-
     for (let i = 0; i < finalPayloads.length; i += 100) {
       const chunk = finalPayloads.slice(i, i + 100);
-      setImportStatus(`Zapisywanie w bazie (${i + chunk.length}/${finalPayloads.length})...`);
-      
+      setImportStatus(`Zapisywanie (${i + chunk.length}/${finalPayloads.length})...`);
       const { error } = await supabase.from('stations').insert(chunk);
-      if (error) {
-        console.error("Błąd zapisu Supabase paczki:", error);
-        lastError = error.message;
-        failedChunks++;
-      } else {
-        successCount += chunk.length;
-      }
+      if (!error) successCount += chunk.length;
     }
 
-    let alertMessage = `Gotowe! Zapisano w bazie: ${successCount} stacji.\n`;
-    if (emptyIdCount > 0) alertMessage += `\n⚠️ Zignorowano ${emptyIdCount} wierszy, ponieważ miały pustą komórkę "Identyfikator" (np. puste wiersze na dole arkusza).`;
-    if (failedChunks > 0) alertMessage += `\n❌ Baza danych odrzuciła ${failedChunks} paczek danych. Ostatni błąd: ${lastError}`;
-    
-    alert(alertMessage);
-
+    alert(`Gotowe! Zaimportowano ${successCount} stacji.`);
     setIsImporting(false); setIsImportModalOpen(false); setSheetUrl(''); setImportStatus('');
     fetchStations();
   };
 
   return (
-    <div className="absolute inset-0 left-[72px] bg-slate-50 z-40 p-6 overflow-y-auto">
-      <div className="max-w-[1600px] mx-auto flex justify-between items-center mb-6">
+    <div className="absolute inset-0 left-[72px] bg-slate-100/60 backdrop-blur-2xl border-l border-white/20 z-40 overflow-hidden flex flex-col font-sans transition-all duration-300 ease-out shadow-[-10px_0_30px_rgba(0,0,0,0.05)]">
+      
+      {/* Pasek Nawigacji */}
+      <div className="bg-white/70 backdrop-blur-md border-b border-white/40 px-6 py-4 flex justify-between items-center shrink-0">
+        <div className={`transition-all duration-300 ease-in-out ${isSidebarHovered ? 'ml-[184px]' : 'ml-0'}`}>
+          <h1 className="text-xl font-bold text-slate-800 tracking-tight">Katalog Stacji i Regionów</h1>
+          <p className="text-xs text-slate-500 mt-1 font-medium">Zarządzanie infrastrukturą ładowania i jej lokalizacją.</p>
+        </div>
         <div>
-          <h1 className="text-xl font-bold text-slate-800">Baza stacji i regionów</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Wyświetlam {processedStations.length} z {stations.length} punktów</p>
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-white/50 border border-slate-200/50 px-3 py-1.5 rounded-lg shadow-sm">
+            Widocznych: <strong className="text-slate-800">{processedStations.length} / {stations.length}</strong>
+          </span>
         </div>
-        
-        <div className="flex gap-2 items-center">
-          <div className="relative">
-            <IconSearch />
-            <input 
-              type="text" 
-              placeholder="Szukaj (klient, model, miasto...)" 
-              value={searchTerm} 
-              onChange={e => setSearchTerm(e.target.value)} 
-              className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-[#58b347] w-[260px] shadow-sm"
-            />
-          </div>
+      </div>
 
-          <div className="relative">
-            <button onClick={() => setIsColumnSettingsOpen(!isColumnSettingsOpen)} className={`bg-white border text-slate-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors ${isColumnSettingsOpen ? 'border-[#58b347] text-[#58b347]' : 'border-slate-200'}`}>
-              <IconColumns /> Widok
-            </button>
-            
-            {isColumnSettingsOpen && (
-              <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-lg shadow-xl z-50 overflow-hidden">
-                <div className="text-[10px] font-bold text-slate-400 uppercase bg-slate-50 px-3 py-2 border-b border-slate-100 flex justify-between items-center">
-                  Zarządzaj kolumnami
-                  <button onClick={() => setIsColumnSettingsOpen(false)} className="hover:text-slate-700">✕</button>
-                </div>
-                <div className="p-1 max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
-                  {columns.map((c, i) => (
-                    <div key={c.key} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded group">
-                      <div className="flex items-center gap-2.5">
-                        <input type="checkbox" checked={c.visible} onChange={() => toggleColumnVisibility(i)} className="rounded text-[#58b347] focus:ring-[#58b347] w-3.5 h-3.5 cursor-pointer" />
-                        <span className={`text-xs font-medium ${c.visible ? 'text-slate-700' : 'text-slate-400'}`}>{c.label === '☑' ? 'Zaznaczanie' : c.label}</span>
-                      </div>
-                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => moveColumn(i, -1)} disabled={i === 0} className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded disabled:opacity-20"><IconArrowUp /></button>
-                        <button onClick={() => moveColumn(i, 1)} disabled={i === columns.length - 1} className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded disabled:opacity-20"><IconArrowDown /></button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+      <div className="flex-1 overflow-y-auto p-6 scrollbar-hide flex justify-center">
+        <div className="w-full max-w-[1600px] flex flex-col h-full bg-white/95 backdrop-blur-sm border border-white/60 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+          
+          {/* PASEK NARZĘDZI */}
+          <div className="p-5 border-b border-slate-100/60 flex justify-between items-center bg-slate-50/50 shrink-0">
+            <div className="flex gap-3 items-center">
+              <div className="relative">
+                <IconSearch />
+                <input 
+                  type="text" 
+                  placeholder="Filtruj (ID, klient, miasto)..." 
+                  value={searchTerm} 
+                  onChange={e => setSearchTerm(e.target.value)} 
+                  className="pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 w-[280px] shadow-sm transition-all"
+                />
               </div>
-            )}
+
+              <div className="relative">
+                <button onClick={() => setIsColumnSettingsOpen(!isColumnSettingsOpen)} className={`bg-white border text-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors ${isColumnSettingsOpen ? 'border-[#58b347] text-[#58b347]' : 'border-slate-200'}`}>
+                  <IconColumns /> Kolumny
+                </button>
+                
+                {isColumnSettingsOpen && (
+                  <div className="absolute left-0 top-full mt-2 w-64 bg-white/95 backdrop-blur-2xl border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden animate-fadeIn">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase bg-slate-50 px-4 py-3 border-b border-slate-100 flex justify-between items-center tracking-widest">
+                      Konfiguracja widoku
+                      <button onClick={() => setIsColumnSettingsOpen(false)} className="hover:text-slate-700 transition-colors">✕</button>
+                    </div>
+                    <div className="p-2 max-h-[60vh] overflow-y-auto scrollbar-hide">
+                      {columns.map((c, i) => (
+                        <div key={c.key} className="flex items-center justify-between p-2.5 hover:bg-slate-50 rounded-xl group transition-colors cursor-pointer" onClick={() => toggleColumnVisibility(i)}>
+                          <div className="flex items-center gap-3">
+                            <CustomCheckbox checked={c.visible} onChange={() => {}} />
+                            <span className={`text-xs font-bold select-none ${c.visible ? 'text-slate-700' : 'text-slate-400'}`}>{c.label === '☑' ? 'Zaznaczanie' : c.label}</span>
+                          </div>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                            <button onClick={() => moveColumn(i, -1)} disabled={i === 0} className="p-1 text-slate-400 hover:text-[#58b347] hover:bg-green-50 rounded-md disabled:opacity-20 transition-colors"><IconArrowUp /></button>
+                            <button onClick={() => moveColumn(i, 1)} disabled={i === columns.length - 1} className="p-1 text-slate-400 hover:text-[#58b347] hover:bg-green-50 rounded-md disabled:opacity-20 transition-colors"><IconArrowDown /></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex gap-3 items-center">
+              {missingGpsCount > 0 && (
+                <button onClick={() => setIsGeocodeModalOpen(true)} className="bg-white border border-orange-200 text-orange-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-orange-50 hover:border-orange-300 flex items-center gap-2 shadow-sm transition-all animate-pulse">
+                  <IconRadar /> Brak GPS ({missingGpsCount})
+                </button>
+              )}
+
+              {selectedIds.length > 0 && (
+                <button onClick={deleteSelected} className="bg-red-50 border border-red-200 text-red-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-red-100 flex items-center gap-2 shadow-sm transition-all">
+                  <IconTrash /> Usuń wybrane ({selectedIds.length})
+                </button>
+              )}
+              
+              <div className="w-px h-6 bg-slate-200 mx-1"></div>
+
+              <button onClick={() => setIsImportModalOpen(true)} className="bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors">
+                <IconImport /> Import CSV
+              </button>
+              <button onClick={() => setIsAddModalOpen(true)} className="bg-[#58b347] text-white border border-[#499b3a] px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-[#499b3a] flex items-center gap-2 shadow-sm transition-colors">
+                <IconPlus /> Nowa stacja
+              </button>
+            </div>
           </div>
 
-          <div className="w-px h-6 bg-slate-200 mx-1"></div>
-
-          {missingGpsCount > 0 && (
-            <button onClick={() => setIsGeocodeModalOpen(true)} className="bg-white border border-orange-300 text-orange-600 px-3 py-2 rounded-lg text-xs font-medium hover:bg-orange-50 flex items-center gap-2 shadow-sm transition-colors animate-pulse">
-              <IconRadar /> Brak GPS ({missingGpsCount})
-            </button>
-          )}
-
-          {selectedIds.length > 0 && (
-            <button onClick={deleteSelected} className="bg-white border border-red-200 text-red-600 px-3 py-2 rounded-lg text-xs font-medium hover:bg-red-50 flex items-center gap-2 shadow-sm transition-colors">
-              <IconTrash /> Usuń ({selectedIds.length})
-            </button>
-          )}
-          <button onClick={() => setIsImportModalOpen(true)} className="bg-white border border-slate-200 text-slate-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors">
-            <IconImport /> Importuj
-          </button>
-          <button onClick={() => setIsAddModalOpen(true)} className="bg-[#58b347] text-white px-4 py-2 rounded-lg text-xs font-medium hover:bg-[#499b3a] flex items-center gap-2 shadow-sm transition-colors">
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-            Nowy punkt
-          </button>
+          {/* TABELA DANYCH */}
+          <div className="flex-1 overflow-x-auto overflow-y-auto scrollbar-hide">
+            <table className="w-full text-left border-collapse table-fixed min-w-[1000px]">
+              <thead>
+                <tr className="bg-slate-50/80 backdrop-blur-sm border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-widest sticky top-0 z-10 shadow-sm shadow-slate-100/50">
+                  {columns.filter(c => c.visible).map(c => (
+                    <th 
+                      key={c.key} 
+                      className={`py-4 px-3 ${c.thClass} ${c.sortableKey ? 'cursor-pointer hover:text-slate-800 hover:bg-slate-100/80 transition-colors' : ''}`}
+                      onClick={() => c.sortableKey && handleSort(c.sortableKey)}
+                    >
+                      {c.key === 'select' ? (
+                        <div className="flex justify-center">
+                          <CustomCheckbox 
+                            checked={selectedIds.length === processedStations.length && processedStations.length > 0} 
+                            onChange={toggleSelectAll} 
+                          />
+                        </div>
+                      ) : (
+                        <div className={`flex items-center gap-1.5 ${c.thClass.includes('text-center') ? 'justify-center' : ''}`}>
+                          {c.label} {c.sortableKey && <IconSort />}
+                        </div>
+                      )}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100/60 text-xs">
+                {isLoading ? (
+                  <tr><td colSpan={columns.filter(c => c.visible).length} className="p-12 text-center text-slate-400 font-bold">Ładowanie bazy stacji...</td></tr>
+                ) : processedStations.length === 0 ? (
+                  <tr><td colSpan={columns.filter(c => c.visible).length} className="p-12 text-center text-slate-400 font-bold">Brak wyników w bazie.</td></tr>
+                ) : (
+                  processedStations.map(station => (
+                    <tr key={station.id} className={`hover:bg-slate-50/80 transition-colors ${selectedIds.includes(station.id) ? 'bg-[#58b347]/5 hover:bg-[#58b347]/10' : ''}`}>
+                      {columns.filter(c => c.visible).map(c => (
+                        <td key={c.key} className={`py-3 px-3 ${c.tdClass}`}>
+                          {renderCellContent(station, c.key)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-[1600px] mx-auto bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-200 min-h-[500px]">
-          <table className="w-full text-left border-collapse table-auto">
-            <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                {columns.filter(c => c.visible).map(c => (
-                  <th 
-                    key={c.key} 
-                    className={`py-3 px-3 ${c.thClass} ${c.sortableKey ? 'cursor-pointer hover:bg-slate-100 transition-colors' : ''}`}
-                    onClick={() => c.sortableKey && handleSort(c.sortableKey)}
-                  >
-                    {c.key === 'select' ? (
-                      <input type="checkbox" checked={selectedIds.length === processedStations.length && processedStations.length > 0} onChange={toggleSelectAll} className="rounded text-[#58b347] focus:ring-[#58b347] w-3.5 h-3.5" />
-                    ) : (
-                      <div className={`flex items-center gap-1 ${c.thClass.includes('text-center') ? 'justify-center' : ''}`}>
-                        {c.label} {c.sortableKey && <IconSort />}
-                      </div>
-                    )}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-xs">
-              {isLoading ? (
-                <tr><td colSpan={columns.filter(c => c.visible).length} className="p-8 text-center text-slate-400">Ładowanie bazy stacji...</td></tr>
-              ) : processedStations.length === 0 ? (
-                <tr><td colSpan={columns.filter(c => c.visible).length} className="p-8 text-center text-slate-400">Brak wyników do wyświetlenia.</td></tr>
-              ) : (
-                processedStations.map(station => (
-                  <tr key={station.id} className={`hover:bg-slate-50/40 transition-colors ${selectedIds.includes(station.id) ? 'bg-green-50/10' : ''}`}>
-                    {columns.filter(c => c.visible).map(c => (
-                      <td key={c.key} className={`py-2.5 px-3 ${c.tdClass}`}>
-                        {renderCellContent(station, c.key)}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
+      {/* --- MODALE --- */}
       <AddStationModal isOpen={isAddModalOpen || !!editingStation} onClose={() => { setIsAddModalOpen(false); setEditingStation(null); }} initialLatLng={null} onSuccess={fetchStations} editingStation={editingStation} />
 
       {advancedDetailsStation && (
         <StationAnalytics station={advancedDetailsStation} onClose={() => setAdvancedDetailsStation(null)} />
       )}
 
+      {/* MODAL GEOLOKALIZACJI */}
       {isGeocodeModalOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" onClick={() => !isGeocoding && setIsGeocodeModalOpen(false)}>
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden border border-slate-200" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-slate-50 px-5 py-4 border-b border-slate-200 flex justify-between items-center">
-              <h3 className="text-sm font-semibold text-slate-800">Lokalizowanie na mapie</h3>
-              <button onClick={() => !isGeocoding && setIsGeocodeModalOpen(false)} disabled={isGeocoding} className="text-slate-400 hover:text-slate-600 disabled:opacity-50">✕</button>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fadeIn" onClick={() => !isGeocoding && handleCancelGeocode()}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-slideUp" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-slate-800 px-6 py-5 border-b border-slate-700 flex justify-between items-center text-white">
+              <h3 className="text-sm font-extrabold uppercase tracking-widest flex items-center gap-2"><IconRadar /> Moduł Geokodowania</h3>
+              <button onClick={handleCancelGeocode} className="text-slate-400 hover:text-white transition-colors">✕</button>
             </div>
-            <div className="p-5 space-y-4">
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 text-xs text-slate-600 space-y-2">
-                <p>System spróbuje automatycznie odnaleźć koordynaty GPS dla <strong>{missingGpsCount} stacji</strong>.</p>
-                <p className="text-slate-500 mt-1">Dzięki grupowaniu po adresach proces ten będzie znacznie szybszy i bezpieczniejszy dla serwerów map.</p>
+            <div className="p-6 space-y-5">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-600 space-y-2">
+                <p>Wskaż zakres automatycznego odnajdywania koordynatów GPS za pomocą serwera OpenStreetMap.</p>
+                <div className="text-[11px] text-slate-500 pt-1 space-y-1">
+                  <p>• Wszystkie braki w systemie: <strong className="text-slate-700">{missingGpsCount} stacji</strong></p>
+                  <p>• Tylko zaznaczone z ptaszkiem: <strong className="text-slate-700">{selectedMissingGpsCount} stacji</strong></p>
+                </div>
               </div>
               
-              {isGeocoding || geocodeStatus ? (
-                <div className="bg-orange-50 p-4 rounded-lg border border-orange-100 flex items-center gap-3">
-                  {isGeocoding && <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>}
-                  <p className="text-xs font-medium text-orange-700">{geocodeStatus}</p>
+              {isGeocoding && (
+                <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 flex items-center gap-3">
+                  <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin shrink-0" />
+                  <p className="text-xs font-bold text-orange-700">{geocodeStatus}</p>
                 </div>
-              ) : null}
+              )}
 
-              <div className="flex gap-2 pt-2">
-                <button type="button" disabled={isGeocoding} onClick={() => setIsGeocodeModalOpen(false)} className="flex-1 bg-slate-100 text-slate-700 font-medium py-2.5 rounded text-sm hover:bg-slate-200 disabled:opacity-50">Zamknij</button>
-                <button type="button" disabled={isGeocoding} onClick={handleGeocodeMissing} className="flex-1 bg-orange-500 text-white font-medium py-2.5 rounded text-sm hover:bg-orange-600 disabled:opacity-50">
-                  {isGeocoding ? 'Przetwarzanie...' : 'Uruchom wyszukiwanie'}
+              <div className="flex flex-col gap-2 pt-2">
+                <div className="flex gap-2">
+                  <button type="button" onClick={handleCancelGeocode} className="flex-1 bg-slate-100 text-slate-700 font-bold py-2.5 rounded-xl text-sm hover:bg-slate-200 transition-colors">
+                    {isGeocoding ? 'Przerwij i zamknij' : 'Zamknij'}
+                  </button>
+                  <button 
+                    type="button" 
+                    disabled={isGeocoding || selectedMissingGpsCount === 0} 
+                    onClick={() => handleGeocodeBatch('selected')} 
+                    className="flex-1 bg-blue-600 text-white font-bold py-2.5 rounded-xl text-xs hover:bg-blue-700 transition-colors disabled:opacity-40"
+                  >
+                    Skanuj zaznaczone
+                  </button>
+                </div>
+                <button 
+                  type="button" 
+                  disabled={isGeocoding || missingGpsCount === 0} 
+                  onClick={() => handleGeocodeBatch('all')} 
+                  className="w-full bg-orange-500 text-white font-bold py-2.5 rounded-xl text-sm hover:bg-orange-600 transition-colors disabled:opacity-40 shadow-sm"
+                >
+                  Skanuj wszystkie braki
                 </button>
               </div>
             </div>
@@ -678,28 +864,29 @@ export default function StationsDatabase({ onFocusStation }: { onFocusStation: (
         </div>
       )}
 
+      {/* MODAL IMPORTU */}
       {isImportModalOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" onClick={() => !isImporting && setIsImportModalOpen(false)}>
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden border border-slate-200" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-slate-50 px-5 py-4 border-b border-slate-200 flex justify-between items-center">
-              <h3 className="text-sm font-semibold text-slate-800">Szybki Import Danych (Bez GPS)</h3>
-              <button onClick={() => !isImporting && setIsImportModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fadeIn" onClick={() => !isImporting && setIsImportModalOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-slideUp" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-slate-800 px-6 py-5 border-b border-slate-700 flex justify-between items-center text-white">
+              <h3 className="text-sm font-extrabold uppercase tracking-widest flex items-center gap-2"><IconImport /> Import Bazy Danych</h3>
+              <button onClick={() => !isImporting && setIsImportModalOpen(false)} className="text-slate-400 hover:text-white transition-colors">✕</button>
             </div>
-            <div className="p-5 space-y-4">
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 text-xs text-slate-600 space-y-2">
-                <p className="font-bold text-slate-700">Wymagane kolumny w arkuszu:</p>
-                <p className="font-mono bg-white p-1.5 border rounded">Identyfikator, Model, Kraj, Miasto, Ulica, Klient</p>
-                <p className="text-red-500 font-medium pt-1">Pamiętaj o ustawieniu udostępniania arkusza na &quot;Każdy, kto ma link&quot;!</p>
+            <div className="p-6 space-y-5">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-600 space-y-2">
+                <p className="font-bold text-slate-800 uppercase tracking-widest text-[10px]">Wymagane kolumny w arkuszu:</p>
+                <p className="font-mono bg-white p-2 border rounded-lg text-slate-500 font-semibold shadow-inner leading-tight">Identyfikator, Model, Kraj, Miasto, Ulica, Klient, Przegląd</p>
+                <p className="text-red-500 font-bold pt-1">Pamiętaj o odblokowaniu udostępniania arkusza!</p>
               </div>
               <form onSubmit={handleImportStations} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Link do Arkusza Google</label>
-                  <input required type="url" disabled={isImporting} value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-[#58b347]" />
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Link z Google Sheets</label>
+                  <input required type="url" disabled={isImporting} value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} className="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all" placeholder="https://docs.google.com/..." />
                 </div>
-                {importStatus && <p className="text-[11px] text-[#58b347] font-medium bg-green-50 p-2.5 rounded border border-green-100 animate-pulse">{importStatus}</p>}
-                <div className="flex gap-2 pt-2">
-                  <button type="button" disabled={isImporting} onClick={() => setIsImportModalOpen(false)} className="flex-1 bg-slate-100 text-slate-700 font-medium py-2.5 rounded text-sm hover:bg-slate-200">Anuluj</button>
-                  <button type="submit" disabled={isImporting} className="flex-1 bg-[#58b347] text-white font-medium py-2.5 rounded text-sm hover:bg-[#499b3a] disabled:bg-slate-400">{isImporting ? 'Import...' : 'Uruchom'}</button>
+                {importStatus && <p className="text-[11px] text-[#58b347] font-bold bg-green-50 py-3 rounded-xl border border-green-100 text-center animate-pulse">{importStatus}</p>}
+                <div className="flex gap-3 pt-3">
+                  <button type="button" disabled={isImporting} onClick={() => setIsImportModalOpen(false)} className="flex-1 bg-slate-100 text-slate-700 font-bold py-2.5 rounded-xl text-sm hover:bg-slate-200 transition-colors">Anuluj</button>
+                  <button type="submit" disabled={isImporting} className="flex-1 bg-[#58b347] text-white font-bold py-2.5 rounded-xl text-sm hover:bg-[#499b3a] disabled:bg-slate-400 transition-colors shadow-sm shadow-[#58b347]/20">{isImporting ? 'Przetwarzanie...' : 'Uruchom Import'}</button>
                 </div>
               </form>
             </div>

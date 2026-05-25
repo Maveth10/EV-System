@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
@@ -22,7 +22,7 @@ import AnalyticsDashboard from './AnalyticsDashboard';
 
 import { buildOuterBoundary, mergeRegions, clipToBoundary, ensureMultiPolygon } from '../utils/geometryEngine';
 
-// Definiujemy kraje i ich kody
+// ZAKTUALIZOWANE ŹRÓDŁA DO ODCHUDZONYCH PLIKÓW GEOJSON
 const COUNTRY_SOURCES = [
   { url: '/poland.geojson', code: 'PL' },
   { url: '/slovakia.geojson', code: 'SK' }
@@ -30,6 +30,8 @@ const COUNTRY_SOURCES = [
 
 const IconFilter = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>;
 const IconRoute = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>;
+const IconPlus = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>;
+const IconLayers = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>;
 
 export default function ChargeMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -48,20 +50,22 @@ export default function ChargeMap() {
   
   const [savedSectorsList, setSavedSectorsList] = useState<Sector[]>([]);
   const [savedRegionsList, setSavedRegionsList] = useState<Sector[]>([]);
-
   const [allStations, setAllStations] = useState<Station[]>([]);
   
-  // Stany i Refy do zamykania okienek
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isRouteMenuOpen, setIsRouteMenuOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   const routeRef = useRef<HTMLDivElement>(null);
 
+  const [isSidebarHovered, setIsSidebarHovered] = useState(false);
+  
+  // ZAPALNIK DO ODŚWIEŻANIA TABELI
+  const [refreshDataTrigger, setRefreshDataTrigger] = useState(0);
+
   const [filters, setFilters] = useState({
     client: '', technician: '', model: '', status: '', dateFrom: '', dateTo: ''
   });
 
-  // OPTYMALIZATOR TRASY
   const [routeTechId, setRouteTechId] = useState('');
   const [isRouting, setIsRouting] = useState(false);
 
@@ -87,7 +91,6 @@ export default function ChargeMap() {
     return () => clearTimeout(timer);
   }, []);
 
-  // --- ZAMYKANIE OKIENEK (ESC + CLICK OUTSIDE) ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -145,28 +148,41 @@ export default function ChargeMap() {
     if (data) setAllStations(data as Station[]);
   }, []);
 
+  // --- POPRAWKA: BEZPOŚREDNIE POBIERANIE DANYCH Z BAZY + ODPORNY PARSER JSON ---
   const loadSavedSectors = useCallback(async () => {
-    const [techs, regs] = await Promise.all([
-      supabase.from('technicians').select('id, name, color, zone_geometry'),
-      supabase.from('regions').select('id, name, color, zone_geometry')
-    ]);
+    try {
+      const [techs, regs] = await Promise.all([
+        supabase.from('technicians').select('id, name, color, zone_geometry'),
+        supabase.from('regions').select('id, name, color, zone_geometry')
+      ]);
 
-    if (techs.data) {
-      const mappedTechs = techs.data.map(d => ({ id: d.id, name: d.name, color: d.color, geometry: d.zone_geometry }));
-      setSavedSectorsList(mappedTechs);
-      if (map.current?.getSource('saved-sectors')) {
-        const features = mappedTechs.filter(t => t.geometry).map(t => ({ type: 'Feature', geometry: t.geometry, properties: { id: t.id, name: t.name, color: t.color }}));
-        (map.current.getSource('saved-sectors') as maplibregl.GeoJSONSource).setData({ type: 'FeatureCollection', features } as any);
-      }
-    }
+      const parseGeom = (g: any) => {
+        if (!g) return null;
+        if (typeof g === 'string') {
+          try { return JSON.parse(g); } catch(e) { return null; }
+        }
+        return g;
+      };
 
-    if (regs.data) {
-      const mappedRegs = regs.data.map(d => ({ id: d.id, name: d.name, color: d.color, geometry: d.zone_geometry }));
-      setSavedRegionsList(mappedRegs);
-      if (map.current?.getSource('saved-regions')) {
-        const features = mappedRegs.filter(r => r.geometry).map(r => ({ type: 'Feature', geometry: r.geometry, properties: { id: r.id, name: r.name, color: r.color }}));
-        (map.current.getSource('saved-regions') as maplibregl.GeoJSONSource).setData({ type: 'FeatureCollection', features } as any);
+      if (techs.data) {
+        const mappedTechs = techs.data.map(d => ({ id: d.id, name: d.name, color: d.color, geometry: parseGeom(d.zone_geometry) }));
+        setSavedSectorsList(mappedTechs);
+        if (map.current?.getSource('saved-sectors')) {
+          const features = mappedTechs.filter(t => t.geometry).map(t => ({ type: 'Feature', geometry: t.geometry, properties: { id: t.id, name: t.name, color: t.color }}));
+          (map.current.getSource('saved-sectors') as maplibregl.GeoJSONSource).setData({ type: 'FeatureCollection', features } as any);
+        }
       }
+
+      if (regs.data) {
+        const mappedRegs = regs.data.map(d => ({ id: d.id, name: d.name, color: d.color, geometry: parseGeom(d.zone_geometry) }));
+        setSavedRegionsList(mappedRegs);
+        if (map.current?.getSource('saved-regions')) {
+          const features = mappedRegs.filter(r => r.geometry).map(r => ({ type: 'Feature', geometry: r.geometry, properties: { id: r.id, name: r.name, color: r.color }}));
+          (map.current.getSource('saved-regions') as maplibregl.GeoJSONSource).setData({ type: 'FeatureCollection', features } as any);
+        }
+      }
+    } catch (err) {
+      console.error('Błąd ładowania stref:', err);
     }
   }, []);
 
@@ -198,7 +214,6 @@ export default function ChargeMap() {
       });
       map.current.on('click', () => setContextMenu(null));
 
-      // WARSTWY TRASY (OSRM)
       map.current.addSource('optimized-route', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] }
@@ -209,7 +224,7 @@ export default function ChargeMap() {
         type: 'line',
         source: 'optimized-route',
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#58b347', 'line-width': 10, 'line-opacity': 0.3 }
+        paint: { 'line-color': '#3b82f6', 'line-width': 10, 'line-opacity': 0.3 }
       });
 
       map.current.addLayer({
@@ -217,10 +232,9 @@ export default function ChargeMap() {
         type: 'line',
         source: 'optimized-route',
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#499b3a', 'line-width': 4, 'line-dasharray': [2, 2] }
+        paint: { 'line-color': '#2563eb', 'line-width': 4, 'line-dasharray': [2, 2] }
       });
 
-      // ŹRÓDŁO KLASTRÓW STACJI
       map.current.addSource('stations-data', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
@@ -310,7 +324,6 @@ export default function ChargeMap() {
       map.current.on('mouseenter', 'unclustered-point', () => { map.current!.getCanvas().style.cursor = 'pointer'; });
       map.current.on('mouseleave', 'unclustered-point', () => { map.current!.getCanvas().style.cursor = ''; });
 
-      // Strefy i Województwa
       map.current.addSource('saved-regions', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.current.addLayer({ id: 'saved-regions-layer', type: 'fill', source: 'saved-regions', layout: { visibility: 'none' }, paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.1 } });
       map.current.addLayer({ id: 'saved-regions-outline', type: 'line', source: 'saved-regions', layout: { visibility: 'none' }, paint: { 'line-color': ['get', 'color'], 'line-width': 3, 'line-dasharray': [2, 2] } });
@@ -453,7 +466,6 @@ export default function ChargeMap() {
     });
   }, [loadStations, loadSavedSectors]); 
 
-  // WSTRZYKIWANIE STACJI DO SILNIKA KLASTROWANIA
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
 
@@ -488,7 +500,6 @@ export default function ChargeMap() {
 
   }, [allStations, filters, isMapLoaded]);
 
-  // LOGIKA WYZNACZANIA TRASY (OSRM)
   const handleCalculateRoute = async () => {
     if (!map.current || !routeTechId) return;
 
@@ -502,7 +513,7 @@ export default function ChargeMap() {
       if (error) throw new Error(error.message);
 
       if (!tickets || tickets.length < 2) {
-        alert('Technik musi mieć przypisane co najmniej 2 otwarte zadania, aby wyznaczyć zoptymalizowaną trasę przejazdu.');
+        alert('Technik musi mieć przypisane co najmniej 2 otwarte zadania, aby wyznaczyć trasę.');
         clearRoute();
         return;
       }
@@ -519,13 +530,13 @@ export default function ChargeMap() {
       const response = await fetch(`https://router.project-osrm.org/trip/v1/driving/${coordsString}?source=first&roundtrip=false&geometries=geojson`);
       
       if (!response.ok) {
-        throw new Error(`Serwer drogowy OSRM odrzucił zapytanie (Kod ${response.status}). Spróbuj ponownie później.`);
+        throw new Error(`Błąd OSRM (${response.status})`);
       }
 
       const data = await response.json();
 
       if (data.code !== 'Ok' || !data.trips || data.trips.length === 0) {
-        alert('Błąd silnika drogowego: Nie potrafię połączyć tych punktów trasą dla samochodów.');
+        alert('Błąd silnika drogowego: Nie potrafię połączyć tych punktów trasą.');
         return;
       }
 
@@ -547,7 +558,7 @@ export default function ChargeMap() {
 
     } catch (err: any) {
       console.error(err);
-      alert(`Wystąpił problem: ${err.message || 'Nieudane wyznaczanie trasy'}`);
+      alert(`Wystąpił problem: ${err.message}`);
     } finally {
       setIsRouting(false);
     }
@@ -560,7 +571,27 @@ export default function ChargeMap() {
     setIsRouteMenuOpen(false);
   };
 
-  const selectAllPoland = useCallback(() => {}, []);
+  const selectAllPoland = useCallback(() => {
+    if (!map.current || !regionsGeoJsonRef.current) return;
+
+    handleSetDrawMethod('click');
+    setDrawingState(true);
+
+    let selectedCount = 0;
+
+    regionsGeoJsonRef.current.features.forEach((f: any) => {
+      if (f.properties.countryCode === 'PL') {
+        const fId = f.properties.customId;
+        selectedRegionIds.current.add(fId);
+        map.current!.setFeatureState({ source: 'regions-data', id: fId }, { selected: true });
+        selectedCount++;
+      }
+    });
+
+    if (selectedCount === 0) {
+      alert("System jeszcze ładuje granice administracyjne państw. Spróbuj za chwilę.");
+    }
+  }, []);
 
   const handleStartDrawingNew = (techName: string, color: string, mode: 'insert' | 'append' | 'update', targetType: 'technician' | 'region', sectorId?: string) => {
     if (!drawRef.current) return;
@@ -646,6 +677,18 @@ export default function ChargeMap() {
       }
     }
 
+    // --- KOMPRESJA PRECYZJI ---
+    const truncateCoordinates = (coords: any): any => {
+      if (typeof coords[0] === 'number') {
+        return [Number(coords[0].toFixed(5)), Number(coords[1].toFixed(5))];
+      }
+      return coords.map(truncateCoordinates);
+    };
+
+    if (finalGeometry && finalGeometry.coordinates) {
+      finalGeometry.coordinates = truncateCoordinates(finalGeometry.coordinates);
+    }
+
     const tableName = activeDrawContext.targetType === 'technician' ? 'technicians' : 'regions';
 
     if (activeDrawContext.mode === 'update' && activeDrawContext.sectorId) {
@@ -656,17 +699,53 @@ export default function ChargeMap() {
       if (error) { alert(`Błąd zapisu: ${error.message}`); return false; }
     }
 
+    try {
+      await supabase.rpc('refresh_station_zones');
+    } catch (e) {
+      console.warn("Błąd podczas odświeżania przypisań przestrzennych:", e);
+    }
+
     cancelDrawing(); 
     loadSavedSectors(); 
+    loadStations(); 
+    
+    setRefreshDataTrigger(prev => prev + 1);
+
     return true;
   };
 
-  const deleteSector = async (id: string, targetType: 'technician' | 'region') => {
-    if(!confirm('Na pewno wyczyścić cały obszar roboczy z mapy dla tego obiektu? (Dane pozostaną w bazie)')) return;
-    const tableName = targetType === 'technician' ? 'technicians' : 'regions';
+  const deleteSectorGeometry = async (id: string, targetType: 'technician' | 'region') => {
+    const isTech = targetType === 'technician';
+    if(!confirm(`Czy na pewno chcesz usunąć ZASIĘG z mapy dla tego ${isTech ? 'technika' : 'regionu'}? \n\nDane tego obiektu nie zostaną usunięte z systemu.`)) return;
+    
+    const tableName = isTech ? 'technicians' : 'regions';
     const { error } = await supabase.from(tableName).update({ zone_geometry: null }).eq('id', id);
-    if(error) alert('Błąd usuwania strefy z bazy');
-    else loadSavedSectors();
+    
+    if(error) {
+      alert(`Błąd czyszczenia mapy: ${error.message}`);
+    } else {
+      await supabase.rpc('refresh_station_zones');
+      loadSavedSectors();
+      loadStations(); 
+      setRefreshDataTrigger(prev => prev + 1);
+    }
+  };
+
+  const hardDeleteEntity = async (id: string, targetType: 'technician' | 'region') => {
+    const isTech = targetType === 'technician';
+    if(!confirm(`UWAGA!\nCzy na pewno chcesz BEZPOWROTNIE USUNĄĆ ten ${isTech ? 'sektor technika' : 'region'} z bazy danych?`)) return;
+    
+    const tableName = isTech ? 'technicians' : 'regions';
+    const { error } = await supabase.from(tableName).delete().eq('id', id);
+    
+    if(error) {
+      alert(`Błąd usuwania z bazy danych: ${error.message}`);
+    } else {
+      await supabase.rpc('refresh_station_zones');
+      loadSavedSectors();
+      loadStations(); 
+      setRefreshDataTrigger(prev => prev + 1);
+    }
   };
 
   const flyToStation = (station: any) => {
@@ -684,7 +763,12 @@ export default function ChargeMap() {
     <div className="relative w-full h-full bg-slate-50 overflow-hidden">
       {isAppLoading && <LoadingScreen />}
       <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
-      <Sidebar activeView={activeView} onChangeView={setActiveView} />
+      
+      <Sidebar 
+        activeView={activeView} 
+        onChangeView={setActiveView} 
+        onHover={setIsSidebarHovered} 
+      />
 
       {activeView === 'map' && (
         <>
@@ -710,40 +794,57 @@ export default function ChargeMap() {
             onSuccess={() => {
               loadStations();
               setSelectedStation(null);
+              setRefreshDataTrigger(prev => prev + 1);
             }} 
             editingStation={editingStationMap}
           />
 
           <SectorEditor 
-            isOpen={isSectorEditorOpen} onClose={() => { setIsSectorEditorOpen(false); cancelDrawing(); }} sectors={savedSectorsList} regions={savedRegionsList} isDrawingActive={isDrawingActive}
-            onStartDrawingNew={handleStartDrawingNew} onEditExisting={handleEditExisting} onSaveDrawing={handleSaveDrawing} onCancelDrawing={cancelDrawing} onDeleteSector={deleteSector} drawMethod={drawMethod} onSetDrawMethod={handleSetDrawMethod} onSelectAllPoland={selectAllPoland}
+            isOpen={isSectorEditorOpen} 
+            onClose={() => { setIsSectorEditorOpen(false); cancelDrawing(); }} 
+            sectors={savedSectorsList} 
+            regions={savedRegionsList} 
+            isDrawingActive={isDrawingActive}
+            onStartDrawingNew={handleStartDrawingNew} 
+            onEditExisting={handleEditExisting} 
+            onSaveDrawing={handleSaveDrawing} 
+            onCancelDrawing={cancelDrawing} 
+            onDeleteSector={deleteSectorGeometry} 
+            drawMethod={drawMethod} 
+            onSetDrawMethod={handleSetDrawMethod} 
+            onSelectAllPoland={selectAllPoland}
+            onHardDeleteEntity={hardDeleteEntity}
           />
 
-          <div className="absolute top-6 left-[96px] z-20 flex gap-3">
-            <button onClick={() => setIsAddModalOpen(true)} className="bg-white/95 backdrop-blur-md shadow-lg border border-slate-200 px-4 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-green-50 hover:text-[#58b347] transition-all flex items-center gap-2 text-sm">
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Dodaj stację
+          <div className={`absolute top-6 left-[96px] z-20 flex gap-3 transition-transform duration-300 ease-out ${isSidebarHovered ? 'translate-x-[184px]' : 'translate-x-0'}`}>
+            
+            <button onClick={() => setIsAddModalOpen(true)} className="bg-white/70 backdrop-blur-xl border border-white/50 shadow-lg px-4 py-2.5 rounded-xl text-slate-700 font-bold hover:bg-white/95 hover:text-[#58b347] transition-all flex items-center gap-2 text-sm">
+              <IconPlus /> Dodaj stację
             </button>
-            <button onClick={() => toggleSectorsVisibility()} className="bg-white/95 backdrop-blur-md shadow-lg border border-slate-200 px-4 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-green-50 hover:text-[#58b347] transition-all flex items-center gap-2 text-sm">
-              {showSectors ? 'Ukryj strefy' : 'Pokaż strefy'}
+            
+            <button onClick={() => toggleSectorsVisibility()} className="bg-white/70 backdrop-blur-xl border border-white/50 shadow-lg px-4 py-2.5 rounded-xl text-slate-700 font-bold hover:bg-white/95 hover:text-[#58b347] transition-all flex items-center gap-2 text-sm">
+              {showSectors ? 'Ukryj strefy' : <><IconLayers /> Pokaż strefy</>}
             </button>
 
-            {/* KONTENER FILTRÓW */}
             <div className="relative" ref={filterRef}>
-              <button onClick={() => { setIsFilterOpen(!isFilterOpen); setIsRouteMenuOpen(false); }} className={`backdrop-blur-md shadow-lg border px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${isFilterOpen || activeFiltersCount > 0 ? 'bg-green-50 text-[#58b347] border-[#58b347]' : 'bg-white/95 border-slate-200 text-slate-700 hover:bg-green-50 hover:text-[#58b347]'}`}>
+              <button 
+                onClick={() => { setIsFilterOpen(!isFilterOpen); setIsRouteMenuOpen(false); }} 
+                className={`shadow-lg border px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 text-sm ${isFilterOpen || activeFiltersCount > 0 ? 'bg-[#58b347]/15 backdrop-blur-xl border-[#58b347]/30 text-[#58b347] hover:bg-[#58b347]/25' : 'bg-white/70 backdrop-blur-xl border-white/50 text-slate-700 hover:bg-white/95 hover:text-[#58b347]'}`}
+              >
                 <IconFilter /> Filtry mapy {activeFiltersCount > 0 && `(${activeFiltersCount})`}
               </button>
 
               {isFilterOpen && (
-                <div className="absolute top-12 left-0 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 p-5 z-[100] flex flex-col gap-4">
-                  <div className="border-b border-slate-100 pb-2 flex justify-between items-center">
+                <div className="absolute top-12 left-0 w-80 bg-white/95 backdrop-blur-2xl rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-white/60 p-5 z-[100] flex flex-col gap-4 animate-fadeIn">
+                  <div className="border-b border-slate-100/60 pb-2 flex justify-between items-center">
                     <h3 className="font-bold text-slate-800 text-sm">Filtruj stacje</h3>
-                    {activeFiltersCount > 0 && <button onClick={() => setFilters({ client: '', technician: '', model: '', status: '', dateFrom: '', dateTo: '' })} className="text-xs text-red-500 hover:underline font-medium">Wyczyść filtry</button>}
+                    {activeFiltersCount > 0 && <button onClick={() => setFilters({ client: '', technician: '', model: '', status: '', dateFrom: '', dateTo: '' })} className="text-xs text-red-500 hover:underline font-bold">Wyczyść filtry</button>}
                   </div>
                   
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">Status zadania</label>
-                      <select value={filters.status} onChange={(e) => setFilters({...filters, status: e.target.value})} className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-[#58b347]">
+                      <label className="block text-xs font-bold text-slate-500 mb-1.5">Status zadania</label>
+                      <select value={filters.status} onChange={(e) => setFilters({...filters, status: e.target.value})} className="w-full text-sm font-semibold border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:border-[#58b347] bg-white/50">
                         <option value="">Wszystkie statusy</option>
                         <option value="Brak akcji">Brak akcji (Zielone)</option>
                         <option value="Uruchomienie">Uruchomienie (Fioletowe)</option>
@@ -753,15 +854,33 @@ export default function ChargeMap() {
                         <option value="Naprawa odpłatna">Naprawa odpłatna (Bursztynowe)</option>
                       </select>
                     </div>
-                    <div><label className="block text-xs font-medium text-slate-500 mb-1">Opiekun / Technik</label><select value={filters.technician} onChange={(e) => setFilters({...filters, technician: e.target.value})} className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-[#58b347]"><option value="">Wszyscy technicy</option>{uniqueTechnicians.map((t, idx) => <option key={idx} value={t}>{t}</option>)}</select></div>
-                    <div><label className="block text-xs font-medium text-slate-500 mb-1">Klient / Sieć</label><select value={filters.client} onChange={(e) => setFilters({...filters, client: e.target.value})} className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-[#58b347]"><option value="">Wszyscy klienci</option>{uniqueClients.map((c, idx) => <option key={idx} value={c}>{c}</option>)}</select></div>
-                    <div><label className="block text-xs font-medium text-slate-500 mb-1">Model ładowarki</label><select value={filters.model} onChange={(e) => setFilters({...filters, model: e.target.value})} className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-[#58b347]"><option value="">Wszystkie modele</option>{uniqueModels.map((m, idx) => <option key={idx} value={m}>{m}</option>)}</select></div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">Data przeglądu UDT (Okres)</label>
+                      <label className="block text-xs font-bold text-slate-500 mb-1.5">Opiekun / Technik</label>
+                      <select value={filters.technician} onChange={(e) => setFilters({...filters, technician: e.target.value})} className="w-full text-sm font-semibold border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:border-[#58b347] bg-white/50">
+                        <option value="">Wszyscy technicy</option>
+                        {uniqueTechnicians.map((t, idx) => <option key={idx} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1.5">Klient / Sieć</label>
+                      <select value={filters.client} onChange={(e) => setFilters({...filters, client: e.target.value})} className="w-full text-sm font-semibold border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:border-[#58b347] bg-white/50">
+                        <option value="">Wszyscy klienci</option>
+                        {uniqueClients.map((c, idx) => <option key={idx} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1.5">Model ładowarki</label>
+                      <select value={filters.model} onChange={(e) => setFilters({...filters, model: e.target.value})} className="w-full text-sm font-semibold border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:border-[#58b347] bg-white/50">
+                        <option value="">Wszystkie modele</option>
+                        {uniqueModels.map((m, idx) => <option key={idx} value={m}>{m}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1.5">Data przeglądu UDT (Okres)</label>
                       <div className="flex items-center gap-2">
-                        <input type="date" value={filters.dateFrom} onChange={(e) => setFilters({...filters, dateFrom: e.target.value})} className="w-full text-xs border border-slate-200 rounded p-1.5 focus:outline-none focus:border-[#58b347]" />
+                        <input type="date" value={filters.dateFrom} onChange={(e) => setFilters({...filters, dateFrom: e.target.value})} className="w-full text-xs font-semibold border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:border-[#58b347] bg-white/50" />
                         <span className="text-slate-400 text-xs">-</span>
-                        <input type="date" value={filters.dateTo} onChange={(e) => setFilters({...filters, dateTo: e.target.value})} className="w-full text-xs border border-slate-200 rounded p-1.5 focus:outline-none focus:border-[#58b347]" />
+                        <input type="date" value={filters.dateTo} onChange={(e) => setFilters({...filters, dateTo: e.target.value})} className="w-full text-xs font-semibold border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:border-[#58b347] bg-white/50" />
                       </div>
                     </div>
                   </div>
@@ -770,21 +889,24 @@ export default function ChargeMap() {
             </div>
 
             <div className="relative" ref={routeRef}>
-              <button onClick={() => { setIsRouteMenuOpen(!isRouteMenuOpen); setIsFilterOpen(false); }} className={`backdrop-blur-md shadow-lg border px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${isRouteMenuOpen ? 'bg-green-50 text-[#58b347] border-[#58b347]' : 'bg-white/95 border-slate-200 text-slate-700 hover:bg-green-50 hover:text-[#58b347]'}`}>
+              <button 
+                onClick={() => { setIsRouteMenuOpen(!isRouteMenuOpen); setIsFilterOpen(false); }} 
+                className={`shadow-lg border px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 text-sm ${isRouteMenuOpen ? 'bg-[#58b347]/15 backdrop-blur-xl border-[#58b347]/30 text-[#58b347] hover:bg-[#58b347]/25' : 'bg-white/70 backdrop-blur-xl border-white/50 text-slate-700 hover:bg-white/95 hover:text-[#58b347]'}`}
+              >
                 <IconRoute /> Trasy logistyczne
               </button>
 
               {isRouteMenuOpen && (
-                <div className="absolute top-12 left-0 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 p-5 z-[100] flex flex-col gap-4">
-                  <div className="border-b border-slate-100 pb-2">
+                <div className="absolute top-12 left-0 w-80 bg-white/95 backdrop-blur-2xl rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-white/60 p-5 z-[100] flex flex-col gap-4 animate-fadeIn">
+                  <div className="border-b border-slate-100/60 pb-2">
                     <h3 className="font-bold text-slate-800 text-sm">Wyznacz optymalną trasę</h3>
                     <p className="text-xs text-slate-500 mt-1">Połącz otwarte zadania technika najszybszą drogą drogową (API OSRM).</p>
                   </div>
                   
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">Wybierz technika mobilnego</label>
-                      <select value={routeTechId} onChange={(e) => setRouteTechId(e.target.value)} className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-[#58b347]">
+                      <label className="block text-xs font-bold text-slate-500 mb-1.5">Wybierz technika mobilnego</label>
+                      <select value={routeTechId} onChange={(e) => setRouteTechId(e.target.value)} className="w-full text-sm font-semibold border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:border-[#58b347] bg-white/50">
                         <option value="">Wybierz...</option>
                         {savedSectorsList.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                       </select>
@@ -793,12 +915,12 @@ export default function ChargeMap() {
                     <button 
                       onClick={handleCalculateRoute} 
                       disabled={isRouting || !routeTechId}
-                      className="w-full bg-[#58b347] text-white font-medium py-2 rounded-lg text-sm hover:bg-[#499b3a] transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
+                      className="w-full bg-[#58b347] text-white font-bold py-2.5 rounded-lg text-sm hover:bg-[#499b3a] transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed shadow-sm"
                     >
                       {isRouting ? 'Wyznaczanie...' : 'Oblicz optymalną trasę'}
                     </button>
                     
-                    <button onClick={clearRoute} className="w-full text-xs text-slate-500 hover:text-red-500 font-medium py-1 transition-colors">
+                    <button onClick={clearRoute} className="w-full text-xs text-slate-400 hover:text-red-500 font-bold py-1.5 transition-colors">
                       Wyczyść linię z mapy
                     </button>
                   </div>
@@ -810,13 +932,19 @@ export default function ChargeMap() {
         </>
       )}
 
-      {activeView === 'stations' && <StationsDatabase onFocusStation={flyToStation} />}
-      {activeView === 'technicians' && <TechniciansDatabase />}
+      {activeView === 'stations' && <StationsDatabase onFocusStation={flyToStation} isSidebarHovered={isSidebarHovered} refreshTrigger={refreshDataTrigger} />}
+      {activeView === 'technicians' && <TechniciansDatabase isSidebarHovered={isSidebarHovered} />}
       {activeView === 'tickets' && <TicketsDatabase />}
       {activeView === 'calendar' && <CalendarView />}
-      {activeView === 'equipment' && <EquipmentManager />}
+      {activeView === 'equipment' && <EquipmentManager isSidebarHovered={isSidebarHovered} />}
       {activeView === 'clients' && <ClientsDatabase />}
-      {activeView === 'analytics' && <AnalyticsDashboard />}
+      
+      {activeView === 'analytics' && (
+        <AnalyticsDashboard 
+          onChangeView={setActiveView} 
+          isSidebarHovered={isSidebarHovered} 
+        />
+      )}
     </div>
   );
 }

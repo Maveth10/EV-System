@@ -18,33 +18,117 @@ type Part = {
   service_status?: string | null;
   notes?: string | null;
   is_muted?: boolean;
+  mobile_muted?: boolean;
 };
 type Technician = { id: string; name: string; car_plate?: string | null; car_category?: string | null; sep_expiry?: string | null; contract_expiry?: string | null; color?: string; };
-type TechInventory = { id: string; technician_id: string; part_id: string; quantity: number; };
+type TechInventory = { id: string; technician_id: string; part_id: string; quantity: number; is_muted?: boolean; };
 type Log = { id: string; part_id: string; technician_id: string; operation_type: string; quantity: number; created_at: string; notes?: string; };
+
+type SearchQuery = { id: string; text: string; logic: 'AND' | 'OR' | 'NOT' };
+type CustomTabEq = { id: string; name: string; filterQueries: SearchQuery[] };
+
+// Dynamiczne kolumny (Klasyczne klasy Tabelaryczne z automatycznym dopasowaniem)
+type ColumnKey = 'select' | 'actions' | 'sku' | 'name' | 'category' | 'status' | 'stock';
+interface ColumnDef { key: ColumnKey; label: string; visible: boolean; sortableKey?: keyof Part | 'stock'; thClass: string; tdClass: string; }
+
+const defaultCentralColumns: ColumnDef[] = [
+  { key: 'select', label: '☑', visible: true, thClass: 'w-10 px-4 text-center', tdClass: 'w-10 px-4 text-center align-middle' },
+  { key: 'sku', label: 'SKU / INDEX', visible: true, sortableKey: 'sku', thClass: 'w-36 px-4', tdClass: 'w-36 px-4 align-middle' },
+  { key: 'name', label: 'ASORTYMENT / NR SERYJNY', visible: true, sortableKey: 'name', thClass: 'w-auto px-4', tdClass: 'px-4 align-middle' },
+  { key: 'category', label: 'KATEGORIA', visible: true, sortableKey: 'category', thClass: 'w-40 px-4', tdClass: 'w-40 px-4 align-middle' },
+  { key: 'status', label: 'STATUS / WAŻNOŚĆ', visible: true, sortableKey: 'service_status', thClass: 'w-48 px-4', tdClass: 'w-48 px-4 align-middle' },
+  { key: 'stock', label: 'STAN', visible: true, sortableKey: 'main_stock', thClass: 'w-24 px-4 text-center', tdClass: 'w-24 px-4 text-center align-middle' },
+  { key: 'actions', label: 'AKCJE', visible: true, thClass: 'w-28 px-4 text-right', tdClass: 'w-28 px-4 text-right align-middle opacity-0 group-hover:opacity-100 transition-opacity' },
+];
+
+const defaultMobileColumns: ColumnDef[] = [
+  { key: 'select', label: '☑', visible: false, thClass: 'w-10 px-4 text-center', tdClass: 'w-10 px-4 text-center align-middle' },
+  { key: 'sku', label: 'SKU / INDEX', visible: true, sortableKey: 'sku', thClass: 'w-36 px-4', tdClass: 'w-36 px-4 align-middle' },
+  { key: 'name', label: 'ASORTYMENT (W TERENIE)', visible: true, sortableKey: 'name', thClass: 'w-auto px-4', tdClass: 'px-4 align-middle' },
+  { key: 'category', label: 'KATEGORIA', visible: true, sortableKey: 'category', thClass: 'w-40 px-4', tdClass: 'w-40 px-4 align-middle' },
+  { key: 'status', label: 'STATUS / WAŻNOŚĆ', visible: true, sortableKey: 'service_status', thClass: 'w-48 px-4', tdClass: 'w-48 px-4 align-middle' },
+  { key: 'stock', label: 'ILOŚĆ', visible: true, sortableKey: 'stock', thClass: 'w-24 px-4 text-center', tdClass: 'w-24 px-4 text-center align-middle' },
+  { key: 'actions', label: 'AKCJE', visible: true, thClass: 'w-24 px-4 text-right', tdClass: 'w-24 px-4 text-right align-middle opacity-0 group-hover:opacity-100 transition-opacity' },
+];
+
+type SortConfig = { key: keyof Part | 'stock'; direction: 'asc' | 'desc' } | null;
+
+// --- KLASY DLA SCROLLBARA ---
+const customScrollbarClasses = "[&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-slate-100/50 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#58b347]/40 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[#58b347]/80";
 
 // --- IKONY BAZOWE ---
 const IconPackage = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>;
-const IconTruck = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5"/><path d="M14 17h1"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>;
 const IconHistory = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>;
-const IconSearch = () => <svg className="w-4 h-4 text-[#58b347]/60 absolute left-3 top-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
+const IconSearch = () => <svg className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
 const IconArrowLeft = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
 const IconArrowRight = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>;
 const IconChevronDown = () => <svg className="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>;
 const IconChevronUp = () => <svg className="w-4 h-4 text-[#58b347]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>;
 const IconLayers = () => <svg className="w-5 h-5 text-[#58b347]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>;
-const IconTool = () => <svg className="w-3.5 h-3.5 text-[#58b347]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>;
-const IconDrop = () => <svg className="w-3.5 h-3.5 text-[#58b347]/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>;
+const IconTool = () => <svg className="w-3.5 h-3.5 inline-block mr-1 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>;
+const IconDrop = () => <svg className="w-3.5 h-3.5 inline-block mr-1 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>;
 const IconImport = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
 const IconAlert = () => <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
-const IconCar = () => <svg className="w-4 h-4 text-[#58b347]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="10" width="18" height="8" rx="2" ry="2"/><path d="M5 10V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>;
 const IconPlus = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>;
-const IconInfo = () => <svg className="w-6 h-6 text-[#58b347]/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>;
 const IconEdit = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
 const IconCalendar = () => <svg className="w-3.5 h-3.5 text-slate-400 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
 const IconShield = () => <svg className="w-3.5 h-3.5 text-slate-400 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
 const IconBell = () => <svg className="w-4 h-4 text-slate-300 hover:text-red-500 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
 const IconBellOff = () => <svg className="w-4 h-4 text-red-500 hover:text-slate-400 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8.7 3A6 6 0 0 1 18 8a21.3 21.3 0 0 0 .6 5M17 17H3s3-2 3-9a4.67 4.67 0 0 1 .3-1.7M10.3 21a1.94 1.94 0 0 0 3.4 0"/><line x1="2" y1="2" x2="22" y2="22"/></svg>;
+const IconFilter = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>;
+const IconTrash = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
+const IconInfo = () => <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>;
+const IconSort = () => <svg className="w-3.5 h-3.5 inline-block ml-1 opacity-40 hover:opacity-100 transition-opacity" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>;
+const IconColumns = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>;
+const IconArrowUp = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>;
+const IconArrowDown = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>;
+const IconCheck = () => <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
+
+// --- DYNAMICZNE IKONY POJAZDÓW ---
+const IconCar = ({ className = "w-4 h-4 inline-block mr-1 opacity-70" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.84-.99L16 11l-2.7-3.6a2 2 0 0 0-1.6-.8H9.3a2 2 0 0 0-1.6.8L5 11l-5.16.86a1 1 0 0 0-.84.99V16h3" />
+    <circle cx="7.5" cy="16.5" r="2.5" />
+    <circle cx="16.5" cy="16.5" r="2.5" />
+  </svg>
+);
+
+const IconTruck = ({ className = "w-4 h-4 inline-block mr-1 opacity-70" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11" />
+    <path d="M14 9h4l4 4v5h-3" />
+    <circle cx="7.5" cy="18" r="2.5" />
+    <circle cx="17.5" cy="18" r="2.5" />
+  </svg>
+);
+
+const IconLift = ({ className = "w-4 h-4 inline-block mr-1 opacity-70" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 19h16" />
+    <rect x="2" y="14" width="14" height="4" rx="1" />
+    <path d="M16 14h4l2 3v1h-6" />
+    <circle cx="6" cy="19" r="2" />
+    <circle cx="18" cy="19" r="2" />
+    <path d="M8 14L16 6" />
+    <rect x="14" y="2" width="4" height="4" rx="1" />
+  </svg>
+);
+
+const IconForVehicle = ({ type, className }: { type?: string | null, className?: string }) => {
+  const resolvedType = type || 'Osobowy';
+  if (resolvedType === 'Van / Bus') return <IconTruck className={className} />;
+  if (resolvedType === 'Podnośnik koszowy') return <IconLift className={className} />;
+  return <IconCar className={className} />;
+};
+
+const CustomCheckbox = ({ checked, onChange }: { checked: boolean, onChange: () => void }) => (
+  <div 
+    onClick={(e) => { e.stopPropagation(); onChange(); }}
+    className={`w-4 h-4 rounded-[4px] flex items-center justify-center cursor-pointer transition-colors duration-200 shrink-0 ${checked ? 'bg-[#58b347] border-[#58b347]' : 'border border-slate-300 bg-white hover:border-[#58b347]/50'}`}
+  >
+    {checked && <IconCheck />}
+  </div>
+);
 
 // --- FUNKCJE POMOCNICZE ---
 const getInitials = (name: string) => {
@@ -105,20 +189,30 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
   const [techInventory, setTechInventory] = useState<TechInventory[]>([]);
   const [logs, setLogs] = useState<Log[]>([]);
 
-  const [searchQuery, setSearchQuery] = useState('');
+  // Stany dla Smart Search & Tabs
+  const [searchQueries, setSearchQueries] = useState<SearchQuery[]>([{ id: 'init', text: '', logic: 'AND' }]);
+  const [activeFilter, setActiveFilter] = useState<string>('ALL');
+  const [customTabs, setCustomTabs] = useState<CustomTabEq[]>([]);
+  const [isCustomTabModalOpen, setIsCustomTabModalOpen] = useState(false);
+  const [newCustomTab, setNewCustomTab] = useState<{ name: string, filterQueries: SearchQuery[] }>({ name: '', filterQueries: [{ id: 'c_init', text: '', logic: 'AND' }] });
+
+  // Konfiguracja Kolumn
+  const [centralColumns, setCentralColumns] = useState<ColumnDef[]>(defaultCentralColumns);
+  const [mobileColumns, setMobileColumns] = useState<ColumnDef[]>(defaultMobileColumns);
+  const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
+  const [sortConfig, setSortConfig] = useState<SortConfig>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  // Konfigurowalny limit zapasów
+  const [lowStockThreshold, setLowStockThreshold] = useState<number>(3);
 
   // Stany UI
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(true);
   const [expandedTechIds, setExpandedTechIds] = useState<string[]>([]);
   const [hoveredPartId, setHoveredPartId] = useState<string | null>(null);
   
-  // Filtrowanie (Alerty operacyjne)
-  const [showOnlyExpiring, setShowOnlyExpiring] = useState(false);
-  const [showOnlyLowStock, setShowOnlyLowStock] = useState(false);
-  const [showOnlyMuted, setShowOnlyMuted] = useState(false);
-  
   // Akordeony Centralne
-  const [centralExpandedCats, setCentralExpandedCats] = useState<string[]>(['Pojazd', 'Narzędzie', 'Część zamienna', 'Materiał eksploatacyjny']);
+  const [centralExpandedCats, setCentralExpandedCats] = useState<string[]>(['Pojazd', 'Narzędzie', 'Część zamienna', 'Materiał eksploatacyjny', 'Inne']);
 
   // Modale
   const [isNewPartModalOpen, setIsNewPartModalOpen] = useState(false);
@@ -136,6 +230,49 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
   const [sheetUrl, setSheetUrl] = useState('');
   const [importStatus, setImportStatus] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+
+  const tabsScrollRef = useRef<HTMLDivElement>(null);
+
+  // Implementacja Smart Wheel Scroll dla paska zakładek
+  useEffect(() => {
+    const el = tabsScrollRef.current;
+    if (!el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      const isScrollable = el.scrollWidth > el.clientWidth;
+      if (!isScrollable || e.deltaY === 0) return;
+
+      const atLeftEdge = el.scrollLeft === 0 && e.deltaY < 0;
+      const atRightEdge = Math.ceil(el.scrollLeft + el.clientWidth) >= el.scrollWidth && e.deltaY > 0;
+
+      if (!atLeftEdge && !atRightEdge) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
+
+  // Ładowanie ustawień i zakładek
+  useEffect(() => {
+    const savedTabs = localStorage.getItem('ekoen_eq_custom_tabs');
+    if (savedTabs) {
+      try { 
+        const parsed = JSON.parse(savedTabs);
+        setCustomTabs(parsed);
+      } catch (e) {}
+    }
+
+    const savedThreshold = localStorage.getItem('ekoen_eq_low_stock_threshold');
+    if (savedThreshold) setLowStockThreshold(parseInt(savedThreshold, 10));
+  }, []);
+
+  const handleUpdateThreshold = (val: number) => {
+    setLowStockThreshold(val);
+    localStorage.setItem('ekoen_eq_low_stock_threshold', val.toString());
+  };
 
   // Pobieranie danych
   const fetchData = useCallback(async () => {
@@ -159,28 +296,31 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
 
   useEffect(() => { 
     fetchData(); 
+  }, [fetchData]);
 
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsNewPartModalOpen(false);
         setEditingPart(null);
         setIsImportModalOpen(false);
         setIssueModalPart(null);
+        setIsCustomTabModalOpen(false);
+        setIsColumnSettingsOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [fetchData]);
+  }, []);
 
   // Resetowanie Hovera przy zmianie zakładki
-  useEffect(() => { setHoveredPartId(null); }, [activeTab]);
+  useEffect(() => { setHoveredPartId(null); setSelectedIds([]); setSortConfig(null); }, [activeTab]);
 
   // --- LOGIKA BIZNESOWA ---
   const handleCreatePart = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload: any = { ...newPart, is_muted: false };
+    const payload: any = { ...newPart, is_muted: false, mobile_muted: false };
     
-    // Czyszczenie i dopasowywanie pól wg Kategorii
     if (payload.category === 'Część zamienna' || payload.category === 'Materiał eksploatacyjny' || payload.category === 'Inne') {
       payload.inspection_date = null;
       payload.insurance_date = null;
@@ -201,11 +341,9 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
       if (!payload.service_status) payload.service_status = 'Sprawny';
     }
 
-    // Zamiana pustych dat na czysty null
     if (!payload.inspection_date) payload.inspection_date = null;
     if (!payload.insurance_date) payload.insurance_date = null;
 
-    // Blokada ilości na 1 dla pojazdów i narzędzi z wpisanym numerem
     const isUnique = Boolean((payload.category === 'Pojazd' && payload.vehicle_plate && payload.vehicle_plate.trim().length > 0) || 
                              (payload.category === 'Narzędzie' && payload.serial_number && payload.serial_number.trim().length > 0));
                      
@@ -214,8 +352,9 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
     }
 
     const { error } = await supabase.from('parts').insert([payload]);
-    if (error) alert(`Błąd: ${error.message}`);
-    else { 
+    if (error) {
+      alert(`Błąd: ${error.message}`);
+    } else { 
       setIsNewPartModalOpen(false); 
       setNewPart({ sku: '', name: '', category: 'Część zamienna', unit: 'szt.', main_stock: 0, inspection_date: '', vehicle_type: 'Osobowy', vehicle_plate: '', serial_number: '', insurance_date: '', service_status: 'Sprawny', notes: '' }); 
       fetchData(); 
@@ -262,18 +401,36 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
     else { setEditingPart(null); fetchData(); }
   };
 
-  // Optymistyczne wyciszanie powiadomień
-  const handleToggleMute = async (e: React.MouseEvent, part: Part) => {
-    e.stopPropagation();
-    const newStatus = !part.is_muted;
-    
-    // Optymistyczna aktualizacja UI
-    setParts(currentParts => 
-      currentParts.map(p => p.id === part.id ? { ...p, is_muted: newStatus } : p)
-    );
+  const deleteSelected = async () => {
+    if (!confirm(`Na pewno chcesz bezpowrotnie usunąć wybrane elementy (${selectedIds.length}) z magazynu? Powiązane z nimi stany na autach i historia logów również mogą zostać usunięte!`)) return;
+    const { error } = await supabase.from('parts').delete().in('id', selectedIds);
+    if (error) alert('Błąd usuwania: ' + error.message);
+    else { setSelectedIds([]); setHoveredPartId(null); fetchData(); }
+  };
 
-    // Aktualizacja bazy w tle
+  // Trójpoziomowy System Wyciszania
+  const handleToggleMuteCentral = async (part: Part) => {
+    const newStatus = !part.is_muted;
+    setParts(curr => curr.map(p => p.id === part.id ? { ...p, is_muted: newStatus } : p));
     await supabase.from('parts').update({ is_muted: newStatus }).eq('id', part.id);
+  };
+
+  const handleToggleMuteMobile = async (part: Part) => {
+    const newStatus = !part.mobile_muted;
+    setParts(curr => curr.map(p => p.id === part.id ? { ...p, mobile_muted: newStatus } : p));
+    const { error } = await supabase.from('parts').update({ mobile_muted: newStatus }).eq('id', part.id);
+    if (error && error.message.includes('column "mobile_muted"')) {
+      alert("Błąd: Proszę dodać kolumnę 'mobile_muted' (typ: boolean) do tabeli 'parts' w Supabase.");
+    }
+  };
+
+  const handleToggleMuteTech = async (invItem: TechInventory) => {
+    const newStatus = !invItem.is_muted;
+    setTechInventory(curr => curr.map(i => i.id === invItem.id ? { ...i, is_muted: newStatus } : i));
+    const { error } = await supabase.from('technician_inventory').update({ is_muted: newStatus }).eq('id', invItem.id);
+    if (error && error.message.includes('column "is_muted"')) {
+      alert("Błąd: Proszę dodać kolumnę 'is_muted' (typ: boolean) do tabeli 'technician_inventory' w Supabase.");
+    }
   };
 
   const handleIssuePart = async (e: React.FormEvent) => {
@@ -360,55 +517,40 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
     setIsImporting(false); setImportStatus(''); fetchData();
   };
 
-  // --- FILTRY I GRUPOWANIE ---
-  const filteredParts = useMemo(() => {
-    let result = parts;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(p => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || (p.serial_number && p.serial_number.toLowerCase().includes(q)) || (p.vehicle_plate && p.vehicle_plate.toLowerCase().includes(q)));
-    }
-    if (showOnlyExpiring) {
-      result = result.filter(p => {
-        const insp = p.inspection_date ? getExpiryStatus(p.inspection_date) : null;
-        const ins = p.insurance_date ? getExpiryStatus(p.insurance_date) : null;
-        return (insp && (insp.isExpired || insp.isExpiring)) || (ins && (ins.isExpired || ins.isExpiring));
-      });
-    }
-    if (showOnlyLowStock) {
-      result = result.filter(p => 
-        !p.is_muted && 
-        ['Część zamienna', 'Materiał eksploatacyjny'].includes(p.category) && 
-        p.main_stock <= 3
-      );
-    }
-    if (showOnlyMuted) {
-      result = result.filter(p => p.is_muted);
-    }
-    return result;
-  }, [parts, searchQuery, showOnlyExpiring, showOnlyLowStock, showOnlyMuted]);
+  // --- LOGIKA SMART SEARCH & CUSTOM TABS ---
+  const handleSaveCustomTab = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newTab: CustomTabEq = {
+      id: Math.random().toString(36).substring(7),
+      name: newCustomTab.name,
+      filterQueries: newCustomTab.filterQueries.filter(q => q.text.trim() !== '')
+    };
+    const updatedTabs = [...customTabs, newTab];
+    setCustomTabs(updatedTabs);
+    localStorage.setItem('ekoen_eq_custom_tabs', JSON.stringify(updatedTabs));
+    setIsCustomTabModalOpen(false);
+    setNewCustomTab({ name: '', filterQueries: [{ id: Math.random().toString(), text: '', logic: 'AND' }] });
+  };
 
-  const centralSummary = useMemo(() => {
-    const groups: Record<string, Part[]> = { 'Pojazd': [], 'Narzędzie': [], 'Część zamienna': [], 'Materiał eksploatacyjny': [], 'Inne': [] };
-    filteredParts.forEach(p => {
-      const c = p.category || 'Inne';
-      if (groups[c]) groups[c].push(p); else groups['Inne'].push(p);
-    });
-    Object.keys(groups).forEach(k => groups[k].sort((a, b) => a.name.localeCompare(b.name)));
-    return groups;
-  }, [filteredParts]);
+  const handleDeleteCustomTab = (id: string) => {
+    const updatedTabs = customTabs.filter(t => t.id !== id);
+    setCustomTabs(updatedTabs);
+    localStorage.setItem('ekoen_eq_custom_tabs', JSON.stringify(updatedTabs));
+    if (activeFilter === `CUSTOM_${id}`) setActiveFilter('ALL');
+  };
 
-  const filteredTechInventory = useMemo(() => {
-    if (!searchQuery) return techInventory;
-    const q = searchQuery.toLowerCase();
-    return techInventory.filter(item => {
-      const p = parts.find(x => x.id === item.part_id);
-      return p && (p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || (p.serial_number && p.serial_number.toLowerCase().includes(q)) || (p.vehicle_plate && p.vehicle_plate.toLowerCase().includes(q)));
-    });
-  }, [techInventory, parts, searchQuery]);
+  const evaluateCondition = useCallback((p: Part, q: SearchQuery) => {
+    const qText = q.text.trim().toLowerCase();
+    if (!qText) return true;
+    return (p.name.toLowerCase().includes(qText)) ||
+           (p.sku.toLowerCase().includes(qText)) ||
+           (p.serial_number?.toLowerCase().includes(qText)) ||
+           (p.vehicle_plate?.toLowerCase().includes(qText));
+  }, []);
 
-  const mobileSummary = useMemo(() => {
+  const mobileSummaryRaw = useMemo(() => {
     const sum: Record<string, { part: Part, total: number, breakdown: { tech: Technician, qty: number }[] }> = {};
-    filteredTechInventory.forEach(item => {
+    techInventory.forEach(item => {
       if (item.quantity <= 0) return;
       const part = parts.find(p => p.id === item.part_id);
       const tech = technicians.find(t => t.id === item.technician_id);
@@ -417,24 +559,164 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
       sum[part.id].total += item.quantity;
       sum[part.id].breakdown.push({ tech, qty: item.quantity });
     });
+    return sum;
+  }, [techInventory, parts, technicians]);
 
-    const groups: Record<string, typeof sum[string][]> = { 'Pojazd': [], 'Narzędzie': [], 'Część zamienna': [], 'Materiał eksploatacyjny': [], 'Inne': [] };
-    Object.values(sum).forEach(i => {
-      // Zastosowanie filtrów z centrali, żeby widoki były spójne (o ile filtry są włączone)
-      if (showOnlyLowStock && (i.part.is_muted || !['Część zamienna', 'Materiał eksploatacyjny'].includes(i.part.category) || i.part.main_stock > 3)) return;
-      if (showOnlyMuted && !i.part.is_muted) return;
-      if (showOnlyExpiring) {
-        const insp = i.part.inspection_date ? getExpiryStatus(i.part.inspection_date) : null;
-        const ins = i.part.insurance_date ? getExpiryStatus(i.part.insurance_date) : null;
-        if (!((insp && (insp.isExpired || insp.isExpiring)) || (ins && (ins.isExpired || ins.isExpiring)))) return;
+  const filteredParts = useMemo(() => {
+    let result = parts;
+
+    // Filtry główne na całą pule części przed budowaniem akordeonów
+    if (activeFilter === 'EXPIRING') {
+      result = result.filter(p => {
+        const insp = p.inspection_date ? getExpiryStatus(p.inspection_date) : null;
+        const ins = p.insurance_date ? getExpiryStatus(p.insurance_date) : null;
+        return (insp && (insp.isExpired || insp.isExpiring)) || (ins && (ins.isExpired || ins.isExpiring));
+      });
+    } else if (activeFilter === 'LOW_STOCK') {
+      if (activeTab === 'central') {
+        result = result.filter(p => !p.is_muted && ['Część zamienna', 'Materiał eksploatacyjny'].includes(p.category) && p.main_stock <= lowStockThreshold);
+      } else {
+        result = result.filter(p => !p.is_muted && !p.mobile_muted && ['Część zamienna', 'Materiał eksploatacyjny'].includes(p.category) && (mobileSummaryRaw[p.id]?.total || 0) <= lowStockThreshold);
       }
+    } else if (activeFilter === 'MUTED') {
+      if (activeTab === 'central') {
+        result = result.filter(p => p.is_muted);
+      } else {
+        result = result.filter(p => p.is_muted || p.mobile_muted || techInventory.some(inv => inv.part_id === p.id && inv.quantity > 0 && inv.is_muted));
+      }
+    } else if (activeFilter.startsWith('CUSTOM_')) {
+      const tabId = activeFilter.split('_')[1];
+      const tabInfo = customTabs.find(c => c.id === tabId);
+      if (tabInfo) {
+        result = result.filter(p => {
+          const validQ = tabInfo.filterQueries.filter(q => q.text.trim() !== '');
+          if (validQ.length > 0) {
+            let match = evaluateCondition(p, validQ[0]);
+            if (validQ[0].logic === 'NOT') match = !match;
+            for (let i = 1; i < validQ.length; i++) {
+              const conditionMet = evaluateCondition(p, validQ[i]);
+              if (validQ[i].logic === 'AND') match = match && conditionMet;
+              else if (validQ[i].logic === 'OR') match = match || conditionMet;
+              else if (validQ[i].logic === 'NOT') match = match && !conditionMet;
+            }
+            if (!match) return false;
+          }
+          return true;
+        });
+      }
+    }
 
-      const c = i.part.category || 'Inne';
-      if (groups[c]) groups[c].push(i); else groups['Inne'].push(i);
+    // Wyszukiwarka tekstowa Smart Search
+    const validSearchQueries = searchQueries.filter(q => q.text.trim() !== '');
+    if (validSearchQueries.length > 0) {
+      result = result.filter(p => {
+        let match = evaluateCondition(p, validSearchQueries[0]);
+        if (validSearchQueries[0].logic === 'NOT') match = !match;
+        for (let i = 1; i < validSearchQueries.length; i++) {
+          const conditionMet = evaluateCondition(p, validSearchQueries[i]);
+          if (validSearchQueries[i].logic === 'AND') match = match && conditionMet;
+          else if (validSearchQueries[i].logic === 'OR') match = match || conditionMet;
+          else if (validSearchQueries[i].logic === 'NOT') match = match && !conditionMet;
+        }
+        return match;
+      });
+    }
+
+    const resultWithMobileStock = result.map(p => {
+      const breakdown = techInventory.filter(i => i.part_id === p.id && i.quantity > 0);
+      const totalInField = breakdown.reduce((sum, b) => sum + b.quantity, 0);
+      return { ...p, stock: activeTab === 'mobile' ? totalInField : p.main_stock };
     });
-    Object.keys(groups).forEach(k => groups[k].sort((a, b) => a.part.name.localeCompare(b.part.name)));
+
+    if (sortConfig) {
+      return resultWithMobileStock.sort((a, b) => {
+        const aVal = a[sortConfig.key] || '';
+        const bVal = b[sortConfig.key] || '';
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return resultWithMobileStock.sort((a, b) => a.name.localeCompare(b.name));
+  }, [parts, searchQueries, activeFilter, customTabs, evaluateCondition, lowStockThreshold, sortConfig, techInventory, activeTab, mobileSummaryRaw]);
+
+  const getCustomTabCount = useCallback((tabInfo: CustomTabEq) => {
+    let res = activeTab === 'central' ? parts : parts.filter(p => techInventory.some(i => i.part_id === p.id && i.quantity > 0));
+    res = res.filter(p => {
+      const validQ = tabInfo.filterQueries.filter(q => q.text.trim() !== '');
+      if (validQ.length > 0) {
+        let match = evaluateCondition(p, validQ[0]);
+        if (validQ[0].logic === 'NOT') match = !match;
+        for (let i = 1; i < validQ.length; i++) {
+          const conditionMet = evaluateCondition(p, validQ[i]);
+          if (validQ[i].logic === 'AND') match = match && conditionMet;
+          else if (validQ[i].logic === 'OR') match = match || conditionMet;
+          else if (validQ[i].logic === 'NOT') match = match && !conditionMet;
+        }
+        if (!match) return false;
+      }
+      return true;
+    });
+    return res.length;
+  }, [parts, techInventory, activeTab, evaluateCondition]);
+
+  const centralSummary = useMemo(() => {
+    const groups: Record<string, Part[]> = { 'Pojazd': [], 'Narzędzie': [], 'Część zamienna': [], 'Materiał eksploatacyjny': [], 'Inne': [] };
+    filteredParts.forEach(p => {
+      const c = p.category || 'Inne';
+      if (groups[c]) groups[c].push(p); else groups['Inne'].push(p);
+    });
     return groups;
-  }, [filteredTechInventory, parts, technicians, showOnlyLowStock, showOnlyExpiring, showOnlyMuted]);
+  }, [filteredParts]);
+
+  const filteredTechInventory = useMemo(() => {
+    const validSearchQueries = searchQueries.filter(q => q.text.trim() !== '');
+    if (validSearchQueries.length === 0) return techInventory;
+    
+    return techInventory.filter(item => {
+      const p = parts.find(x => x.id === item.part_id);
+      if (!p) return false;
+      
+      let match = evaluateCondition(p, validSearchQueries[0]);
+      if (validSearchQueries[0].logic === 'NOT') match = !match;
+      
+      for (let i = 1; i < validSearchQueries.length; i++) {
+        const conditionMet = evaluateCondition(p, validSearchQueries[i]);
+        if (validSearchQueries[i].logic === 'AND') match = match && conditionMet;
+        else if (validSearchQueries[i].logic === 'OR') match = match || conditionMet;
+        else if (validSearchQueries[i].logic === 'NOT') match = match && !conditionMet;
+      }
+      return match;
+    });
+  }, [techInventory, parts, searchQueries, evaluateCondition]);
+
+  const mobileSummary = useMemo(() => {
+    const groups: Record<string, { part: Part, total: number, breakdown: { tech: Technician, qty: number }[] }[]> = { 'Pojazd': [], 'Narzędzie': [], 'Część zamienna': [], 'Materiał eksploatacyjny': [], 'Inne': [] };
+    
+    const relevantParts = filteredParts.filter(p => {
+      if (activeFilter === 'LOW_STOCK') return p.stock <= lowStockThreshold;
+      return true;
+    });
+
+    relevantParts.forEach(p => {
+      const breakdown = techInventory
+        .filter(i => i.part_id === p.id && i.quantity > 0)
+        .map(i => ({ tech: technicians.find(t => t.id === i.technician_id)!, qty: i.quantity }))
+        .filter(b => b.tech);
+
+      if (breakdown.length === 0) return;
+
+      const c = p.category || 'Inne';
+      if (groups[c]) {
+        groups[c].push({ part: p, total: p.stock, breakdown });
+      } else {
+        groups['Inne'].push({ part: p, total: p.stock, breakdown });
+      }
+    });
+
+    return groups;
+  }, [filteredParts, techInventory, technicians, activeFilter, lowStockThreshold]);
 
   // Automatyczne zaznaczenie pierwszego elementu po załadowaniu
   useEffect(() => {
@@ -469,24 +751,38 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
     return <IconPackage />;
   };
 
-  // Blokada techników (Wodotrysk): Znajdujemy techników, którzy mają przypisany uszkodzony/serwisowany pojazd lub narzędzie
   const techniciansWithBrokenItems = useMemo(() => {
     const brokenItemIds = parts.filter(p => p.service_status === 'W serwisie' || p.service_status === 'Uszkodzony').map(p => p.id);
     return techInventory.filter(inv => brokenItemIds.includes(inv.part_id) && inv.quantity > 0).map(inv => inv.technician_id);
   }, [parts, techInventory]);
 
-  // KPI Calculations
+  // KPI Calculations (Dynamicznie zależne od Tab)
   const totalPartsInField = useMemo(() => techInventory.reduce((acc, curr) => acc + (curr.quantity || 0), 0), [techInventory]);
   
-  // Niskie stany (zignorowanie wyciszonych)
-  const lowStockPartsList = useMemo(() => parts.filter(p => 
-    !p.is_muted && 
-    ['Część zamienna', 'Materiał eksploatacyjny'].includes(p.category) && 
-    p.main_stock <= 3
-  ), [parts]);
-  
-  const lowStockAlerts = lowStockPartsList.length;
-  const mutedAlertsCount = useMemo(() => parts.filter(p => p.is_muted).length, [parts]);
+  const lowStockAlerts = useMemo(() => {
+    if (activeTab === 'central') {
+      return parts.filter(p => !p.is_muted && ['Część zamienna', 'Materiał eksploatacyjny'].includes(p.category) && p.main_stock <= lowStockThreshold).length;
+    } else {
+      return Object.values(mobileSummaryRaw).filter(i => !i.part.is_muted && !i.part.mobile_muted && ['Część zamienna', 'Materiał eksploatacyjny'].includes(i.part.category) && i.total <= lowStockThreshold).length;
+    }
+  }, [parts, mobileSummaryRaw, lowStockThreshold, activeTab]);
+
+  const mutedAlertsCount = useMemo(() => {
+    if (activeTab === 'central') {
+      return parts.filter(p => p.is_muted).length;
+    } else {
+      let count = 0;
+      Object.values(mobileSummaryRaw).forEach(i => {
+        if (i.part.is_muted || i.part.mobile_muted) {
+          count++;
+        } else {
+          const hasMutedTechItems = techInventory.some(inv => inv.part_id === i.part.id && inv.quantity > 0 && inv.is_muted);
+          if (hasMutedTechItems) count++;
+        }
+      });
+      return count;
+    }
+  }, [parts, activeTab, mobileSummaryRaw, techInventory]);
 
   const expiringPartsCount = useMemo(() => parts.filter(p => {
     const insp = p.inspection_date ? getExpiryStatus(p.inspection_date) : null;
@@ -494,240 +790,466 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
     return (insp && (insp.isExpired || insp.isExpiring)) || (ins && (ins.isExpired || ins.isExpiring));
   }).length, [parts]);
 
-  // Dynamiczne renderowanie formularza dodawania / edycji z Siatką Grid
-  const renderFormFields = (isEdit: boolean) => {
-    const formState = isEdit ? editingPart! : newPart;
-    const setFormState = isEdit ? setEditingPart : setNewPart;
-    
-    const cat = formState.category;
-    const isVehicle = cat === 'Pojazd';
-    const isTool = cat === 'Narzędzie';
-    
-    const isUnique = Boolean((isVehicle && formState.vehicle_plate && formState.vehicle_plate.trim().length > 0) || 
-                             (isTool && formState.serial_number && formState.serial_number.trim().length > 0));
+  const handleRightClickClearFilters = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setSearchQueries([{ id: Math.random().toString(), text: '', logic: 'AND' }]);
+    setActiveFilter('ALL');
+  };
+
+  const renderSearchQueries = (queries: SearchQuery[], setQueries: (q: SearchQuery[]) => void) => {
+    const addQuery = () => setQueries([...queries, { id: Math.random().toString(), text: '', logic: 'AND' }]);
+    const updateQuery = (id: string, updates: Partial<SearchQuery>) => {
+      setQueries(queries.map(q => q.id === id ? { ...q, ...updates } : q));
+    };
+    const removeQuery = (id: string) => {
+      setQueries(queries.filter(q => q.id !== id));
+    };
 
     return (
-      <div className="grid grid-cols-12 gap-5">
-        
-        {/* Wiersz 1: Kategoria, SKU, Nazwa */}
-        <div className="col-span-12 sm:col-span-4">
-          <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Kategoria asortymentu</label>
-          <select 
-            value={formState.category} 
-            onChange={e => setFormState({...formState, category: e.target.value} as any)} 
-            className="w-full px-4 py-3 border border-slate-200 bg-white rounded-xl text-sm font-bold text-[#58b347] focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm cursor-pointer"
-          >
-            <option>Materiał eksploatacyjny</option>
-            <option>Część zamienna</option>
-            <option>Narzędzie</option>
-            <option>Pojazd</option>
-            <option>Inne</option>
-          </select>
-        </div>
-
-        <div className="col-span-12 sm:col-span-3">
-          <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">SKU / Index *</label>
-          <input required value={formState.sku} onChange={e => setFormState({...formState, sku: e.target.value.toUpperCase()} as any)} className="w-full px-3 py-2.5 border border-slate-200 bg-white rounded-xl text-xs font-mono font-bold uppercase focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm" />
-        </div>
-        
-        <div className="col-span-12 sm:col-span-5">
-          <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Nazwa / Model *</label>
-          <input required value={formState.name} onChange={e => setFormState({...formState, name: e.target.value} as any)} className="w-full px-3 py-2.5 border border-slate-200 bg-white rounded-xl text-xs font-bold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm" />
-        </div>
-        
-        {/* Wiersz 2 (Opcjonalny): Pola dla NARZĘDZI I POJAZDÓW */}
-        {(isVehicle || isTool) && (
-          <div className="col-span-12 grid grid-cols-12 gap-5 p-4 bg-slate-50 border border-slate-100 rounded-xl shadow-inner">
-            <div className={`col-span-12 ${isVehicle ? 'sm:col-span-3' : 'sm:col-span-4'}`}>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">{isVehicle ? 'Nr Rejestracyjny' : 'Nr seryjny (S/N)'}</label>
-              <input 
-                value={isVehicle ? (formState.vehicle_plate || '') : (formState.serial_number || '')} 
-                onChange={e => {
-                  const val = e.target.value.toUpperCase();
-                  if (isVehicle) {
-                    setFormState({...formState, vehicle_plate: val} as any);
-                  } else {
-                    setFormState({...formState, serial_number: val} as any);
-                  }
-                }} 
-                className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg text-xs font-mono font-bold uppercase focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm" 
-                placeholder="Opcjonalnie..." 
-              />
-            </div>
-
-            {isVehicle && (
-              <div className="col-span-12 sm:col-span-3">
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Typ nadwozia</label>
-                <select value={formState.vehicle_type || 'Van / Bus'} onChange={e => setFormState({...formState, vehicle_type: e.target.value} as any)} className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg text-xs font-bold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm cursor-pointer">
-                  <option>Van / Bus</option>
-                  <option>Osobowy</option>
-                  <option>Kombi</option>
-                  <option>Podnośnik koszowy</option>
-                  <option>Inne</option>
-                </select>
-              </div>
-            )}
-
-            <div className={`col-span-12 ${isVehicle ? 'sm:col-span-2' : 'sm:col-span-4'}`}>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Status</label>
-              <select value={formState.service_status || 'Sprawny'} onChange={e => setFormState({...formState, service_status: e.target.value} as any)} className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg text-xs font-bold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm cursor-pointer">
-                <option>Sprawny</option>
-                <option>W serwisie</option>
-                <option>Uszkodzony</option>
+      <div className="flex flex-col gap-2 w-full max-w-2xl animate-fadeIn">
+        {queries.map((q, idx) => {
+          return (
+            <div key={q.id} className="flex items-center gap-2 w-full">
+              <select
+                value={q.logic}
+                onChange={e => updateQuery(q.id, { logic: e.target.value as any })}
+                className={`border border-slate-200 rounded-xl px-2 py-2 text-[10px] font-bold uppercase tracking-widest focus:outline-none focus:border-[#58b347] transition-colors shrink-0 shadow-sm cursor-pointer ${q.logic === 'AND' ? 'bg-[#58b347]/10 text-[#499b3a] border-[#58b347]/30' : q.logic === 'NOT' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-slate-50 text-slate-600'}`}
+              >
+                <option value="AND">{idx === 0 ? 'ZAWIERA' : 'ORAZ'}</option>
+                <option value="OR">{idx === 0 ? 'MOŻE BYĆ' : 'LUB'}</option>
+                <option value="NOT">{idx === 0 ? 'WYKLUCZ' : 'WYKLUCZ'}</option>
               </select>
-            </div>
 
-            <div className={`col-span-12 ${isVehicle ? 'sm:col-span-2' : 'sm:col-span-4'}`}>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">{isVehicle ? 'Ważność UDT / Badania' : 'Kalibracja/UDT'}</label>
-              <input type="date" value={formState.inspection_date || ''} onChange={e => setFormState({...formState, inspection_date: e.target.value} as any)} className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg text-[10px] font-bold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm text-slate-700" />
-            </div>
-
-            {isVehicle && (
-              <div className="col-span-12 sm:col-span-2">
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Polisa OC/AC</label>
-                <input type="date" value={formState.insurance_date || ''} onChange={e => setFormState({...formState, insurance_date: e.target.value} as any)} className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg text-[10px] font-bold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm text-slate-700" />
+              <div className="relative flex-1 flex items-center bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden focus-within:border-[#58b347] focus-within:ring-1 focus-within:ring-[#58b347]/30 transition-all h-[38px]">
+                <div className="flex items-center justify-center pl-3 w-8 h-full shrink-0 text-slate-400">
+                  <IconSearch />
+                </div>
+                <input
+                  value={q.text}
+                  onChange={e => updateQuery(q.id, { text: e.target.value })}
+                  placeholder="Wpisz nazwę, SKU, rejestrację lub nr seryjny..."
+                  className="w-full pl-2 pr-3 py-2 text-xs font-semibold focus:outline-none bg-transparent h-full border-none"
+                />
               </div>
-            )}
-          </div>
-        )}
 
-        {/* Wiersz 3: J.M, Ilość, Uwagi */}
-        <div className="col-span-12 sm:col-span-2">
-          <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">J.M.</label>
-          <select value={isVehicle ? 'szt.' : formState.unit} disabled={isVehicle} onChange={e => setFormState({...formState, unit: e.target.value} as any)} className="w-full px-3 py-2.5 border border-slate-200 bg-white rounded-xl text-xs font-semibold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm cursor-pointer disabled:opacity-50">
-            <option>szt.</option>
-            <option>mb</option>
-            <option>kpl.</option>
-          </select>
-        </div>
-
-        <div className="col-span-12 sm:col-span-3">
-          <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Magazyn (Centrala)</label>
-          <div className="relative">
-            <input 
-              type="number" 
-              min={isUnique ? "1" : "0"} 
-              max={isUnique ? "1" : undefined}
-              disabled={isUnique}
-              required 
-              value={isUnique ? 1 : formState.main_stock} 
-              onChange={e => {
-                if (isUnique) return;
-                setFormState({...formState, main_stock: parseInt(e.target.value) || 0} as any);
-              }} 
-              className={`w-full px-4 py-2.5 border border-slate-200 bg-white rounded-xl text-sm font-bold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm text-center ${isUnique ? 'text-slate-400 opacity-60 cursor-not-allowed bg-slate-50' : 'text-slate-800'}`} 
-            />
-            {isUnique && <div className="absolute top-1/2 left-2 -translate-y-1/2 w-2 h-2 rounded-full bg-orange-400 animate-pulse" title="Blokada na 1 szt. ze względu na wpisany numer"></div>}
-          </div>
-        </div>
-
-        <div className="col-span-12 sm:col-span-7">
-          <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Uwagi / Notatki</label>
-          <textarea rows={1} value={formState.notes || ''} onChange={e => setFormState({...formState, notes: e.target.value} as any)} className="w-full px-4 py-2.5 border border-slate-200 bg-white rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm resize-none" placeholder="Opcjonalne informacje o sprzęcie..." />
-        </div>
-
+              {queries.length > 1 && (
+                <button type="button" onClick={() => removeQuery(q.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors shrink-0 flex items-center justify-center h-[38px]" title="Usuń warunek">
+                  <IconTrash />
+                </button>
+              )}
+            </div>
+          );
+        })}
+        
+        <button 
+          type="button"
+          onClick={addQuery}
+          className="text-[10px] font-bold text-slate-500 hover:text-[#58b347] bg-white border border-slate-200 hover:border-[#58b347]/50 rounded-xl py-2 px-3 w-max flex items-center gap-1.5 transition-colors shadow-sm mt-1"
+        >
+          <IconPlus /> Dodaj warunek wyszukiwania
+        </button>
       </div>
     );
   };
 
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredParts.length && filteredParts.length > 0) setSelectedIds([]);
+    else setSelectedIds(filteredParts.map(p => p.id));
+  };
+
+  const toggleSelect = (id: string) => {
+    if (selectedIds.includes(id)) setSelectedIds(selectedIds.filter(selId => selId !== id));
+    else setSelectedIds([...selectedIds, id]);
+  };
+
+  const moveColumn = (index: number, direction: -1 | 1) => {
+    const cols = activeTab === 'central' ? centralColumns : mobileColumns;
+    const setCols = activeTab === 'central' ? setCentralColumns : setMobileColumns;
+    const newCols = [...cols];
+    const target = index + direction;
+    if (target >= 0 && target < newCols.length) {
+      [newCols[index], newCols[target]] = [newCols[target], newCols[index]];
+      setCols(newCols);
+    }
+  };
+
+  const toggleColumnVisibility = (index: number) => {
+    const cols = activeTab === 'central' ? centralColumns : mobileColumns;
+    const setCols = activeTab === 'central' ? setCentralColumns : setMobileColumns;
+    const newCols = [...cols];
+    newCols[index].visible = !newCols[index].visible;
+    setCols(newCols);
+  };
+
+  const handleSort = (key: keyof Part | 'stock') => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
+    setSortConfig({ key, direction });
+  };
+
+  const renderCellContent = (rowData: { part: Part, quantity: number, techId?: string, invItem?: TechInventory }, key: ColumnKey) => {
+    const p = rowData.part;
+    const inspExpiry = getExpiryStatus(p.inspection_date);
+    const insExpiry = getExpiryStatus(p.insurance_date);
+    const isVehicle = p.category === 'Pojazd';
+    const isTool = p.category === 'Narzędzie';
+    const hasSerial = !!p.serial_number;
+    const isBroken = p.service_status === 'W serwisie' || p.service_status === 'Uszkodzony';
+
+    const effectiveMuted = 
+      activeTab === 'central' ? p.is_muted :
+      activeTab === 'mobile' && !rowData.techId ? (p.is_muted || p.mobile_muted) :
+      (p.is_muted || p.mobile_muted || rowData.invItem?.is_muted);
+
+    const handleMuteClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (activeTab === 'central') handleToggleMuteCentral(p);
+      if (activeTab === 'mobile' && !rowData.techId) handleToggleMuteMobile(p);
+      if (activeTab === 'mobile' && rowData.techId && rowData.invItem) handleToggleMuteTech(rowData.invItem);
+    }
+
+    let muteTooltip = "Zarządzaj powiadomieniami";
+    if (activeTab === 'central') muteTooltip = effectiveMuted ? "Odwycisz w centralnym (Globalnie)" : "Wycisz w centralnym (Globalnie)";
+    if (activeTab === 'mobile' && !rowData.techId) muteTooltip = effectiveMuted ? "Odwycisz dla wszystkich aut w terenie" : "Wycisz powiadomienia dla wszystkich aut";
+    if (activeTab === 'mobile' && rowData.techId) muteTooltip = effectiveMuted ? "Odwycisz tylko u tego technika" : "Wycisz tylko u tego technika";
+
+    switch (key) {
+      case 'select':
+        return (
+          <div className="flex justify-center w-full">
+            <CustomCheckbox checked={selectedIds.includes(p.id)} onChange={() => toggleSelect(p.id)} />
+          </div>
+        );
+      case 'actions':
+        if (activeTab === 'central') {
+          return (
+            <div className="flex justify-end gap-2 w-full">
+              <button onClick={(e) => { e.stopPropagation(); setIssueForm({ ...issueForm, type: 'DOSTAWA' }); setIssueModalPart(p); }} className="text-[10px] font-bold border border-slate-200 bg-white text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-50 shadow-sm transition-colors uppercase tracking-wider">
+                + Dostawa
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setIssueForm({ ...issueForm, type: 'WYDANIE' }); setIssueModalPart(p); }} 
+                disabled={p.main_stock === 0 || isBroken} 
+                className={`text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm transition-colors uppercase tracking-wider flex items-center justify-center gap-1 ${isBroken ? 'border border-red-200 bg-red-50 text-red-500 opacity-60 cursor-not-allowed' : 'border border-[#58b347] bg-[#58b347] text-white hover:bg-[#499b3a] disabled:opacity-40 disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-400'}`}
+                title={isBroken ? 'Wydanie zablokowane ze względu na status serwisowy!' : ''}
+              >
+                Wydaj <IconArrowRight />
+              </button>
+            </div>
+          );
+        }
+        if (activeTab === 'mobile' && rowData.techId) {
+          return (
+            <div className="flex justify-end w-full">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setIssueForm({ type: 'ZWROT', technician_id: rowData.techId!, quantity: 1 }); setIssueModalPart(p); }}
+                className="text-[9px] font-bold bg-white border border-slate-200 text-[#499b3a] px-3 py-1.5 rounded-lg hover:bg-slate-100 hover:border-[#58b347] transition-colors uppercase tracking-widest shadow-sm flex items-center gap-1.5"
+              >
+                <IconArrowLeft /> Zwróć
+              </button>
+            </div>
+          );
+        }
+        return null;
+      case 'sku':
+        return (
+          <>
+            <span>{p.sku}</span>
+            {effectiveMuted && <span className="inline-flex mt-1.5 px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-bold border border-slate-200 uppercase tracking-widest w-max">Wyciszony</span>}
+          </>
+        );
+      case 'name':
+        return (
+          <>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-sm font-bold text-slate-800 leading-tight">{p.name}</span>
+              <button onClick={(e) => { e.stopPropagation(); setEditingPart(p); }} className="text-slate-300 hover:text-[#58b347] transition-colors p-1" title="Edytuj kartotekę"><IconEdit /></button>
+              
+              {/* DZWONEK DO WYCISZANIA */}
+              {['Część zamienna', 'Materiał eksploatacyjny'].includes(p.category) && (
+                <button 
+                  onClick={handleMuteClick} 
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 ml-1" 
+                  title={muteTooltip}
+                >
+                  {effectiveMuted ? <IconBellOff /> : <IconBell />}
+                </button>
+              )}
+            </div>
+            {isVehicle && p.vehicle_plate && (
+              <span className="text-[10px] font-bold font-mono text-slate-500 uppercase flex items-center gap-1 w-max border border-slate-200 bg-white px-2 py-0.5 rounded shadow-sm">
+                <IconForVehicle type={p.vehicle_type} className="w-3.5 h-3.5 opacity-70" /> {p.vehicle_plate}
+              </span>
+            )}
+            {isTool && hasSerial && (
+              <span className="text-[10px] font-bold font-mono text-slate-500 uppercase flex items-center gap-1 w-max border border-slate-200 bg-white px-2 py-0.5 rounded shadow-sm">
+                <IconTool /> S/N: {p.serial_number}
+              </span>
+            )}
+          </>
+        );
+      case 'category':
+        return (
+          <div className="flex items-center gap-2">
+            <div className="text-[#58b347]">{getCategoryIcon(p.category)}</div>
+            <span>{p.category}</span>
+          </div>
+        );
+      case 'status':
+        return (
+          <>
+            {isVehicle && p.vehicle_type && <span className="text-[9px] font-bold text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider w-max">{p.vehicle_type}</span>}
+            
+            {(isVehicle || isTool) && p.service_status && p.service_status !== 'Sprawny' && (
+              <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-widest w-max ${p.service_status === 'Uszkodzony' ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-orange-50 text-orange-600 border-orange-200'}`}>
+                Status: {p.service_status}
+              </span>
+            )}
+
+            {['Pojazd', 'Narzędzie'].includes(p.category) && p.inspection_date && (
+              <div className="flex items-center gap-1.5">
+                <IconCalendar />
+                <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-widest whitespace-nowrap ${inspExpiry.badge}`}>
+                  Przegląd: {inspExpiry.text}
+                </span>
+              </div>
+            )}
+            
+            {isVehicle && p.insurance_date && (
+              <div className="flex items-center gap-1.5">
+                <IconShield />
+                <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-widest whitespace-nowrap ${insExpiry.badge}`}>
+                  OC/AC: {insExpiry.text}
+                </span>
+              </div>
+            )}
+          </>
+        );
+      case 'stock':
+        const displayStock = rowData.quantity;
+        const isLowStock = displayStock <= lowStockThreshold;
+        return (
+          <div className="flex flex-col items-center">
+            {activeTab === 'central' && (
+              displayStock === 0 ? (
+                <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-widest mb-1 ${effectiveMuted ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-red-50 text-red-600 border-red-200 animate-pulse'}`}>Braki</span>
+              ) : isLowStock ? (
+                <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-widest mb-1 ${effectiveMuted ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-orange-50 text-orange-600 border-orange-200'}`}>Niski Stan</span>
+              ) : (
+                <span className="inline-flex px-2 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-bold border border-green-200 uppercase tracking-widest mb-1">Dostępne</span>
+              )
+            )}
+            <span className={`text-lg font-bold tabular-nums ${activeTab === 'central' && displayStock === 0 && !effectiveMuted ? 'text-red-500' : 'text-slate-800'}`}>
+              {displayStock} <span className="font-bold text-[10px] text-slate-400 uppercase">{p.unit}</span>
+            </span>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const activeCols = activeTab === 'central' ? centralColumns : mobileColumns;
+
   return (
-    <div className="absolute inset-0 left-[72px] bg-slate-100/60 backdrop-blur-2xl border-l border-white/20 z-40 overflow-hidden flex flex-col font-sans transition-all duration-300 ease-out shadow-[-10px_0_30px_rgba(0,0,0,0.05)]">
+    <div className={`absolute inset-0 bg-slate-100/60 backdrop-blur-2xl border-l border-white/20 z-40 flex flex-col font-sans transition-[left] duration-300 ease-out shadow-[-10px_0_30px_rgba(0,0,0,0.05)] overflow-y-auto overflow-x-hidden ${isSidebarHovered ? 'left-[256px]' : 'left-[72px]'} ${customScrollbarClasses}`}>
       
-      {/* Pasek nawigacji górnej */}
-      <div className="bg-white/70 backdrop-blur-md border-b border-white/40 px-6 py-4 flex items-center justify-between shrink-0">
-        <div className={`transition-all duration-300 ease-in-out ${isSidebarHovered ? 'ml-[184px]' : 'ml-0'}`}>
-          <h1 className="text-xl font-bold tracking-tight text-slate-800">Magazyn i Flota</h1>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">Logistyka zasobów centralnych, mobilnych i pojazdów.</p>
+      {/* Pasek Nawigacji - Sticky */}
+      <div className="bg-white/70 backdrop-blur-md border-b border-white/40 px-6 py-4 flex justify-between items-center shrink-0 z-50 sticky top-0">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800 tracking-tight">Magazyn i Flota</h1>
+          <p className="text-xs text-slate-500 mt-1 font-medium">Logistyka zasobów centralnych, mobilnych i pojazdów.</p>
         </div>
         
         <div className="flex bg-slate-100/50 p-1 rounded-xl border border-slate-200/60 shadow-inner backdrop-blur-md">
-          <button onClick={() => setActiveTab('central')} className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'central' ? 'bg-white shadow-sm border border-slate-200 text-[#58b347]' : 'text-slate-500 hover:text-slate-700'}`}><IconPackage /> Centralny</button>
-          <button onClick={() => setActiveTab('mobile')} className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'mobile' ? 'bg-white shadow-sm border border-slate-200 text-[#58b347]' : 'text-slate-500 hover:text-slate-700'}`}><IconTruck /> W Terenie</button>
-          <button onClick={() => setActiveTab('logs')} className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'logs' ? 'bg-white shadow-sm border border-slate-200 text-[#58b347]' : 'text-slate-500 hover:text-slate-700'}`}><IconHistory /> Historia</button>
+          <button onClick={() => { setActiveTab('central'); setActiveFilter('ALL'); }} className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'central' ? 'bg-white shadow-sm border border-slate-200 text-[#58b347]' : 'text-slate-500 hover:text-slate-700'}`}><IconPackage /> Centralny</button>
+          <button onClick={() => { setActiveTab('mobile'); setActiveFilter('ALL'); }} className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'mobile' ? 'bg-white shadow-sm border border-slate-200 text-[#58b347]' : 'text-slate-500 hover:text-slate-700'}`}><IconTruck /> W Terenie</button>
+          <button onClick={() => { setActiveTab('logs'); setActiveFilter('ALL'); }} className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'logs' ? 'bg-white shadow-sm border border-slate-200 text-[#58b347]' : 'text-slate-500 hover:text-slate-700'}`}><IconHistory /> Historia</button>
         </div>
       </div>
 
-      {/* Kontener Główny */}
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 flex flex-col relative" onContextMenu={handleRightClickClearFilters}>
         {isLoading ? (
-          <div className="flex w-full h-full items-center justify-center text-sm font-bold text-slate-400">Ładowanie bazy danych...</div>
+          <div className="flex w-full h-[50vh] items-center justify-center text-sm font-bold text-slate-400">Ładowanie bazy danych...</div>
         ) : (
-          <div className="h-full w-full max-w-[1500px] mx-auto p-6 flex flex-col gap-6">
+          <div className="min-h-max w-full max-w-[1600px] mx-auto p-6 flex flex-col gap-6">
             
-            {/* KPI Dashboard */}
-            <div className="grid grid-cols-3 gap-6 shrink-0">
-              <div className="bg-white/80 backdrop-blur-md border border-white/60 rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between">
+            {/* KPI Dashboard + Zakładki */}
+            <div ref={tabsScrollRef} className={`flex overflow-x-auto gap-6 pb-2 snap-x items-stretch shrink-0 select-none ${customScrollbarClasses}`}>
+              <div 
+                onClick={() => { setActiveTab('central'); setActiveFilter('ALL'); }}
+                className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeFilter === 'ALL' && activeTab === 'central' ? 'border-[#58b347] ring-2 ring-[#58b347]/20 bg-[#58b347]/5' : 'border-white/60 hover:bg-white cursor-pointer'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between transition-all`}
+              >
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Katalog (Unikalne pozycje)</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Katalog (Mag. Centralny)</p>
                   <p className="text-3xl font-bold text-slate-700">{parts.length}</p>
                 </div>
-                <div className="w-12 h-12 rounded-full bg-[#58b347]/10 flex items-center justify-center text-[#58b347]">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${activeFilter === 'ALL' && activeTab === 'central' ? 'bg-[#58b347] text-white' : 'bg-[#58b347]/10 text-[#58b347]'}`}>
                   <IconPackage />
                 </div>
               </div>
               
-              <div className="bg-white/80 backdrop-blur-md border border-white/60 rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between">
+              <div 
+                onClick={() => { setActiveTab('mobile'); setActiveFilter('ALL'); }}
+                className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeTab === 'mobile' && activeFilter === 'ALL' ? 'border-[#58b347] ring-2 ring-[#58b347]/20 bg-[#58b347]/5' : 'border-white/60 hover:bg-white cursor-pointer'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between transition-all`}
+              >
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Sprzęt w terenie</p>
                   <p className="text-3xl font-bold text-slate-700">{totalPartsInField}</p>
                 </div>
-                <div className="w-12 h-12 rounded-full bg-[#58b347]/10 text-[#58b347] flex items-center justify-center">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${activeTab === 'mobile' && activeFilter === 'ALL' ? 'bg-[#58b347] text-white' : 'bg-[#58b347]/10 text-[#58b347]'}`}>
                   <IconTruck />
                 </div>
               </div>
 
               <div 
-                onClick={() => { setShowOnlyLowStock(!showOnlyLowStock); setShowOnlyExpiring(false); setShowOnlyMuted(false); }}
-                className={`bg-white/80 backdrop-blur-md border ${lowStockAlerts > 0 ? 'border-red-200 cursor-pointer hover:bg-red-50/50 transition-colors' : 'border-white/60'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between`}
+                onClick={() => setActiveFilter(prev => prev === 'LOW_STOCK' ? 'ALL' : 'LOW_STOCK')}
+                className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeFilter === 'LOW_STOCK' ? 'border-red-500 ring-2 ring-red-500/20 bg-red-50/50' : lowStockAlerts > 0 ? 'border-red-200 cursor-pointer hover:bg-red-50/30' : 'border-white/60'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between cursor-pointer transition-all`}
               >
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Krytyczne braki magazynowe</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Krytyczne braki (≤ {lowStockThreshold})</p>
                   <p className={`text-3xl font-bold ${lowStockAlerts > 0 ? 'text-red-600 animate-pulse' : 'text-slate-700'}`}>{lowStockAlerts}</p>
                 </div>
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center ${lowStockAlerts > 0 ? 'bg-red-50 text-red-500' : 'bg-slate-50 text-slate-400'}`}>
                   <IconAlert />
                 </div>
               </div>
+
+              <div 
+                onClick={() => setActiveFilter(prev => prev === 'EXPIRING' ? 'ALL' : 'EXPIRING')}
+                className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeFilter === 'EXPIRING' ? 'border-orange-500 ring-2 ring-orange-500/20 bg-orange-50/50' : expiringPartsCount > 0 ? 'border-orange-200 hover:bg-orange-50/30' : 'border-white/60'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between cursor-pointer transition-all`}
+              >
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Wygasające Przeglądy/OC</p>
+                  <p className={`text-3xl font-bold ${expiringPartsCount > 0 ? 'text-orange-600 animate-pulse' : 'text-slate-700'}`}>{expiringPartsCount}</p>
+                </div>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${expiringPartsCount > 0 ? 'bg-orange-100 text-orange-500' : 'bg-slate-50 text-slate-400'}`}>
+                  <IconCalendar />
+                </div>
+              </div>
+
+              <div 
+                onClick={() => setActiveFilter(prev => prev === 'MUTED' ? 'ALL' : 'MUTED')}
+                className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeFilter === 'MUTED' ? 'border-slate-500 ring-2 ring-slate-500/20 bg-slate-50/50' : mutedAlertsCount > 0 ? 'border-slate-200 hover:border-slate-300 cursor-pointer' : 'border-white/60 cursor-pointer'} rounded-2xl p-5 shadow-sm flex items-center justify-between transition-all`}
+              >
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Wyciszone alerty</p>
+                  <p className="text-3xl font-bold text-slate-700">{mutedAlertsCount}</p>
+                </div>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${activeFilter === 'MUTED' ? 'bg-slate-200 text-slate-600' : 'bg-slate-50 text-slate-400'}`}>
+                  <IconBellOff />
+                </div>
+              </div>
+
+              {/* RENDER CUSTOMOWYCH ZAKŁADEK */}
+              {customTabs.map(tab => (
+                <div 
+                  key={tab.id}
+                  onClick={() => setActiveFilter(prev => prev === `CUSTOM_${tab.id}` ? 'ALL' : `CUSTOM_${tab.id}`)}
+                  className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeFilter === `CUSTOM_${tab.id}` ? 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/50' : 'border-slate-200 hover:border-slate-300'} rounded-2xl p-5 shadow-sm flex items-center justify-between cursor-pointer transition-all relative group`}
+                >
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleDeleteCustomTab(tab.id); }} 
+                    className="absolute top-3 right-3 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Usuń zakładkę"
+                  >
+                    <IconTrash />
+                  </button>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{tab.name}</p>
+                    <p className="text-3xl font-bold text-slate-700">{getCustomTabCount(tab)}</p>
+                  </div>
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${activeFilter === `CUSTOM_${tab.id}` ? 'bg-blue-100 text-blue-500' : 'bg-slate-50 text-slate-400'}`}>
+                    <IconFilter />
+                  </div>
+                </div>
+              ))}
+
+              <div 
+                onClick={() => setIsCustomTabModalOpen(true)}
+                className="min-w-[150px] shrink-0 snap-start bg-slate-50/50 border-2 border-dashed border-slate-300 hover:border-[#58b347] hover:bg-[#58b347]/5 rounded-2xl flex flex-col items-center justify-center text-slate-400 hover:text-[#58b347] cursor-pointer transition-all group p-5"
+              >
+                <div className="bg-white rounded-full p-2 mb-2 shadow-sm group-hover:scale-110 transition-transform"><IconPlus /></div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-center">Nowy Filtr</span>
+              </div>
             </div>
 
-            {/* WIDOK: MAGAZYN CENTRALNY I W TERENIE KORZYSTAJĄ Z TEGO SAMEGO LAYOUTU BAZOWEGO */}
+            {/* ZAAWANSOWANY PASEK FILTROWANIA (PIONOWY INTEGRALNY) */}
+            <div className="bg-white/90 backdrop-blur-md border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row gap-5 shrink-0 items-start">
+              
+              <div className="flex-1 w-full">
+                {renderSearchQueries(searchQueries, setSearchQueries)}
+              </div>
+
+              <div className="flex flex-col gap-3 min-w-[200px] w-full md:w-auto shrink-0">
+                {(searchQueries.some(q => q.text.trim() !== '') || activeFilter !== 'ALL') && (
+                  <button 
+                    onClick={() => { setSearchQueries([{ id: Math.random().toString(), text: '', logic: 'AND' }]); setActiveFilter('ALL'); }} 
+                    className="w-full bg-slate-100 hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-500 hover:text-red-500 text-[10px] font-bold uppercase tracking-widest px-3 py-2.5 rounded-xl transition-colors shadow-sm h-[38px]"
+                  >
+                    Wyczyść Filtry
+                  </button>
+                )}
+
+                {activeTab === 'central' && (
+                  <div className="flex gap-2 w-full mt-auto">
+                    <button onClick={() => setIsImportModalOpen(true)} className="flex-1 bg-white border border-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 flex items-center justify-center gap-1.5 shadow-sm transition-colors h-[38px]">
+                      <IconImport /> CSV
+                    </button>
+                    <button onClick={() => setIsNewPartModalOpen(true)} className="flex-1 bg-[#58b347] text-white border border-[#499b3a] px-3 py-2 rounded-xl text-xs font-bold hover:bg-[#499b3a] flex items-center justify-center gap-1.5 shadow-sm transition-colors h-[38px]">
+                      <IconPlus /> Nowy
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* WIDOK: MAGAZYN CENTRALNY I W TERENIE */}
             {(activeTab === 'central' || activeTab === 'mobile') && (
-              <div className="flex w-full h-full gap-6 flex-1 overflow-hidden">
+              <div className="flex w-full gap-6 flex-1 items-start relative">
                 
                 {/* Lewa kolumna: Lista (Centralna lub Mobilna) */}
-                <div className="flex-1 flex flex-col h-full bg-white/95 backdrop-blur-sm border border-white/60 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+                <div className="flex-1 flex flex-col bg-white/95 backdrop-blur-sm border border-white/60 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden min-h-max">
                   
-                  {/* Wodotrysk - Alert o wygasających przeglądach */}
-                  {expiringPartsCount > 0 && (
+                  {activeFilter === 'EXPIRING' && (
                     <div className="bg-orange-50/90 backdrop-blur-md border-b border-orange-200 p-4 flex justify-between items-center shrink-0">
                       <div className="flex gap-3 items-center text-orange-700">
                         <div className="p-2 bg-orange-100 rounded-full"><IconAlert /></div>
                         <div>
                           <h4 className="font-bold text-sm">Wymagane akcje logistyczne!</h4>
-                          <p className="text-xs font-medium opacity-90">Znaleziono {expiringPartsCount} pozycji ze zbliżającym się terminem UDT/Ubezpieczenia.</p>
+                          <p className="text-xs font-medium opacity-90">Znaleziono {expiringPartsCount} pozycji ze zbliżającym się terminem przeglądu/Ubezpieczenia.</p>
                         </div>
                       </div>
                       <button 
-                        onClick={() => { setShowOnlyExpiring(!showOnlyExpiring); setShowOnlyLowStock(false); setShowOnlyMuted(false); }} 
-                        className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${showOnlyExpiring ? 'bg-white text-orange-700 border border-orange-200' : 'bg-orange-500 text-white border border-orange-600 hover:bg-orange-600'}`}
+                        onClick={() => setActiveFilter('ALL')} 
+                        className="px-5 py-2.5 bg-white text-orange-700 border border-orange-200 rounded-xl text-xs font-bold hover:bg-orange-50 transition-all shadow-sm"
                       >
-                        {showOnlyExpiring ? 'Pokaż pełny katalog' : 'Izoluj wygasające'}
+                        Zamknij filtr
                       </button>
                     </div>
                   )}
 
-                  {/* Wodotrysk - Alert o niskich stanach */}
-                  {showOnlyLowStock && (
-                    <div className="bg-red-50/90 backdrop-blur-md border-b border-red-200 p-4 flex justify-between items-center shrink-0">
+                  {activeFilter === 'LOW_STOCK' && (
+                    <div className="bg-red-50/90 backdrop-blur-md border-b border-red-200 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center shrink-0 gap-4">
                       <div className="flex gap-3 items-center text-red-700">
                         <div className="p-2 bg-red-100 rounded-full"><IconAlert /></div>
                         <div>
-                          <h4 className="font-bold text-sm">Krytyczne braki na magazynie centralnym</h4>
-                          <p className="text-xs font-medium opacity-90">Wyświetlanie tylko aktywnych pozycji poniżej bezpiecznego minimum (≤ 3).</p>
+                          <h4 className="font-bold text-sm">Krytyczne braki w podglądanym ekwipunku</h4>
+                          <div className="text-xs font-medium opacity-90 flex items-center gap-2 mt-1">
+                            Wyświetlanie aktywnych pozycji ze stanem 
+                            <input 
+                              type="number" 
+                              min="0"
+                              value={lowStockThreshold}
+                              onChange={e => handleUpdateThreshold(parseInt(e.target.value) || 0)}
+                              className="w-14 px-1.5 py-0.5 border border-red-300 rounded text-red-800 font-bold bg-white text-center focus:outline-none focus:ring-1 focus:ring-red-500"
+                            />
+                            lub niższym.
+                          </div>
                         </div>
                       </div>
                       <button 
-                        onClick={() => setShowOnlyLowStock(false)} 
+                        onClick={() => setActiveFilter('ALL')} 
                         className="px-5 py-2.5 bg-white text-red-700 border border-red-200 rounded-xl text-xs font-bold hover:bg-red-50 transition-all shadow-sm"
                       >
                         Zamknij filtr
@@ -735,8 +1257,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                     </div>
                   )}
 
-                  {/* Wodotrysk - Alert o wyciszonych */}
-                  {showOnlyMuted && (
+                  {activeFilter === 'MUTED' && (
                     <div className="bg-slate-100/90 backdrop-blur-md border-b border-slate-300 p-4 flex justify-between items-center shrink-0">
                       <div className="flex gap-3 items-center text-slate-700">
                         <div className="p-2 bg-white rounded-full border border-slate-200"><IconBellOff /></div>
@@ -746,7 +1267,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                         </div>
                       </div>
                       <button 
-                        onClick={() => setShowOnlyMuted(false)} 
+                        onClick={() => setActiveFilter('ALL')} 
                         className="px-5 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-50 transition-all shadow-sm"
                       >
                         Zamknij filtr
@@ -754,361 +1275,302 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                     </div>
                   )}
 
-                  <div className="p-5 border-b border-slate-100/60 bg-white shrink-0 flex justify-between items-center">
-                    <div className="flex items-center gap-4 w-full max-w-[480px]">
-                      <div className="relative flex-1">
-                        <IconSearch />
-                        <input 
-                          type="text" 
-                          placeholder={activeTab === 'central' ? "Szukaj po SKU, nazwie..." : "Wyszukaj sprzęt w autach..."}
-                          value={searchQuery} 
-                          onChange={e => setSearchQuery(e.target.value)} 
-                          className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 shadow-sm transition-all bg-white"
-                        />
-                      </div>
-                      {mutedAlertsCount > 0 && (
-                        <button 
-                          onClick={() => { setShowOnlyMuted(!showOnlyMuted); setShowOnlyLowStock(false); setShowOnlyExpiring(false); }}
-                          className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 px-3 py-2 rounded-lg border transition-colors shadow-sm ${showOnlyMuted ? 'bg-slate-700 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`} 
-                          title="Kliknij aby zobaczyć tylko wyciszone pozycje"
-                        >
-                          <IconBellOff /> Wyciszone: {mutedAlertsCount}
-                        </button>
-                      )}
-                    </div>
-                    {activeTab === 'central' && (
-                      <div className="flex gap-3">
-                        <button onClick={() => setIsImportModalOpen(true)} className="bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors">
-                          <IconImport /> Import CSV
-                        </button>
-                        <button onClick={() => setIsNewPartModalOpen(true)} className="bg-[#58b347] text-white border border-[#499b3a] px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-[#499b3a] flex items-center gap-2 shadow-sm transition-colors">
-                          <IconPlus /> Dodaj asortyment
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide bg-slate-50/30">
-                    
-                    {/* WIDOK: CENTRALNY - Akordeony po kategoriach */}
-                    {activeTab === 'central' && ['Pojazd', 'Narzędzie', 'Część zamienna', 'Materiał eksploatacyjny', 'Inne'].map(cat => {
-                      const catParts = centralSummary[cat];
-                      if (!catParts || catParts.length === 0) return null;
-                      const isOpen = centralExpandedCats.includes(cat);
-
-                      return (
-                        <div key={cat} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                          <button 
-                            onClick={() => setCentralExpandedCats(p => p.includes(cat) ? p.filter(c => c !== cat) : [...p, cat])}
-                            className={`w-full px-5 py-4 flex justify-between items-center hover:bg-slate-50 transition-colors ${isOpen ? 'border-b border-slate-100 bg-slate-50/50' : ''}`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="text-[#58b347]">{getCategoryIcon(cat)}</div>
-                              <span className="text-xs font-bold uppercase tracking-widest text-slate-800">{cat}</span>
-                              <span className="text-[10px] font-bold bg-white border border-slate-200 px-2 py-0.5 rounded-md text-slate-500 shadow-sm">{catParts.length}</span>
-                            </div>
-                            <span className="text-slate-400">{isOpen ? <IconChevronUp /> : <IconChevronDown />}</span>
-                          </button>
-                          
-                          {isOpen && (
-                            <div className="flex flex-col w-full overflow-hidden">
-                              <div className="flex bg-slate-50 border-b border-slate-200 text-[9px] font-bold text-slate-400 uppercase tracking-widest px-6 py-2.5">
-                                <div className="w-1/4 pr-4">SKU / Index</div>
-                                <div className="w-1/3 pr-4">Asortyment / Nr Seryjny</div>
-                                <div className="w-1/4 pr-4">Status / Ważność</div>
-                                <div className="w-20 text-center shrink-0">Stan</div>
-                                <div className="flex-1 text-right">Akcje</div>
-                              </div>
-                              <div className="divide-y divide-slate-100/60 flex flex-col">
-                                {catParts.map(p => {
-                                  const inspExpiry = getExpiryStatus(p.inspection_date);
-                                  const insExpiry = getExpiryStatus(p.insurance_date);
-                                  const isVehicle = p.category === 'Pojazd';
-                                  const isTool = p.category === 'Narzędzie';
-                                  const hasSerial = !!p.serial_number;
-                                  const isBroken = p.service_status === 'W serwisie' || p.service_status === 'Uszkodzony';
-                                  
-                                  return (
-                                    <div 
-                                      key={p.id} 
-                                      onMouseEnter={() => setHoveredPartId(p.id)}
-                                      className="relative flex items-start px-6 py-4 group hover:bg-[#58b347]/5 border-b border-slate-50 last:border-0 cursor-pointer transition-colors"
-                                    >
-                                      {/* ABSOLUTNY WSKAŹNIK HOVER - Zawsze działa! */}
-                                      <div className={`absolute left-0 top-0 bottom-0 w-1 transition-colors ${hoveredPartId === p.id ? 'bg-[#58b347]' : 'bg-transparent group-hover:bg-[#58b347]'}`} />
-                                      
-                                      <div className="w-1/4 pr-4 pt-1 flex flex-col">
-                                        <span className="font-mono font-bold text-slate-400 uppercase tracking-wider text-xs">{p.sku}</span>
-                                        {p.is_muted && <span className="inline-flex mt-1.5 px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-bold border border-slate-200 uppercase tracking-widest w-max">Wyciszony</span>}
-                                      </div>
-                                      
-                                      <div className="w-1/3 pr-4">
-                                        <div className="flex items-center gap-2 mb-1.5">
-                                          <span className="text-sm font-bold text-slate-800 leading-tight">{p.name}</span>
-                                          <button onClick={(e) => { e.stopPropagation(); setEditingPart(p); }} className="text-slate-300 hover:text-[#58b347] transition-colors p-1" title="Edytuj kartotekę"><IconEdit /></button>
-                                          
-                                          {/* DZWONEK DO WYCISZANIA */}
-                                          {['Część zamienna', 'Materiał eksploatacyjny'].includes(p.category) && (
-                                            <button 
-                                              onClick={(e) => handleToggleMute(e, p)} 
-                                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 ml-1" 
-                                              title={p.is_muted ? "Włącz powiadomienia o niskim stanie" : "Wycisz powiadomienia o niskim stanie"}
-                                            >
-                                              {p.is_muted ? <IconBellOff /> : <IconBell />}
-                                            </button>
-                                          )}
-                                        </div>
-                                        {isVehicle && p.vehicle_plate && (
-                                          <span className="text-[10px] font-bold font-mono text-slate-500 uppercase flex items-center gap-1 w-max border border-slate-200 bg-white px-2 py-0.5 rounded shadow-sm">
-                                            <IconCar /> {p.vehicle_plate}
-                                          </span>
-                                        )}
-                                        {isTool && hasSerial && (
-                                          <span className="text-[10px] font-bold font-mono text-slate-500 uppercase flex items-center gap-1 w-max border border-slate-200 bg-white px-2 py-0.5 rounded shadow-sm">
-                                            <IconTool /> S/N: {p.serial_number}
-                                          </span>
-                                        )}
-                                      </div>
-                                      
-                                      <div className="w-1/4 pr-4 flex flex-col gap-1.5 pt-1">
-                                        {isVehicle && p.vehicle_type && <span className="text-[9px] font-bold text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider w-max">{p.vehicle_type}</span>}
-                                        
-                                        {(isVehicle || isTool) && p.service_status && p.service_status !== 'Sprawny' && (
-                                          <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-widest w-max ${p.service_status === 'Uszkodzony' ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-orange-50 text-orange-600 border-orange-200'}`}>
-                                            Status: {p.service_status}
-                                          </span>
-                                        )}
-
-                                        {['Pojazd', 'Narzędzie'].includes(p.category) && p.inspection_date && (
-                                          <div className="flex items-center gap-1.5">
-                                            <IconCalendar />
-                                            <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-widest whitespace-nowrap ${inspExpiry.badge}`}>
-                                              Przegląd: {inspExpiry.text}
-                                            </span>
-                                          </div>
-                                        )}
-                                        
-                                        {isVehicle && p.insurance_date && (
-                                          <div className="flex items-center gap-1.5">
-                                            <IconShield />
-                                            <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-widest whitespace-nowrap ${insExpiry.badge}`}>
-                                              OC/AC: {insExpiry.text}
-                                            </span>
-                                          </div>
-                                        )}
-                                      </div>
-
-                                      <div className="w-20 text-center shrink-0 flex flex-col items-center pt-1">
-                                        {p.main_stock === 0 ? (
-                                          <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-widest mb-1 ${p.is_muted ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-red-50 text-red-600 border-red-200 animate-pulse'}`}>Braki</span>
-                                        ) : p.main_stock <= 3 ? (
-                                          <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-widest mb-1 ${p.is_muted ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-orange-50 text-orange-600 border-orange-200'}`}>Niski Stan</span>
-                                        ) : (
-                                          <span className="inline-flex px-2 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-bold border border-green-200 uppercase tracking-widest mb-1">Dostępne</span>
-                                        )}
-                                        <span className={`text-lg font-bold tabular-nums ${p.main_stock === 0 && !p.is_muted ? 'text-red-500' : 'text-slate-800'}`}>
-                                          {p.main_stock} <span className="font-bold text-[10px] text-slate-400 uppercase">{p.unit}</span>
-                                        </span>
-                                      </div>
-
-                                      <div className="flex-1 text-right flex flex-col items-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity pt-1">
-                                        <button onClick={(e) => { e.stopPropagation(); setIssueForm({ ...issueForm, type: 'DOSTAWA' }); setIssueModalPart(p); }} className="text-[10px] font-bold border border-slate-200 bg-white text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-50 shadow-sm transition-colors uppercase tracking-wider w-full text-center">
-                                          + Dostawa
-                                        </button>
-                                        <button 
-                                          onClick={(e) => { e.stopPropagation(); setIssueForm({ ...issueForm, type: 'WYDANIE' }); setIssueModalPart(p); }} 
-                                          disabled={p.main_stock === 0 || isBroken} 
-                                          className={`text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm transition-colors uppercase tracking-wider flex items-center justify-center gap-1 w-full ${isBroken ? 'border border-red-200 bg-red-50 text-red-500 opacity-60 cursor-not-allowed' : 'border border-[#58b347] bg-[#58b347] text-white hover:bg-[#499b3a] disabled:opacity-40 disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-400'}`}
-                                          title={isBroken ? 'Wydanie zablokowane ze względu na status serwisowy!' : ''}
-                                        >
-                                          Wydaj <IconArrowRight />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                    {activeTab === 'central' && Object.keys(centralSummary).every(k => centralSummary[k].length === 0) && (
-                      <div className="text-center p-12 text-sm text-slate-400 font-bold bg-white rounded-xl border border-slate-200 shadow-sm">
-                        Brak pozycji spełniających kryteria.
-                      </div>
-                    )}
-
-                    {/* WIDOK: W TERENIE - Suma pojazdów */}
-                    {activeTab === 'mobile' && (
-                      <div className="bg-white border border-[#58b347]/20 rounded-xl shadow-sm overflow-hidden mb-4">
-                        <button 
-                          onClick={() => setIsSummaryExpanded(!isSummaryExpanded)} 
-                          className="w-full px-5 py-4 flex justify-between items-center bg-[#58b347]/5 hover:bg-[#58b347]/10 transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            <IconLayers />
-                            <span className="text-xs font-bold uppercase tracking-widest text-slate-700">Suma sprzętu we wszystkich pojazdach</span>
-                          </div>
-                          <span className="text-[#58b347]">{isSummaryExpanded ? <IconChevronUp /> : <IconChevronDown />}</span>
+                  <div className="p-4 border-b border-slate-100/60 flex justify-between items-center bg-slate-50/50 shrink-0">
+                    <div className="font-bold text-sm text-slate-700 uppercase tracking-widest">Lista Wyposażenia</div>
+                    <div className="flex gap-3 items-center">
+                      <div className="relative">
+                        <button onClick={() => setIsColumnSettingsOpen(!isColumnSettingsOpen)} className={`bg-white border text-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors ${isColumnSettingsOpen ? 'border-[#58b347] text-[#58b347]' : 'border-slate-200'} h-[38px]`}>
+                          <IconColumns /> Kolumny
                         </button>
                         
-                        {isSummaryExpanded && (
-                          <div className="max-h-[40vh] overflow-y-auto bg-white scrollbar-hide">
-                            {['Pojazd', 'Narzędzie', 'Część zamienna', 'Materiał eksploatacyjny', 'Inne'].map(cat => {
-                              const items = mobileSummary[cat];
-                              if (!items || items.length === 0) return null;
-                              return (
-                                <div key={cat}>
-                                  <div className="bg-slate-50 px-5 py-2.5 text-[10px] font-bold text-[#58b347] uppercase border-b border-t border-slate-100 flex items-center gap-2 sticky top-0 z-10 tracking-widest">
-                                    {getCategoryIcon(cat)} {cat}
+                        {isColumnSettingsOpen && (
+                          <div className="absolute right-0 top-full mt-2 w-64 bg-white/95 backdrop-blur-2xl border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden animate-fadeIn">
+                            <div className="text-[10px] font-bold text-slate-400 uppercase bg-slate-50 px-4 py-3 border-b border-slate-100 flex justify-between items-center tracking-widest">
+                              Konfiguracja widoku
+                              <button onClick={() => setIsColumnSettingsOpen(false)} className="hover:text-slate-700 transition-colors">✕</button>
+                            </div>
+                            <div className={`p-2 max-h-[60vh] overflow-y-auto ${customScrollbarClasses}`}>
+                              {activeCols.map((c, i) => (
+                                <div key={c.key} className="flex items-center justify-between p-2.5 hover:bg-slate-50 rounded-xl group transition-colors cursor-pointer" onClick={() => toggleColumnVisibility(i)}>
+                                  <div className="flex items-center gap-3">
+                                    <CustomCheckbox checked={c.visible} onChange={() => {}} />
+                                    <span className={`text-xs font-bold select-none ${c.visible ? 'text-slate-700' : 'text-slate-400'}`}>{c.label === '☑' ? 'Zaznaczanie' : c.label || 'Akcje'}</span>
                                   </div>
-                                  <div className="flex flex-col">
-                                    {items.map(item => (
-                                      <div 
-                                        key={item.part.id}
-                                        onMouseEnter={() => setHoveredPartId(item.part.id)}
-                                        className="relative flex items-center justify-between px-6 py-3 cursor-pointer group hover:bg-[#58b347]/5 border-b border-slate-50 last:border-0 transition-colors"
-                                      >
-                                        {/* ABSOLUTNY WSKAŹNIK HOVER */}
-                                        <div className={`absolute left-0 top-0 bottom-0 w-1 transition-colors ${hoveredPartId === item.part.id ? 'bg-[#58b347]' : 'bg-transparent group-hover:bg-[#58b347]'}`} />
-                                        
-                                        <div className="flex flex-col min-w-0 pr-4 w-2/3">
-                                          <span className="text-sm font-bold text-slate-800 leading-tight">{item.part.name}</span>
-                                          <span className="text-[10px] font-bold text-slate-400 font-mono mt-1 uppercase tracking-wider">
-                                            {item.part.sku} 
-                                          </span>
-                                        </div>
-                                        <div className="text-lg font-bold text-slate-800 tabular-nums bg-white border border-slate-200 px-3 py-1 rounded-lg shadow-sm shrink-0">
-                                          {item.total} <span className="text-[10px] font-bold text-slate-400 uppercase">{item.part.unit}</span>
-                                        </div>
-                                      </div>
-                                    ))}
+                                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                    <button onClick={() => moveColumn(i, -1)} disabled={i === 0} className="p-1 text-slate-400 hover:text-[#58b347] hover:bg-green-50 rounded-md disabled:opacity-20 transition-colors"><IconArrowUp /></button>
+                                    <button onClick={() => moveColumn(i, 1)} disabled={i === activeCols.length - 1} className="p-1 text-slate-400 hover:text-[#58b347] hover:bg-green-50 rounded-md disabled:opacity-20 transition-colors"><IconArrowDown /></button>
                                   </div>
                                 </div>
-                              );
-                            })}
-                            {Object.keys(mobileSummary).every(k => mobileSummary[k].length === 0) && (
-                              <div className="text-center p-6 text-sm text-slate-400 font-bold">Brak wyników.</div>
-                            )}
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
-                    )}
 
-                    {/* WIDOK: W TERENIE - Bagażniki techników */}
-                    {activeTab === 'mobile' && (
-                      <>
-                        <div className="flex items-center gap-4 py-2 opacity-60">
-                          <div className="h-px bg-slate-300 flex-1"></div>
-                          <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-2">Ekwipunek poszczególnych techników</h2>
-                          <div className="h-px bg-slate-300 flex-1"></div>
-                        </div>
-                        
-                        <div className="space-y-3 pb-8">
-                          {technicians.map(tech => {
-                            const techItems = filteredTechInventory.filter(i => i.technician_id === tech.id && i.quantity > 0);
-                            const isOpen = expandedTechIds.includes(tech.id);
-                            if (searchQuery && techItems.length === 0) return null;
-
-                            const groups: Record<string, TechInventory[]> = { 'Pojazd': [], 'Narzędzie': [], 'Część zamienna': [], 'Materiał eksploatacyjny': [], 'Inne': [] };
-                            techItems.forEach(item => {
-                              const c = parts.find(p => p.id === item.part_id)?.category || 'Inne';
-                              if (groups[c]) groups[c].push(item); else groups['Inne'].push(item);
-                            });
-
-                            return (
-                              <div key={tech.id} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                                <div 
-                                  onClick={() => setExpandedTechIds(p => p.includes(tech.id) ? p.filter(id => id !== tech.id) : [...p, tech.id])}
-                                  className={`w-full px-5 py-4 flex justify-between items-center hover:bg-slate-50 cursor-pointer border-b border-slate-100 transition-colors ${isOpen ? 'bg-slate-50' : ''}`}
-                                >
-                                  <div className="flex items-center gap-4">
-                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold bg-[#58b347]">
-                                      {getInitials(tech.name)}
-                                    </div>
-                                    <div>
-                                      <div className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                        {tech.name}
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-3 text-xs font-bold text-slate-500 bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
-                                    <span>Poz: {techItems.length}</span>
-                                    <span className="text-[#58b347]">{isOpen ? <IconChevronUp /> : <IconChevronDown />}</span>
-                                  </div>
+                      {activeTab === 'central' && selectedIds.length > 0 && (
+                        <>
+                          <button onClick={deleteSelected} className="bg-red-50 border border-red-200 text-red-600 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-red-100 flex items-center gap-2 shadow-sm transition-all h-[38px]">
+                            <IconTrash /> Usuń ({selectedIds.length})
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* TABELA KLASYCZNA */}
+                  <div className="w-full overflow-x-auto min-h-max pb-4">
+                    <table className="w-full text-left border-collapse min-w-[1000px]">
+                      <thead className="bg-slate-50/80 backdrop-blur-sm border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-widest shadow-sm shadow-slate-100/50">
+                        <tr>
+                          {activeCols.filter(c => c.visible).map(c => (
+                            <th 
+                              key={c.key} 
+                              className={`py-4 ${c.thClass} ${c.sortableKey ? 'cursor-pointer hover:text-slate-800 transition-colors' : ''}`}
+                              onClick={() => c.sortableKey && handleSort(c.sortableKey)}
+                            >
+                              {c.key === 'select' && activeTab === 'central' ? (
+                                <div className="flex justify-center w-full">
+                                  <CustomCheckbox 
+                                    checked={selectedIds.length === filteredParts.length && filteredParts.length > 0} 
+                                    onChange={toggleSelectAll} 
+                                  />
                                 </div>
-
-                                {isOpen && (
-                                  <div className="pb-2">
-                                    {['Pojazd', 'Narzędzie', 'Część zamienna', 'Materiał eksploatacyjny', 'Inne'].map(cat => {
-                                      const items = groups[cat];
-                                      if (!items || items.length === 0) return null;
-                                      return (
-                                        <div key={cat}>
-                                          <div className="bg-slate-50 px-5 py-2 text-[9px] font-bold text-[#58b347] uppercase border-b border-t border-slate-100 flex items-center gap-1.5 tracking-widest">{getCategoryIcon(cat)} {cat}</div>
-                                          <div className="flex flex-col">
-                                            {items.map(item => {
-                                              const p = parts.find(x => x.id === item.part_id);
-                                              if (!p) return null;
-                                              return (
-                                                <div 
-                                                  key={item.id} 
-                                                  onMouseEnter={() => setHoveredPartId(p.id)}
-                                                  className="relative flex items-center justify-between px-6 py-3 cursor-pointer group hover:bg-[#58b347]/5 border-b border-slate-50 last:border-b-0 transition-colors"
-                                                >
-                                                  {/* ABSOLUTNY WSKAŹNIK HOVER */}
-                                                  <div className={`absolute left-0 top-0 bottom-0 w-1 transition-colors ${hoveredPartId === p.id ? 'bg-[#58b347]' : 'bg-transparent group-hover:bg-[#58b347]'}`} />
-                                                  
-                                                  <div className="flex flex-col min-w-0 pr-4 flex-1">
-                                                    <span className="text-sm font-bold text-slate-700 leading-tight">{p.name}</span>
-                                                    <span className="text-[10px] font-bold text-slate-400 font-mono mt-1 uppercase tracking-wider flex items-center gap-1.5">
-                                                      {p.sku}
-                                                      {p.category === 'Pojazd' && p.vehicle_plate && <><IconCar /> {p.vehicle_plate}</>}
-                                                      {p.category === 'Narzędzie' && p.serial_number && <><IconTool /> S/N: {p.serial_number}</>}
-                                                    </span>
-                                                  </div>
-                                                  <div className="w-24 text-center shrink-0">
-                                                    <div className="font-bold text-slate-800 text-sm bg-white border border-slate-200 px-2 py-1 rounded shadow-sm inline-block">
-                                                      {item.quantity} <span className="text-[9px] font-bold text-slate-400 uppercase">{p.unit}</span>
-                                                    </div>
-                                                  </div>
-                                                  <div className="w-24 text-right shrink-0 flex justify-end">
-                                                    <button onClick={(e) => { e.stopPropagation(); setIssueForm({ type: 'ZWROT', technician_id: tech.id, quantity: 1 }); setIssueModalPart(p); }} className="text-[9px] font-bold text-[#499b3a] bg-white border border-slate-200 hover:border-[#58b347] hover:bg-[#58b347]/5 px-3 py-1.5 rounded-lg transition-colors shadow-sm inline-flex items-center justify-center gap-1.5 uppercase tracking-widest opacity-0 group-hover:opacity-100">
-                                                      <IconArrowLeft /> Zwróć
-                                                    </button>
-                                                  </div>
-                                                </div>
-                                              )
-                                            })}
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                    {techItems.length === 0 && <div className="p-6 text-xs text-center text-slate-400 font-bold">Brak wyposażenia.</div>}
+                              ) : (
+                                <>
+                                  {c.label} {c.sortableKey && <IconSort />}
+                                </>
+                              )}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      
+                      {isLoading ? (
+                        <tbody><tr><td colSpan={activeCols.filter(c => c.visible).length} className="p-12 text-center text-slate-400 font-bold">Ładowanie bazy wyposażenia...</td></tr></tbody>
+                      ) : filteredParts.length === 0 ? (
+                        <tbody><tr><td colSpan={activeCols.filter(c => c.visible).length} className="p-12 text-center text-slate-400 font-bold">Brak wyników w bazie.</td></tr></tbody>
+                      ) : (
+                        // WIDOK: CENTRALNY (Kategorie - Klasyczne Akordeony)
+                        activeTab === 'central' ? (
+                          Object.keys(centralSummary).map(cat => {
+                            const catParts = centralSummary[cat];
+                            if (!catParts || catParts.length === 0) return null;
+                            const isOpen = centralExpandedCats.includes(cat);
+                            return (
+                              <tbody key={`central-${cat}`} className="divide-y divide-slate-100/60">
+                                <tr 
+                                  className="bg-[#58b347]/10 hover:bg-[#58b347]/20 cursor-pointer transition-colors border-y border-[#58b347]/20"
+                                  onClick={() => setCentralExpandedCats(p => p.includes(cat) ? p.filter(c => c !== cat) : [...p, cat])}
+                                >
+                                  <td colSpan={activeCols.filter(c => c.visible).length} className="px-6 py-4">
+                                    <div className="flex justify-between items-center">
+                                      <div className="flex items-center gap-3">
+                                        <div className="bg-white p-2 rounded-lg shadow-sm text-[#58b347]">{getCategoryIcon(cat)}</div>
+                                        <span className="text-sm font-extrabold uppercase tracking-widest text-[#499b3a]">{cat}</span>
+                                        <span className="text-[10px] font-bold bg-white text-[#499b3a] px-2.5 py-0.5 rounded-full shadow-sm border border-[#58b347]/20">{catParts.length}</span>
+                                      </div>
+                                      <span className="text-[#58b347] bg-white p-1.5 rounded-lg shadow-sm border border-[#58b347]/20">{isOpen ? <IconChevronUp /> : <IconChevronDown />}</span>
+                                    </div>
+                                  </td>
+                                </tr>
+                                
+                                {isOpen && catParts.map(p => (
+                                  <tr 
+                                    key={p.id} 
+                                    onMouseEnter={() => setHoveredPartId(p.id)}
+                                    className={`bg-white hover:bg-slate-50/80 transition-colors cursor-pointer group ${selectedIds.includes(p.id) ? 'bg-[#58b347]/5 hover:bg-[#58b347]/10' : ''}`}
+                                  >
+                                    {activeCols.filter(c => c.visible).map((c, index) => (
+                                      <td key={c.key} className={`py-4 relative ${c.tdClass}`}>
+                                        {index === 0 && <div className={`absolute left-0 top-0 bottom-0 w-1 transition-colors ${hoveredPartId === p.id ? 'bg-[#58b347]' : 'bg-transparent group-hover:bg-[#58b347]'}`} />}
+                                        {renderCellContent({ part: p, quantity: p.main_stock }, c.key)}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            )
+                          })
+                        ) : (
+                          // WIDOK: W TERENIE (Akordeony Techników)
+                          <>
+                            {/* Akordeon SUMA SPRZĘTU */}
+                            <tbody className="divide-y divide-slate-100/60">
+                              <tr 
+                                onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
+                                className="bg-[#58b347]/10 hover:bg-[#58b347]/20 cursor-pointer transition-colors border-y border-[#58b347]/20"
+                              >
+                                <td colSpan={activeCols.filter(c => c.visible).length} className="px-6 py-4">
+                                  <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-3">
+                                      <div className="bg-white p-2 rounded-lg shadow-sm text-[#58b347]"><IconLayers /></div>
+                                      <span className="text-sm font-extrabold uppercase tracking-widest text-[#499b3a]">Suma sprzętu we wszystkich pojazdach</span>
+                                    </div>
+                                    <span className="text-[#58b347] bg-white p-1.5 rounded-lg shadow-sm border border-[#58b347]/20">{isSummaryExpanded ? <IconChevronUp /> : <IconChevronDown />}</span>
                                   </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </>
-                    )}
+                                </td>
+                              </tr>
+                              {isSummaryExpanded && ['Pojazd', 'Narzędzie', 'Część zamienna', 'Materiał eksploatacyjny', 'Inne'].map(cat => {
+                                const items = mobileSummary[cat];
+                                if (!items || items.length === 0) return null;
+                                return (
+                                  <React.Fragment key={`mob-sum-${cat}`}>
+                                    <tr className="bg-slate-100/80 border-y border-slate-200 shadow-sm">
+                                      <td colSpan={activeCols.filter(c => c.visible).length} className="px-6 py-2 text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">
+                                        <div className="flex items-center gap-2">
+                                          {getCategoryIcon(cat)} {cat}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                    {items.map(item => (
+                                      <tr 
+                                        key={`mob-sum-part-${item.part.id}`} 
+                                        onMouseEnter={() => setHoveredPartId(item.part.id)}
+                                        className="bg-white hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                                      >
+                                        {activeCols.filter(c => c.visible).map((c, index) => (
+                                          <td key={c.key} className={`py-4 relative ${c.tdClass}`}>
+                                            {index === 0 && <div className={`absolute left-0 top-0 bottom-0 w-1 transition-colors ${hoveredPartId === item.part.id ? 'bg-[#58b347]' : 'bg-transparent group-hover:bg-[#58b347]'}`} />}
+                                            {renderCellContent({ part: item.part, quantity: item.total }, c.key)}
+                                          </td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </React.Fragment>
+                                );
+                              })}
+                            </tbody>
 
+                            {/* Separator */}
+                            <tbody>
+                              <tr>
+                                <td colSpan={activeCols.filter(c => c.visible).length} className="px-6 py-6 opacity-60 bg-transparent">
+                                  <div className="flex items-center gap-4">
+                                    <div className="h-px bg-slate-300 flex-1"></div>
+                                    <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-2">Ekwipunek poszczególnych techników</h2>
+                                    <div className="h-px bg-slate-300 flex-1"></div>
+                                  </div>
+                                </td>
+                              </tr>
+                            </tbody>
+
+                            {/* Akordeony dla poszczególnych Techników */}
+                            {technicians.map(tech => {
+                              // Najpierw pobieramy ekwipunek i od razu filtrujemy go według aktywnych reguł
+                              let techItems = filteredTechInventory.filter(i => i.technician_id === tech.id && i.quantity > 0);
+                              
+                              if (activeFilter === 'LOW_STOCK') {
+                                techItems = techItems.filter(i => {
+                                  const p = parts.find(x => x.id === i.part_id);
+                                  if (!p || p.is_muted || p.mobile_muted || i.is_muted || !['Część zamienna', 'Materiał eksploatacyjny'].includes(p.category)) return false;
+                                  const total = mobileSummaryRaw[p.id]?.total || 0;
+                                  return total <= lowStockThreshold;
+                                });
+                              } else if (activeFilter === 'MUTED') {
+                                techItems = techItems.filter(i => {
+                                  const p = parts.find(x => x.id === i.part_id);
+                                  return p?.is_muted || p?.mobile_muted || i.is_muted;
+                                });
+                              } else if (activeFilter === 'EXPIRING') {
+                                techItems = techItems.filter(i => {
+                                  const p = parts.find(x => x.id === i.part_id);
+                                  if (!p) return false;
+                                  const insp = p.inspection_date ? getExpiryStatus(p.inspection_date) : null;
+                                  const ins = p.insurance_date ? getExpiryStatus(p.insurance_date) : null;
+                                  return (insp && (insp.isExpired || insp.isExpiring)) || (ins && (ins.isExpired || ins.isExpiring));
+                                });
+                              }
+
+                              const isOpen = expandedTechIds.includes(tech.id);
+                              
+                              if (searchQueries.some(q => q.text.trim() !== '') && techItems.length === 0) return null;
+                              if (techItems.length === 0) return null;
+
+                              const groups: Record<string, TechInventory[]> = { 'Pojazd': [], 'Narzędzie': [], 'Część zamienna': [], 'Materiał eksploatacyjny': [], 'Inne': [] };
+                              techItems.forEach(item => {
+                                const c = parts.find(p => p.id === item.part_id)?.category || 'Inne';
+                                if (groups[c]) groups[c].push(item); else groups['Inne'].push(item);
+                              });
+
+                              return (
+                                <tbody key={`tech-${tech.id}`} className="divide-y divide-slate-100/60 bg-white">
+                                  <tr 
+                                    onClick={() => setExpandedTechIds(p => p.includes(tech.id) ? p.filter(id => id !== tech.id) : [...p, tech.id])}
+                                    className={`hover:bg-slate-50 cursor-pointer transition-colors border-y border-slate-200 ${isOpen ? 'bg-slate-50' : ''}`}
+                                  >
+                                    <td colSpan={activeCols.filter(c => c.visible).length} className="px-6 py-4">
+                                      <div className="flex justify-between items-center">
+                                        <div className="flex items-center gap-4">
+                                          <div 
+                                            className="w-12 h-12 rounded-[14px] flex items-center justify-center text-white font-bold text-lg shadow-sm border-2 border-white ring-1 ring-black/5"
+                                            style={{ backgroundColor: tech.color || '#58b347' }}
+                                          >
+                                            {getInitials(tech.name)}
+                                          </div>
+                                          <div className="text-sm font-extrabold text-slate-800">{tech.name}</div>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-[10px] font-bold bg-white border border-slate-200 text-slate-500 px-3 py-1.5 rounded-full shadow-sm uppercase tracking-widest">Pozycji: {techItems.length}</span>
+                                          <span className="text-slate-400 bg-white p-1.5 rounded-lg shadow-sm border border-slate-200">{isOpen ? <IconChevronUp /> : <IconChevronDown />}</span>
+                                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+
+                                  {isOpen && ['Pojazd', 'Narzędzie', 'Część zamienna', 'Materiał eksploatacyjny', 'Inne'].map(cat => {
+                                    const items = groups[cat];
+                                    if (!items || items.length === 0) return null;
+                                    return (
+                                      <React.Fragment key={`tech-${tech.id}-cat-${cat}`}>
+                                        <tr className="bg-slate-100/80 border-y border-slate-200 shadow-sm">
+                                          <td colSpan={activeCols.filter(c => c.visible).length} className="px-6 py-2 text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">
+                                            <div className="flex items-center gap-2">
+                                              {getCategoryIcon(cat)} {cat}
+                                            </div>
+                                          </td>
+                                        </tr>
+                                        {items.map(item => {
+                                          const p = parts.find(x => x.id === item.part_id);
+                                          if (!p) return null;
+                                          return (
+                                            <tr 
+                                              key={`tech-${tech.id}-part-${item.id}`} 
+                                              onMouseEnter={() => setHoveredPartId(p.id)}
+                                              className="bg-white hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                                            >
+                                              {activeCols.filter(c => c.visible).map((c, index) => (
+                                                <td key={c.key} className={`py-4 relative ${c.tdClass}`}>
+                                                  {index === 0 && <div className={`absolute left-0 top-0 bottom-0 w-1 transition-colors ${hoveredPartId === p.id ? 'bg-[#58b347]' : 'bg-transparent group-hover:bg-[#58b347]'}`} />}
+                                                  {renderCellContent({ part: p, quantity: item.quantity, techId: tech.id, invItem: item }, c.key)}
+                                                </td>
+                                              ))}
+                                            </tr>
+                                          )
+                                        })}
+                                      </React.Fragment>
+                                    );
+                                  })}
+                                </tbody>
+                              );
+                            })}
+                          </>
+                        )
+                      )}
+                    </table>
                   </div>
                 </div>
 
-                {/* Prawa kolumna leci z centrali (ponieważ ten sam kod zarządza stanem hoveredPartId) */}
-                <div className="w-[380px] bg-white border border-slate-200 rounded-2xl flex flex-col shrink-0 shadow-sm overflow-hidden relative">
+                {/* Prawa kolumna - Czysty Sticky Panel */}
+                <div className="w-[380px] h-[calc(100vh-120px)] bg-white border border-slate-200 rounded-2xl flex flex-col shrink-0 shadow-sm overflow-hidden sticky top-[90px]">
                   {activePartDetails ? (
                     <div className="flex flex-col h-full bg-white animate-fadeIn relative">
                       
-                      {/* Przycisk Wyciszenia (Wodotrysk) */}
+                      {/* Przycisk Wyciszenia */}
                       {['Część zamienna', 'Materiał eksploatacyjny'].includes(activePartDetails.part.category) && (
                         <button
-                          onClick={(e) => handleToggleMute(e, activePartDetails.part)}
+                          onClick={(e) => { e.stopPropagation(); handleToggleMuteCentral(activePartDetails.part); }}
                           className={`absolute top-4 right-14 p-2 rounded-xl transition-colors shadow-sm border ${activePartDetails.part.is_muted ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 border-slate-200'}`}
-                          title={activePartDetails.part.is_muted ? "Włącz powiadomienia o brakach dla tego elementu" : "Zignoruj powiadomienia o brakach dla tego elementu"}
+                          title={activePartDetails.part.is_muted ? "Odwycisz w systemie głównym" : "Wycisz globalnie powiadomienia o brakach"}
                         >
                           {activePartDetails.part.is_muted ? <IconBellOff /> : <IconBell />}
                         </button>
@@ -1123,13 +1585,13 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                         <div className="flex items-center gap-2 mt-3">
                           <div className="text-[10px] font-bold font-mono text-slate-500 bg-white border border-slate-200 px-3 py-1 rounded-full uppercase tracking-wider">{activePartDetails.part.sku}</div>
                           {activePartDetails.part.is_muted && (
-                            <div className="text-[10px] font-bold text-slate-500 bg-slate-200 px-3 py-1 rounded-full uppercase tracking-wider">WYCISZONY</div>
+                            <div className="text-[10px] font-bold text-slate-500 bg-slate-200 px-3 py-1 rounded-full uppercase tracking-wider">GLOBALNIE WYCISZONY</div>
                           )}
                         </div>
                         
                         {(activePartDetails.part.serial_number || activePartDetails.part.vehicle_plate) && (
                           <div className="text-[9px] font-bold font-mono text-slate-500 uppercase flex items-center gap-1 mt-2">
-                            {activePartDetails.part.category === 'Pojazd' ? <IconCar /> : <IconTool />} 
+                            <IconForVehicle type={activePartDetails.part.vehicle_type} className="w-3.5 h-3.5 opacity-70" /> 
                             {activePartDetails.part.category === 'Pojazd' ? activePartDetails.part.vehicle_plate : `S/N: ${activePartDetails.part.serial_number}`}
                           </div>
                         )}
@@ -1138,7 +1600,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                         )}
                       </div>
 
-                      {/* WODOTRYSK: Wykres dystrybucji */}
+                      {/* Wykres dystrybucji */}
                       <div className="p-6 border-b border-slate-100 shrink-0 space-y-4 bg-white">
                         <div className="flex justify-between items-end">
                           <div>
@@ -1158,14 +1620,17 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                         </div>
                       </div>
 
-                      {/* Rozbicie na auta */}
-                      <div className="flex-1 overflow-y-auto bg-slate-50/50">
+                      {/* Rozbicie na auta (Tutaj znajduje się Wewnętrzny Scroll) */}
+                      <div className={`flex-1 overflow-y-auto bg-slate-50/50 ${customScrollbarClasses}`}>
                         <div className="px-6 py-3 bg-slate-50 text-[9px] font-bold text-slate-400 uppercase border-b border-slate-100 tracking-widest sticky top-0 z-10">Rozdysponowane u techników:</div>
                         <ul className="divide-y divide-slate-100">
                           {activePartDetails.breakdown.map((b, i) => (
                             <li key={i} className="flex items-center justify-between px-6 py-4 hover:bg-white transition-colors">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold bg-[#58b347] text-xs shadow-sm">
+                                <div 
+                                  className="w-10 h-10 rounded-[12px] flex items-center justify-center text-white font-bold text-xs shadow-sm border border-black/5 shrink-0"
+                                  style={{ backgroundColor: b.tech.color || '#58b347' }}
+                                >
                                   {getInitials(b.tech.name)}
                                 </div>
                                 <div className="flex flex-col">
@@ -1202,13 +1667,13 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
 
             {/* WIDOK: HISTORIA ZMIAN */}
             {activeTab === 'logs' && (
-              <div className="w-full bg-white/95 backdrop-blur-sm border border-white/60 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col overflow-hidden flex-1">
-                <div className="p-5 border-b border-slate-100/60 flex justify-between items-center bg-white shrink-0">
+              <div className="w-full bg-white/95 backdrop-blur-sm border border-white/60 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col h-max overflow-hidden flex-1">
+                <div className="p-5 border-b border-slate-100/60 flex justify-between items-center bg-white shrink-0 sticky top-0 z-20">
                   <h2 className="font-bold text-sm text-slate-800 uppercase tracking-widest">Rejestr Operacji Magazynowych</h2>
                 </div>
-                <div className="flex-1 overflow-y-auto scrollbar-hide">
+                <div className="flex-1">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50/80 backdrop-blur-sm border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-widest sticky top-0 z-10">
+                    <thead className="bg-slate-50/80 backdrop-blur-sm border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-widest sticky top-[68px] z-10">
                       <tr>
                         <th className="px-6 py-4 w-1/6">Data operacji</th>
                         <th className="px-6 py-4 w-1/6">Typ</th>
@@ -1328,7 +1793,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
               <button onClick={() => { setIsNewPartModalOpen(false); setEditingPart(null); }} className="text-slate-400 hover:text-slate-700 transition-colors">✕</button>
             </div>
             
-            <form onSubmit={editingPart ? handleUpdatePart : handleCreatePart} className="p-6 space-y-5 bg-slate-50/30 max-h-[75vh] overflow-y-auto scrollbar-hide">
+            <form onSubmit={editingPart ? handleUpdatePart : handleCreatePart} className={`p-6 space-y-5 bg-slate-50/30 max-h-[75vh] overflow-y-auto ${customScrollbarClasses}`}>
               
               <div className="grid grid-cols-12 gap-5">
                 {/* Wiersz 1: Kategoria, SKU, Nazwa */}
@@ -1359,7 +1824,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                 
                 {/* Wiersz 2 (Opcjonalny): Pola dla NARZĘDZI I POJAZDÓW */}
                 {((editingPart ? editingPart.category : newPart.category) === 'Pojazd' || (editingPart ? editingPart.category : newPart.category) === 'Narzędzie') && (
-                  <div className="col-span-12 grid grid-cols-12 gap-5 p-4 bg-slate-50 border border-slate-100 rounded-xl shadow-inner">
+                  <div className="col-span-12 grid grid-cols-12 gap-5 p-4 bg-slate-50 border border-slate-100 rounded-xl shadow-inner animate-fadeIn">
                     <div className={`col-span-12 ${(editingPart ? editingPart.category : newPart.category) === 'Pojazd' ? 'sm:col-span-3' : 'sm:col-span-4'}`}>
                       <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">{(editingPart ? editingPart.category : newPart.category) === 'Pojazd' ? 'Nr Rejestracyjny' : 'Nr seryjny (S/N)'}</label>
                       <input 
@@ -1400,7 +1865,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                     </div>
 
                     <div className={`col-span-12 ${(editingPart ? editingPart.category : newPart.category) === 'Pojazd' ? 'sm:col-span-2' : 'sm:col-span-4'}`}>
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">{(editingPart ? editingPart.category : newPart.category) === 'Pojazd' ? 'Ważność UDT / Badania' : 'Kalibracja/UDT'}</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">{(editingPart ? editingPart.category : newPart.category) === 'Pojazd' ? 'Data Przegladu' : 'Kalibracja'}</label>
                       <input type="date" value={editingPart ? (editingPart.inspection_date || '') : newPart.inspection_date} onChange={e => editingPart ? setEditingPart({...editingPart, inspection_date: e.target.value} as any) : setNewPart({...newPart, inspection_date: e.target.value})} className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg text-[10px] font-bold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm text-slate-700" />
                     </div>
 
@@ -1495,6 +1960,38 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
                 </div>
               </form>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL TWORZENIE ZAKŁADKI CUSTOMOWEJ (WIELOKROTNE TAGI) */}
+      {isCustomTabModalOpen && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fadeIn" onClick={() => setIsCustomTabModalOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 animate-slideUp" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white px-6 py-5 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">Stwórz nową zakładkę (Filtr)</h3>
+              <button onClick={() => setIsCustomTabModalOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors">✕</button>
+            </div>
+            
+            <form onSubmit={handleSaveCustomTab} className="p-6 space-y-5 bg-slate-50/30">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Nazwa zakładki na pasku *</label>
+                <input required type="text" value={newCustomTab.name} onChange={e => setNewCustomTab({...newCustomTab, name: e.target.value})} className="w-full border border-slate-200 bg-white rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm" placeholder="Np. Modele Alpitronic" />
+              </div>
+
+              <div className="bg-white p-5 border border-slate-200 rounded-xl space-y-3 shadow-sm">
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-[#58b347]">Warunki Filtrowania (Szukajka)</label>
+                <p className="text-[10px] text-slate-400 mb-3 leading-relaxed border-b border-slate-100 pb-3">
+                  Każde pole to osobny warunek. Możesz używać wykluczeń lub łączyć wiele kryteriów.
+                </p>
+                {renderSearchQueries(newCustomTab.filterQueries, (q) => setNewCustomTab({...newCustomTab, filterQueries: q}))}
+              </div>
+
+              <div className="flex gap-3 pt-3 border-t border-slate-200 mt-4">
+                <button type="button" onClick={() => setIsCustomTabModalOpen(false)} className="flex-1 bg-white border border-slate-200 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-50 transition-colors shadow-sm text-xs">Anuluj</button>
+                <button type="submit" disabled={!newCustomTab.name} className="flex-1 bg-[#58b347] text-white font-bold py-3 rounded-xl hover:bg-[#499b3a] disabled:opacity-50 shadow-sm transition-all text-xs">Zapisz zakładkę na stałe</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

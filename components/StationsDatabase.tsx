@@ -1,9 +1,10 @@
 'use client';
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '../app/supabase';
 import AddStationModal from './AddStationModal';
 import StationAnalytics from './StationAnalytics';
 
+// --- TYPY DANYCH ---
 export type Station = {
   id: string;
   created_at?: string;
@@ -21,6 +22,7 @@ export type Station = {
   additional_info: string | null;
   lat?: number;
   lng?: number;
+  is_muted?: boolean;
 };
 
 type SortConfig = { key: keyof Station; direction: 'asc' | 'desc' } | null;
@@ -35,10 +37,16 @@ interface ColumnDef {
   tdClass: string;
 }
 
+type SearchQuery = { id: string; text: string; logic: 'AND' | 'OR' | 'NOT' };
+type CustomTabStation = { id: string; name: string; filterQueries: SearchQuery[] };
+
+// --- KLASY DLA SCROLLBARA ---
+const customScrollbarClasses = "[&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-slate-100/50 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#58b347]/40 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[#58b347]/80";
+
 const defaultColumns: ColumnDef[] = [
   { key: 'select', label: '☑', visible: true, thClass: 'w-10 text-center', tdClass: 'text-center' },
-  { key: 'actions', label: 'Akcje', visible: true, thClass: 'w-20 text-center text-slate-400', tdClass: 'text-center' },
-  { key: 'name', label: 'Identyfikator', visible: true, sortableKey: 'name', thClass: 'w-[11%] min-w-[100px]', tdClass: 'font-bold text-slate-800 truncate' },
+  { key: 'actions', label: 'Akcje', visible: true, thClass: 'w-24 text-center text-slate-400', tdClass: 'text-center' },
+  { key: 'name', label: 'Identyfikator', visible: true, sortableKey: 'name', thClass: 'w-[12%] min-w-[120px]', tdClass: 'font-bold text-slate-800 truncate' },
   { key: 'client', label: 'Klient', visible: true, sortableKey: 'client', thClass: 'w-[13%] min-w-[110px]', tdClass: 'text-slate-700 font-semibold truncate' },
   { key: 'location', label: 'Lokalizacja', visible: true, sortableKey: 'city', thClass: 'w-[18%] min-w-[150px]', tdClass: 'text-slate-600' },
   { key: 'region', label: 'Region', visible: true, sortableKey: 'region', thClass: 'w-[12%] min-w-[110px]', tdClass: '' },
@@ -54,6 +62,7 @@ const defaultColumns: ColumnDef[] = [
   { key: 'created_at', label: 'Data', visible: false, sortableKey: 'created_at', thClass: 'w-[8%] min-w-[100px]', tdClass: 'text-slate-500 text-[10px]' },
 ];
 
+// --- IKONY ---
 const IconSort = () => <svg className="w-3.5 h-3.5 inline-block ml-1 opacity-40 hover:opacity-100 transition-opacity" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>;
 const IconTrash = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
 const IconEdit = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
@@ -61,12 +70,17 @@ const IconImport = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none
 const IconMapPin = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>;
 const IconNoLocation = () => <svg className="w-3.5 h-3.5 text-orange-400 inline-block mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m2 2 20 20"/><path d="M8.36 8.36a6 6 0 0 1 8.28 8.28"/><path d="M19.38 19.38A11.9 11.9 0 0 0 20 10c0-6-8-12-8-12s-3.72 2.79-5.83 6.64"/></svg>;
 const IconColumns = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>;
-const IconSearch = () => <svg className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
+const IconSearch = () => <svg className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
 const IconArrowUp = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>;
 const IconArrowDown = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>;
 const IconRadar = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h.01"/><path d="M2.29 9.62A10 10 0 1 0 21.31 8.35"/><path d="M16.24 7.76A6 6 0 1 0 8.23 16.67"/><path d="M12 18h.01"/><path d="M17.99 11.66A6 6 0 0 1 15.77 16.67"/><circle cx="12" cy="12" r="2"/><path d="m13.41 10.59 5.66-5.66"/></svg>;
 const IconPlus = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>;
 const IconCheck = () => <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
+const IconFilter = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>;
+const IconList = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>;
+const IconAlertTriangle = () => <svg className="w-5 h-5 inline-block text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+const IconBell = () => <svg className="w-4 h-4 text-slate-300 hover:text-red-500 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
+const IconBellOff = () => <svg className="w-4 h-4 text-red-500 hover:text-slate-400 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8.7 3A6 6 0 0 1 18 8a21.3 21.3 0 0 0 .6 5M17 17H3s3-2 3-9a4.67 4.67 0 0 1 .3-1.7M10.3 21a1.94 1.94 0 0 0 3.4 0"/><line x1="2" y1="2" x2="22" y2="22"/></svg>;
 
 const CustomCheckbox = ({ checked, onChange }: { checked: boolean, onChange: () => void }) => (
   <div 
@@ -80,17 +94,12 @@ const CustomCheckbox = ({ checked, onChange }: { checked: boolean, onChange: () 
 // --- ZAAWANSOWANY PARSER DANYCH Z BAZY ---
 const parseMultipleValues = (val: string | null) => {
   if (!val || val.trim() === '') return [];
-  
   let cleaned = val.trim();
-  if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
-    cleaned = cleaned.slice(1, -1);
-  }
-  
+  if (cleaned.startsWith('{') && cleaned.endsWith('}')) cleaned = cleaned.slice(1, -1);
   try {
     const parsed = JSON.parse(cleaned);
     if (Array.isArray(parsed)) return parsed.map(String);
-  } catch (e) {
-  }
+  } catch (e) {}
   return cleaned.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
 };
 
@@ -158,24 +167,15 @@ const parseCSV = (text: string, delimiter: string): string[][] => {
     const nextChar = text[i + 1];
 
     if (char === '"') {
-      if (inQuotes && nextChar === '"') {
-        currentCell += '"'; 
-        i++; 
-      } else {
-        inQuotes = !inQuotes; 
-      }
+      if (inQuotes && nextChar === '"') { currentCell += '"'; i++; } else { inQuotes = !inQuotes; }
     } else if (char === delimiter && !inQuotes) {
-      currentRow.push(currentCell.trim());
-      currentCell = '';
+      currentRow.push(currentCell.trim()); currentCell = '';
     } else if ((char === '\n' || char === '\r') && !inQuotes) {
       if (char === '\r' && nextChar === '\n') i++; 
       currentRow.push(currentCell.trim());
       if (currentRow.some(cell => cell !== '')) rows.push(currentRow);
-      currentRow = [];
-      currentCell = '';
-    } else {
-      currentCell += char;
-    }
+      currentRow = []; currentCell = '';
+    } else { currentCell += char; }
   }
   
   if (currentCell || currentRow.length > 0) {
@@ -218,7 +218,7 @@ const getStatusDot = (status: string) => {
 interface StationsDatabaseProps {
   onFocusStation: (station: Station) => void;
   isSidebarHovered?: boolean;
-  refreshTrigger?: number; // DODANE: Odbieranie sygnału do odświeżenia tabeli
+  refreshTrigger?: number; 
 }
 
 export default function StationsDatabase({ onFocusStation, isSidebarHovered = false, refreshTrigger = 0 }: StationsDatabaseProps) {
@@ -227,7 +227,13 @@ export default function StationsDatabase({ onFocusStation, isSidebarHovered = fa
   const [sortConfig, setSortConfig] = useState<SortConfig>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   
-  const [searchTerm, setSearchTerm] = useState('');
+  // Stany dla Smart Search & Tabs
+  const [searchQueries, setSearchQueries] = useState<SearchQuery[]>([{ id: 'init', text: '', logic: 'AND' }]);
+  const [activeFilter, setActiveFilter] = useState<string>('ALL');
+  const [customTabs, setCustomTabs] = useState<CustomTabStation[]>([]);
+  const [isCustomTabModalOpen, setIsCustomTabModalOpen] = useState(false);
+  const [newCustomTab, setNewCustomTab] = useState<{ name: string, filterQueries: SearchQuery[] }>({ name: '', filterQueries: [{ id: 'c_init', text: '', logic: 'AND' }] });
+
   const [columns, setColumns] = useState<ColumnDef[]>(defaultColumns);
   const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
 
@@ -246,9 +252,32 @@ export default function StationsDatabase({ onFocusStation, isSidebarHovered = fa
   const [singleGeocodingId, setSingleGeocodingId] = useState<string | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  const tabsScrollRef = useRef<HTMLDivElement>(null);
   const nominateHeaders = { 'User-Agent': 'EkoenFSMDispatchSystem/6.0 (dispatch@ekoen.pl)' };
 
-  const fetchStations = async () => {
+  // Implementacja Smart Wheel Scroll dla paska zakładek
+  useEffect(() => {
+    const el = tabsScrollRef.current;
+    if (!el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      const isScrollable = el.scrollWidth > el.clientWidth;
+      if (!isScrollable || e.deltaY === 0) return;
+
+      const atLeftEdge = el.scrollLeft === 0 && e.deltaY < 0;
+      const atRightEdge = Math.ceil(el.scrollLeft + el.clientWidth) >= el.scrollWidth && e.deltaY > 0;
+
+      if (!atLeftEdge && !atRightEdge) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
+
+  const fetchStations = useCallback(async () => {
     setIsLoading(true);
     const { data, error } = await supabase
       .from('stations')
@@ -261,16 +290,25 @@ export default function StationsDatabase({ onFocusStation, isSidebarHovered = fa
       setStations(data as Station[]);
     }
     setIsLoading(false);
-  };
+  }, []);
 
-  useEffect(() => { fetchStations(); }, []);
+  useEffect(() => { fetchStations(); }, [fetchStations]);
 
-  // DODANE: Nasłuchujemy na zapalnik z ChargeMap, aby przeładować tabelę w locie
+  useEffect(() => {
+    const savedTabs = localStorage.getItem('ekoen_st_custom_tabs');
+    if (savedTabs) {
+      try { 
+        const parsed = JSON.parse(savedTabs);
+        setCustomTabs(parsed);
+      } catch (e) {}
+    }
+  }, []);
+
   useEffect(() => {
     if (refreshTrigger > 0) {
       fetchStations();
     }
-  }, [refreshTrigger]);
+  }, [refreshTrigger, fetchStations]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -278,11 +316,12 @@ export default function StationsDatabase({ onFocusStation, isSidebarHovered = fa
         if (isImportModalOpen && !isImporting) setIsImportModalOpen(false);
         if (isGeocodeModalOpen && !isGeocoding) handleCancelGeocode();
         if (isColumnSettingsOpen) setIsColumnSettingsOpen(false);
+        if (isCustomTabModalOpen) setIsCustomTabModalOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isImportModalOpen, isImporting, isColumnSettingsOpen, isGeocodeModalOpen, isGeocoding]);
+  }, [isImportModalOpen, isImporting, isColumnSettingsOpen, isGeocodeModalOpen, isGeocoding, isCustomTabModalOpen]);
 
   const handleCancelGeocode = () => {
     if (abortControllerRef.current) {
@@ -295,27 +334,80 @@ export default function StationsDatabase({ onFocusStation, isSidebarHovered = fa
     fetchStations();
   };
 
+  const handleToggleMute = async (e: React.MouseEvent, station: Station) => {
+    e.stopPropagation();
+    const newStatus = !station.is_muted;
+    setStations(curr => curr.map(s => s.id === station.id ? { ...s, is_muted: newStatus } : s));
+    await supabase.from('stations').update({ is_muted: newStatus }).eq('id', station.id);
+  };
+
   const handleSort = (key: keyof Station) => {
     let direction: 'asc' | 'desc' = 'asc';
     if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
     setSortConfig({ key, direction });
   };
 
+  const evaluateCondition = useCallback((s: Station, q: SearchQuery) => {
+    const qText = q.text.trim().toLowerCase();
+    if (!qText) return true;
+    return (s.name?.toLowerCase().includes(qText)) ||
+           (s.client?.toLowerCase().includes(qText)) ||
+           (s.city?.toLowerCase().includes(qText)) ||
+           (s.street?.toLowerCase().includes(qText)) ||
+           (s.technician?.toLowerCase().includes(qText)) ||
+           (s.model?.toLowerCase().includes(qText)) ||
+           (s.region?.toLowerCase().includes(qText)) ||
+           (s.additional_info?.toLowerCase().includes(qText));
+  }, []);
+
   const processedStations = useMemo(() => {
     let result = stations;
 
-    if (searchTerm.trim() !== '') {
-      const q = searchTerm.toLowerCase();
-      result = result.filter(s => 
-        (s.name && s.name.toLowerCase().includes(q)) ||
-        (s.client && s.client.toLowerCase().includes(q)) ||
-        (s.city && s.city.toLowerCase().includes(q)) ||
-        (s.street && s.street.toLowerCase().includes(q)) ||
-        (s.technician && s.technician.toLowerCase().includes(q)) ||
-        (s.model && s.model.toLowerCase().includes(q)) ||
-        (s.region && s.region.toLowerCase().includes(q)) ||
-        (s.additional_info && s.additional_info.toLowerCase().includes(q))
-      );
+    // Filtry z Kafelków (ACTIVE)
+    if (activeFilter === 'AWARIE') {
+      result = result.filter(s => s.status === 'Awaria' && !s.is_muted);
+    } else if (activeFilter === 'NO_GPS') {
+      result = result.filter(s => (!s.lat || !s.lng) && !s.is_muted);
+    } else if (activeFilter === 'MUTED') {
+      result = result.filter(s => s.is_muted);
+    } else if (activeFilter.startsWith('CUSTOM_')) {
+      const tabId = activeFilter.split('_')[1];
+      const tabInfo = customTabs.find(c => c.id === tabId);
+      if (tabInfo) {
+        result = result.filter(s => {
+          const validQ = tabInfo.filterQueries.filter(q => q.text.trim() !== '');
+          if (validQ.length > 0) {
+            let match = evaluateCondition(s, validQ[0]);
+            if (validQ[0].logic === 'NOT') match = !match;
+            
+            for (let i = 1; i < validQ.length; i++) {
+              const conditionMet = evaluateCondition(s, validQ[i]);
+              if (validQ[i].logic === 'AND') match = match && conditionMet;
+              else if (validQ[i].logic === 'OR') match = match || conditionMet;
+              else if (validQ[i].logic === 'NOT') match = match && !conditionMet;
+            }
+            if (!match) return false;
+          }
+          return true;
+        });
+      }
+    }
+
+    // Wyszukiwarka tekstowa Smart Search
+    const validSearchQueries = searchQueries.filter(q => q.text.trim() !== '');
+    if (validSearchQueries.length > 0) {
+      result = result.filter(s => {
+        let match = evaluateCondition(s, validSearchQueries[0]);
+        if (validSearchQueries[0].logic === 'NOT') match = !match;
+        
+        for (let i = 1; i < validSearchQueries.length; i++) {
+          const conditionMet = evaluateCondition(s, validSearchQueries[i]);
+          if (validSearchQueries[i].logic === 'AND') match = match && conditionMet;
+          else if (validSearchQueries[i].logic === 'OR') match = match || conditionMet;
+          else if (validSearchQueries[i].logic === 'NOT') match = match && !conditionMet;
+        }
+        return match;
+      });
     }
 
     if (sortConfig) {
@@ -329,7 +421,48 @@ export default function StationsDatabase({ onFocusStation, isSidebarHovered = fa
     }
 
     return result;
-  }, [stations, sortConfig, searchTerm]);
+  }, [stations, sortConfig, searchQueries, activeFilter, customTabs, evaluateCondition]);
+
+  const getCustomTabCount = useCallback((tabInfo: CustomTabStation) => {
+    let res = stations;
+    res = res.filter(s => {
+      const validQ = tabInfo.filterQueries.filter(q => q.text.trim() !== '');
+      if (validQ.length > 0) {
+        let match = evaluateCondition(s, validQ[0]);
+        if (validQ[0].logic === 'NOT') match = !match;
+        for (let i = 1; i < validQ.length; i++) {
+          const conditionMet = evaluateCondition(s, validQ[i]);
+          if (validQ[i].logic === 'AND') match = match && conditionMet;
+          else if (validQ[i].logic === 'OR') match = match || conditionMet;
+          else if (validQ[i].logic === 'NOT') match = match && !conditionMet;
+        }
+        if (!match) return false;
+      }
+      return true;
+    });
+    return res.length;
+  }, [stations, evaluateCondition]);
+
+  const handleSaveCustomTab = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newTab: CustomTabStation = {
+      id: Math.random().toString(36).substring(7),
+      name: newCustomTab.name,
+      filterQueries: newCustomTab.filterQueries.filter(q => q.text.trim() !== '')
+    };
+    const updatedTabs = [...customTabs, newTab];
+    setCustomTabs(updatedTabs);
+    localStorage.setItem('ekoen_st_custom_tabs', JSON.stringify(updatedTabs));
+    setIsCustomTabModalOpen(false);
+    setNewCustomTab({ name: '', filterQueries: [{ id: Math.random().toString(), text: '', logic: 'AND' }] });
+  };
+
+  const handleDeleteCustomTab = (id: string) => {
+    const updatedTabs = customTabs.filter(t => t.id !== id);
+    setCustomTabs(updatedTabs);
+    localStorage.setItem('ekoen_st_custom_tabs', JSON.stringify(updatedTabs));
+    if (activeFilter === `CUSTOM_${id}`) setActiveFilter('ALL');
+  };
 
   const toggleSelectAll = () => {
     if (selectedIds.length === processedStations.length && processedStations.length > 0) setSelectedIds([]);
@@ -363,7 +496,9 @@ export default function StationsDatabase({ onFocusStation, isSidebarHovered = fa
     setColumns(newCols);
   };
 
-  const missingGpsCount = stations.filter(s => !s.lat || !s.lng).length;
+  const missingGpsCount = stations.filter(s => (!s.lat || !s.lng) && !s.is_muted).length;
+  const activeAlertsCount = stations.filter(s => s.status === 'Awaria' && !s.is_muted).length;
+  const mutedCount = stations.filter(s => s.is_muted).length;
 
   const handleGeocodeSingle = async (station: Station) => {
     if (isGeocoding || singleGeocodingId) return;
@@ -483,13 +618,21 @@ export default function StationsDatabase({ onFocusStation, isSidebarHovered = fa
           <div className="flex justify-center gap-2">
             <button onClick={() => onFocusStation(station)} disabled={!station.lat} className={`${station.lat ? 'text-slate-400 hover:text-blue-500 hover:bg-blue-50 cursor-pointer' : 'text-slate-200 cursor-not-allowed'} p-1.5 rounded-lg transition-colors`} title={station.lat ? "Pokaż lokalizację na mapie" : "Brak współrzędnych"}><IconMapPin /></button>
             <button onClick={() => setEditingStation(station)} className="text-slate-400 hover:text-[#58b347] hover:bg-[#58b347]/10 p-1.5 rounded-lg transition-colors" title="Edytuj dane stacji"><IconEdit /></button>
+            <button onClick={(e) => handleToggleMute(e, station)} className={`p-1.5 rounded-lg transition-colors ${station.is_muted ? 'text-red-500 bg-red-50 hover:bg-red-100' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}`} title={station.is_muted ? "Odwycisz stację" : "Wycisz powiadomienia o awariach/GPS"}>
+              {station.is_muted ? <IconBellOff /> : <IconBell />}
+            </button>
           </div>
         );
       case 'name':
         return (
-          <span className="cursor-pointer font-bold text-slate-800 hover:text-[#58b347] transition-colors border-b border-transparent hover:border-[#58b347]/30 pb-0.5" onClick={() => setAdvancedDetailsStation(station)} title={`Szczegóły: ${station.name}`}>
-            {station.name}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="cursor-pointer font-bold text-slate-800 hover:text-[#58b347] transition-colors border-b border-transparent hover:border-[#58b347]/30 pb-0.5 truncate" onClick={() => setAdvancedDetailsStation(station)} title={`Szczegóły: ${station.name}`}>
+              {station.name}
+            </span>
+            {station.is_muted && (
+              <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 uppercase tracking-widest" title="Stacja wyciszona">Wyciszona</span>
+            )}
+          </div>
         );
       case 'client': return <span title={station.client || ''}>{station.client || '-'}</span>;
       case 'location':
@@ -669,12 +812,74 @@ export default function StationsDatabase({ onFocusStation, isSidebarHovered = fa
     fetchStations();
   };
 
+  const handleRightClickClearFilters = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setSearchQueries([{ id: Math.random().toString(), text: '', logic: 'AND' }]);
+    setActiveFilter('ALL');
+  };
+
+  const renderSearchQueries = (queries: SearchQuery[], setQueries: (q: SearchQuery[]) => void) => {
+    const addQuery = () => setQueries([...queries, { id: Math.random().toString(), text: '', logic: 'AND' }]);
+    const updateQuery = (id: string, updates: Partial<SearchQuery>) => {
+      setQueries(queries.map(q => q.id === id ? { ...q, ...updates } : q));
+    };
+    const removeQuery = (id: string) => {
+      setQueries(queries.filter(q => q.id !== id));
+    };
+
+    return (
+      <div className="flex flex-col gap-2 w-full max-w-2xl animate-fadeIn">
+        {queries.map((q, idx) => {
+          return (
+            <div key={q.id} className="flex items-center gap-2 w-full">
+              <select
+                value={q.logic}
+                onChange={e => updateQuery(q.id, { logic: e.target.value as any })}
+                className={`border border-slate-200 rounded-xl px-2 py-2 text-[10px] font-bold uppercase tracking-widest focus:outline-none focus:border-[#58b347] transition-colors shrink-0 shadow-sm cursor-pointer ${q.logic === 'AND' ? 'bg-[#58b347]/10 text-[#499b3a] border-[#58b347]/30' : q.logic === 'NOT' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-slate-50 text-slate-600'}`}
+              >
+                <option value="AND">{idx === 0 ? 'ZAWIERA' : 'ORAZ'}</option>
+                <option value="OR">{idx === 0 ? 'MOŻE BYĆ' : 'LUB'}</option>
+                <option value="NOT">{idx === 0 ? 'WYKLUCZ' : 'WYKLUCZ'}</option>
+              </select>
+
+              <div className="relative flex-1 flex items-center bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden focus-within:border-[#58b347] focus-within:ring-1 focus-within:ring-[#58b347]/30 transition-all h-[38px]">
+                <div className="flex items-center justify-center pl-3 w-8 h-full shrink-0 text-slate-400">
+                  <IconSearch />
+                </div>
+                <input
+                  value={q.text}
+                  onChange={e => updateQuery(q.id, { text: e.target.value })}
+                  placeholder="Wpisz ID, klienta, miasto, technika..."
+                  className="w-full pl-1 pr-3 py-2 text-xs font-semibold focus:outline-none bg-transparent h-full border-none"
+                />
+              </div>
+
+              {queries.length > 1 && (
+                <button type="button" onClick={() => removeQuery(q.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors shrink-0 flex items-center justify-center h-[38px]" title="Usuń warunek">
+                  <IconTrash />
+                </button>
+              )}
+            </div>
+          );
+        })}
+        
+        <button 
+          type="button"
+          onClick={addQuery}
+          className="text-[10px] font-bold text-slate-500 hover:text-[#58b347] bg-white border border-slate-200 hover:border-[#58b347]/50 rounded-xl py-2 px-3 w-max flex items-center gap-1.5 transition-colors shadow-sm mt-1"
+        >
+          <IconPlus /> Dodaj warunek wyszukiwania
+        </button>
+      </div>
+    );
+  };
+
   return (
-    <div className="absolute inset-0 left-[72px] bg-slate-100/60 backdrop-blur-2xl border-l border-white/20 z-40 overflow-hidden flex flex-col font-sans transition-all duration-300 ease-out shadow-[-10px_0_30px_rgba(0,0,0,0.05)]">
+    <div className={`absolute inset-0 bg-slate-100/60 backdrop-blur-2xl border-l border-white/20 z-40 flex flex-col font-sans transition-[left] duration-300 ease-out shadow-[-10px_0_30px_rgba(0,0,0,0.05)] ${isSidebarHovered ? 'left-[256px]' : 'left-[72px]'}`}>
       
-      {/* Pasek Nawigacji */}
+      {/* Pasek Nawigacji - Sticky */}
       <div className="bg-white/70 backdrop-blur-md border-b border-white/40 px-6 py-4 flex justify-between items-center shrink-0">
-        <div className={`transition-all duration-300 ease-in-out ${isSidebarHovered ? 'ml-[184px]' : 'ml-0'}`}>
+        <div>
           <h1 className="text-xl font-bold text-slate-800 tracking-tight">Katalog Stacji i Regionów</h1>
           <p className="text-xs text-slate-500 mt-1 font-medium">Zarządzanie infrastrukturą ładowania i jej lokalizacją.</p>
         </div>
@@ -685,122 +890,235 @@ export default function StationsDatabase({ onFocusStation, isSidebarHovered = fa
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 scrollbar-hide flex justify-center">
-        <div className="w-full max-w-[1600px] flex flex-col h-full bg-white/95 backdrop-blur-sm border border-white/60 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-          
-          {/* PASEK NARZĘDZI */}
-          <div className="p-5 border-b border-slate-100/60 flex justify-between items-center bg-slate-50/50 shrink-0">
-            <div className="flex gap-3 items-center">
-              <div className="relative">
-                <IconSearch />
-                <input 
-                  type="text" 
-                  placeholder="Filtruj (ID, klient, miasto)..." 
-                  value={searchTerm} 
-                  onChange={e => setSearchTerm(e.target.value)} 
-                  className="pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 w-[280px] shadow-sm transition-all"
-                />
-              </div>
+      <div className={`flex-1 overflow-y-auto p-6 flex justify-center ${customScrollbarClasses}`} onContextMenu={handleRightClickClearFilters}>
+        <div className="w-full max-w-[1600px] flex flex-col min-h-max gap-6">
 
-              <div className="relative">
-                <button onClick={() => setIsColumnSettingsOpen(!isColumnSettingsOpen)} className={`bg-white border text-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors ${isColumnSettingsOpen ? 'border-[#58b347] text-[#58b347]' : 'border-slate-200'}`}>
-                  <IconColumns /> Kolumny
-                </button>
-                
-                {isColumnSettingsOpen && (
-                  <div className="absolute left-0 top-full mt-2 w-64 bg-white/95 backdrop-blur-2xl border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden animate-fadeIn">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase bg-slate-50 px-4 py-3 border-b border-slate-100 flex justify-between items-center tracking-widest">
-                      Konfiguracja widoku
-                      <button onClick={() => setIsColumnSettingsOpen(false)} className="hover:text-slate-700 transition-colors">✕</button>
-                    </div>
-                    <div className="p-2 max-h-[60vh] overflow-y-auto scrollbar-hide">
-                      {columns.map((c, i) => (
-                        <div key={c.key} className="flex items-center justify-between p-2.5 hover:bg-slate-50 rounded-xl group transition-colors cursor-pointer" onClick={() => toggleColumnVisibility(i)}>
-                          <div className="flex items-center gap-3">
-                            <CustomCheckbox checked={c.visible} onChange={() => {}} />
-                            <span className={`text-xs font-bold select-none ${c.visible ? 'text-slate-700' : 'text-slate-400'}`}>{c.label === '☑' ? 'Zaznaczanie' : c.label}</span>
-                          </div>
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                            <button onClick={() => moveColumn(i, -1)} disabled={i === 0} className="p-1 text-slate-400 hover:text-[#58b347] hover:bg-green-50 rounded-md disabled:opacity-20 transition-colors"><IconArrowUp /></button>
-                            <button onClick={() => moveColumn(i, 1)} disabled={i === columns.length - 1} className="p-1 text-slate-400 hover:text-[#58b347] hover:bg-green-50 rounded-md disabled:opacity-20 transition-colors"><IconArrowDown /></button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+          {/* KARTY KPI + CUSTOMOWE ZAKŁADKI */}
+          <div ref={tabsScrollRef} className={`flex overflow-x-auto gap-6 pb-2 snap-x items-stretch shrink-0 select-none ${customScrollbarClasses}`}>
+            <div 
+              onClick={() => setActiveFilter('ALL')}
+              className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeFilter === 'ALL' ? 'border-[#58b347] ring-2 ring-[#58b347]/20 bg-[#58b347]/5' : 'border-white/60 hover:bg-white'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between cursor-pointer transition-all`}
+            >
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Stacje w bazie</p>
+                <p className="text-3xl font-bold text-slate-700">{stations.length}</p>
+              </div>
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${activeFilter === 'ALL' ? 'bg-[#58b347] text-white' : 'bg-slate-100 text-slate-400'}`}>
+                <IconList />
               </div>
             </div>
             
-            <div className="flex gap-3 items-center">
-              {missingGpsCount > 0 && (
-                <button onClick={() => setIsGeocodeModalOpen(true)} className="bg-white border border-orange-200 text-orange-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-orange-50 hover:border-orange-300 flex items-center gap-2 shadow-sm transition-all animate-pulse">
-                  <IconRadar /> Brak GPS ({missingGpsCount})
-                </button>
-              )}
+            <div 
+              onClick={() => setActiveFilter(prev => prev === 'AWARIE' ? 'ALL' : 'AWARIE')}
+              className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeFilter === 'AWARIE' ? 'border-red-500 ring-2 ring-red-500/20 bg-red-50/50' : activeAlertsCount > 0 ? 'border-red-200 hover:bg-red-50/30' : 'border-white/60'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between cursor-pointer transition-all`}
+            >
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Zgłoszone Awarie</p>
+                <p className={`text-3xl font-bold ${activeAlertsCount > 0 ? 'text-red-600 animate-pulse' : 'text-slate-700'}`}>{activeAlertsCount}</p>
+              </div>
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${activeAlertsCount > 0 ? 'bg-red-100 text-red-500' : 'bg-slate-50 text-slate-400'}`}>
+                <IconAlertTriangle />
+              </div>
+            </div>
 
-              {selectedIds.length > 0 && (
-                <button onClick={deleteSelected} className="bg-red-50 border border-red-200 text-red-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-red-100 flex items-center gap-2 shadow-sm transition-all">
-                  <IconTrash /> Usuń wybrane ({selectedIds.length})
-                </button>
-              )}
-              
-              <div className="w-px h-6 bg-slate-200 mx-1"></div>
+            <div 
+              onClick={() => setActiveFilter(prev => prev === 'NO_GPS' ? 'ALL' : 'NO_GPS')}
+              className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeFilter === 'NO_GPS' ? 'border-orange-500 ring-2 ring-orange-500/20 bg-orange-50/50' : missingGpsCount > 0 ? 'border-orange-200 hover:bg-orange-50/30' : 'border-white/60'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between cursor-pointer transition-all`}
+            >
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Braki GPS (Geokodowanie)</p>
+                <p className={`text-3xl font-bold ${missingGpsCount > 0 ? 'text-orange-600' : 'text-slate-700'}`}>{missingGpsCount}</p>
+              </div>
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${missingGpsCount > 0 ? 'bg-orange-100 text-orange-500' : 'bg-slate-50 text-slate-400'}`}>
+                <IconRadar />
+              </div>
+            </div>
 
-              <button onClick={() => setIsImportModalOpen(true)} className="bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors">
-                <IconImport /> Import CSV
-              </button>
-              <button onClick={() => setIsAddModalOpen(true)} className="bg-[#58b347] text-white border border-[#499b3a] px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-[#499b3a] flex items-center gap-2 shadow-sm transition-colors">
-                <IconPlus /> Nowa stacja
-              </button>
+            <div 
+              onClick={() => setActiveFilter(prev => prev === 'MUTED' ? 'ALL' : 'MUTED')}
+              className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeFilter === 'MUTED' ? 'border-slate-500 ring-2 ring-slate-500/20 bg-slate-50/50' : mutedCount > 0 ? 'border-slate-200 hover:bg-slate-50/30' : 'border-white/60'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between cursor-pointer transition-all`}
+            >
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Wyciszone Stacje</p>
+                <p className={`text-3xl font-bold ${mutedCount > 0 ? 'text-slate-600' : 'text-slate-700'}`}>{mutedCount}</p>
+              </div>
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${mutedCount > 0 ? 'bg-slate-100 text-slate-500' : 'bg-slate-50 text-slate-400'}`}>
+                <IconBellOff />
+              </div>
+            </div>
+
+            {/* RENDER CUSTOMOWYCH ZAKŁADEK */}
+            {customTabs.map(tab => (
+              <div 
+                key={tab.id}
+                onClick={() => setActiveFilter(prev => prev === `CUSTOM_${tab.id}` ? 'ALL' : `CUSTOM_${tab.id}`)}
+                className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeFilter === `CUSTOM_${tab.id}` ? 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/50' : 'border-slate-200 hover:border-slate-300'} rounded-2xl p-5 shadow-sm flex items-center justify-between cursor-pointer transition-all relative group`}
+              >
+                <button 
+                  onClick={(e) => { e.stopPropagation(); handleDeleteCustomTab(tab.id); }} 
+                  className="absolute top-3 right-3 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Usuń zakładkę"
+                >
+                  <IconTrash />
+                </button>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{tab.name}</p>
+                  <p className="text-3xl font-bold text-slate-700">{getCustomTabCount(tab)}</p>
+                </div>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${activeFilter === `CUSTOM_${tab.id}` ? 'bg-blue-100 text-blue-500' : 'bg-slate-50 text-slate-400'}`}>
+                  <IconFilter />
+                </div>
+              </div>
+            ))}
+
+            <div 
+              onClick={() => setIsCustomTabModalOpen(true)}
+              className="min-w-[150px] shrink-0 snap-start bg-slate-50/50 border-2 border-dashed border-slate-300 hover:border-[#58b347] hover:bg-[#58b347]/5 rounded-2xl flex flex-col items-center justify-center text-slate-400 hover:text-[#58b347] cursor-pointer transition-all group p-5"
+            >
+              <div className="bg-white rounded-full p-2 mb-2 shadow-sm group-hover:scale-110 transition-transform"><IconPlus /></div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-center">Nowy Filtr</span>
             </div>
           </div>
 
-          {/* TABELA DANYCH */}
-          <div className="flex-1 overflow-x-auto overflow-y-auto scrollbar-hide">
-            <table className="w-full text-left border-collapse table-fixed min-w-[1000px]">
-              <thead>
-                <tr className="bg-slate-50/80 backdrop-blur-sm border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-widest sticky top-0 z-10 shadow-sm shadow-slate-100/50">
-                  {columns.filter(c => c.visible).map(c => (
-                    <th 
-                      key={c.key} 
-                      className={`py-4 px-3 ${c.thClass} ${c.sortableKey ? 'cursor-pointer hover:text-slate-800 hover:bg-slate-100/80 transition-colors' : ''}`}
-                      onClick={() => c.sortableKey && handleSort(c.sortableKey)}
-                    >
-                      {c.key === 'select' ? (
-                        <div className="flex justify-center">
-                          <CustomCheckbox 
-                            checked={selectedIds.length === processedStations.length && processedStations.length > 0} 
-                            onChange={toggleSelectAll} 
-                          />
-                        </div>
-                      ) : (
-                        <div className={`flex items-center gap-1.5 ${c.thClass.includes('text-center') ? 'justify-center' : ''}`}>
-                          {c.label} {c.sortableKey && <IconSort />}
-                        </div>
-                      )}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100/60 text-xs">
-                {isLoading ? (
-                  <tr><td colSpan={columns.filter(c => c.visible).length} className="p-12 text-center text-slate-400 font-bold">Ładowanie bazy stacji...</td></tr>
-                ) : processedStations.length === 0 ? (
-                  <tr><td colSpan={columns.filter(c => c.visible).length} className="p-12 text-center text-slate-400 font-bold">Brak wyników w bazie.</td></tr>
-                ) : (
-                  processedStations.map(station => (
-                    <tr key={station.id} className={`hover:bg-slate-50/80 transition-colors ${selectedIds.includes(station.id) ? 'bg-[#58b347]/5 hover:bg-[#58b347]/10' : ''}`}>
-                      {columns.filter(c => c.visible).map(c => (
-                        <td key={c.key} className={`py-3 px-3 ${c.tdClass}`}>
-                          {renderCellContent(station, c.key)}
-                        </td>
-                      ))}
-                    </tr>
-                  ))
+          <div className="w-full flex flex-col bg-white/95 backdrop-blur-sm border border-white/60 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden shrink-0">
+            
+            {/* PASEK NARZĘDZI (ZAAWANSOWANE FILTROWANIE) */}
+            <div className="p-4 border-b border-slate-100/60 flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-50/50 shrink-0 gap-4">
+              
+              <div className="flex-1 w-full max-w-2xl">
+                {renderSearchQueries(searchQueries, setSearchQueries)}
+              </div>
+
+              <div className="flex gap-3 items-center shrink-0 w-full md:w-auto mt-auto flex-wrap">
+                <div className="relative">
+                  <button onClick={() => setIsColumnSettingsOpen(!isColumnSettingsOpen)} className={`bg-white border text-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors ${isColumnSettingsOpen ? 'border-[#58b347] text-[#58b347]' : 'border-slate-200'} h-[38px]`}>
+                    <IconColumns /> Kolumny
+                  </button>
+                  
+                  {isColumnSettingsOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-64 bg-white/95 backdrop-blur-2xl border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden animate-fadeIn">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase bg-slate-50 px-4 py-3 border-b border-slate-100 flex justify-between items-center tracking-widest">
+                        Konfiguracja widoku
+                        <button onClick={() => setIsColumnSettingsOpen(false)} className="hover:text-slate-700 transition-colors">✕</button>
+                      </div>
+                      <div className={`p-2 max-h-[60vh] overflow-y-auto ${customScrollbarClasses}`}>
+                        {columns.map((c, i) => (
+                          <div key={c.key} className="flex items-center justify-between p-2.5 hover:bg-slate-50 rounded-xl group transition-colors cursor-pointer" onClick={() => toggleColumnVisibility(i)}>
+                            <div className="flex items-center gap-3">
+                              <CustomCheckbox checked={c.visible} onChange={() => {}} />
+                              <span className={`text-xs font-bold select-none ${c.visible ? 'text-slate-700' : 'text-slate-400'}`}>{c.label === '☑' ? 'Zaznaczanie' : c.label}</span>
+                            </div>
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                              <button onClick={() => moveColumn(i, -1)} disabled={i === 0} className="p-1 text-slate-400 hover:text-[#58b347] hover:bg-green-50 rounded-md disabled:opacity-20 transition-colors"><IconArrowUp /></button>
+                              <button onClick={() => moveColumn(i, 1)} disabled={i === columns.length - 1} className="p-1 text-slate-400 hover:text-[#58b347] hover:bg-green-50 rounded-md disabled:opacity-20 transition-colors"><IconArrowDown /></button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {missingGpsCount > 0 && (
+                  <button onClick={() => setIsGeocodeModalOpen(true)} className="bg-white border border-orange-200 text-orange-600 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-orange-50 hover:border-orange-300 flex items-center gap-1.5 shadow-sm transition-all animate-pulse h-[38px]">
+                    <IconRadar /> Brak GPS ({missingGpsCount})
+                  </button>
                 )}
-              </tbody>
-            </table>
+
+                {(searchQueries.some(q => q.text.trim() !== '') || activeFilter !== 'ALL') && (
+                  <>
+                    <button 
+                      onClick={() => { setSearchQueries([{ id: Math.random().toString(), text: '', logic: 'AND' }]); setActiveFilter('ALL'); }} 
+                      className="bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-500 hover:text-red-500 text-[10px] font-bold uppercase tracking-widest px-3 py-2.5 rounded-xl transition-colors shadow-sm h-[38px]"
+                    >
+                      Wyczyść
+                    </button>
+                    <div className="w-px h-6 bg-slate-200 mx-1"></div>
+                  </>
+                )}
+
+                {selectedIds.length > 0 && (
+                  <>
+                    <button onClick={deleteSelected} className="bg-red-50 border border-red-200 text-red-600 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-red-100 flex items-center gap-2 shadow-sm transition-all h-[38px]">
+                      <IconTrash /> Usuń ({selectedIds.length})
+                    </button>
+                    <div className="w-px h-6 bg-slate-200 mx-1"></div>
+                  </>
+                )}
+
+                <button onClick={() => setIsImportModalOpen(true)} className="bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors h-[38px]">
+                  <IconImport /> Import
+                </button>
+                <button onClick={() => setIsAddModalOpen(true)} className="bg-[#58b347] text-white border border-[#499b3a] px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-[#499b3a] flex items-center gap-2 shadow-sm transition-colors h-[38px]">
+                  <IconPlus /> Nowa stacja
+                </button>
+              </div>
+            </div>
+
+            {/* TABELA DANYCH (Teraz rozciąga się swobodnie w dół) */}
+            <div className="w-full overflow-x-auto">
+              {activeFilter === 'MUTED' && (
+                <div className="bg-slate-100/90 backdrop-blur-md border-b border-slate-300 p-4 flex justify-between items-center shrink-0">
+                  <div className="flex gap-3 items-center text-slate-700">
+                    <div className="p-2 bg-white rounded-full border border-slate-200"><IconBellOff /></div>
+                    <div>
+                      <h4 className="font-bold text-sm">Przeglądasz wyciszone stacje</h4>
+                      <p className="text-xs font-medium opacity-90">Te obiekty są ukryte w głównych licznikach awarii i braków GPS.</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setActiveFilter('ALL')} 
+                    className="px-5 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-50 transition-all shadow-sm"
+                  >
+                    Zamknij filtr
+                  </button>
+                </div>
+              )}
+              
+              <table className="w-full text-left border-collapse table-fixed min-w-[1000px]">
+                <thead>
+                  <tr className="bg-slate-50/80 backdrop-blur-sm border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-widest shadow-sm shadow-slate-100/50">
+                    {columns.filter(c => c.visible).map(c => (
+                      <th 
+                        key={c.key} 
+                        className={`py-4 px-3 ${c.thClass} ${c.sortableKey ? 'cursor-pointer hover:text-slate-800 hover:bg-slate-100/80 transition-colors' : ''}`}
+                        onClick={() => c.sortableKey && handleSort(c.sortableKey)}
+                      >
+                        {c.key === 'select' ? (
+                          <div className="flex justify-center">
+                            <CustomCheckbox 
+                              checked={selectedIds.length === processedStations.length && processedStations.length > 0} 
+                              onChange={toggleSelectAll} 
+                            />
+                          </div>
+                        ) : (
+                          <div className={`flex items-center gap-1.5 ${c.thClass.includes('text-center') ? 'justify-center' : ''}`}>
+                            {c.label} {c.sortableKey && <IconSort />}
+                          </div>
+                        )}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100/60 text-xs">
+                  {isLoading ? (
+                    <tr><td colSpan={columns.filter(c => c.visible).length} className="p-12 text-center text-slate-400 font-bold">Ładowanie bazy stacji...</td></tr>
+                  ) : processedStations.length === 0 ? (
+                    <tr><td colSpan={columns.filter(c => c.visible).length} className="p-12 text-center text-slate-400 font-bold">Brak wyników w bazie.</td></tr>
+                  ) : (
+                    processedStations.map(station => (
+                      <tr key={station.id} className={`hover:bg-slate-50/80 transition-colors ${selectedIds.includes(station.id) ? 'bg-[#58b347]/5 hover:bg-[#58b347]/10' : ''}`}>
+                        {columns.filter(c => c.visible).map(c => (
+                          <td key={c.key} className={`py-3 px-3 ${c.tdClass}`}>
+                            {renderCellContent(station, c.key)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -893,6 +1211,39 @@ export default function StationsDatabase({ onFocusStation, isSidebarHovered = fa
           </div>
         </div>
       )}
+
+      {/* MODAL TWORZENIE ZAKŁADKI CUSTOMOWEJ (WIELOKROTNE TAGI) */}
+      {isCustomTabModalOpen && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fadeIn" onClick={() => setIsCustomTabModalOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 animate-slideUp" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white px-6 py-5 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">Stwórz nową zakładkę (Filtr)</h3>
+              <button onClick={() => setIsCustomTabModalOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors">✕</button>
+            </div>
+            
+            <form onSubmit={handleSaveCustomTab} className="p-6 space-y-5 bg-slate-50/30">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Nazwa zakładki na pasku *</label>
+                <input required type="text" value={newCustomTab.name} onChange={e => setNewCustomTab({...newCustomTab, name: e.target.value})} className="w-full border border-slate-200 bg-white rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-[#58b347] focus:ring-1 focus:ring-[#58b347]/30 transition-all shadow-sm" placeholder="Np. Wrocław - Tylko Orlen" />
+              </div>
+
+              <div className="bg-white p-5 border border-slate-200 rounded-xl space-y-3 shadow-sm">
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-[#58b347]">Warunki Filtrowania (Szukajka)</label>
+                <p className="text-[10px] text-slate-400 mb-3 leading-relaxed border-b border-slate-100 pb-3">
+                  Każde pole to osobny warunek. Możesz używać wykluczeń lub łączyć wiele miast i klientów.
+                </p>
+                {renderSearchQueries(newCustomTab.filterQueries, (q) => setNewCustomTab({...newCustomTab, filterQueries: q}))}
+              </div>
+
+              <div className="flex gap-3 pt-3 border-t border-slate-200 mt-4">
+                <button type="button" onClick={() => setIsCustomTabModalOpen(false)} className="flex-1 bg-white border border-slate-200 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-50 transition-colors shadow-sm text-xs">Anuluj</button>
+                <button type="submit" disabled={!newCustomTab.name} className="flex-1 bg-[#58b347] text-white font-bold py-3 rounded-xl hover:bg-[#499b3a] disabled:opacity-50 shadow-sm transition-all text-xs">Zapisz zakładkę na stałe</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

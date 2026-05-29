@@ -933,15 +933,15 @@ export default function ChargeMap() {
       )}
 
       {activeView === 'stations' && <StationsDatabase onFocusStation={flyToStation} isSidebarHovered={isSidebarHovered} refreshTrigger={refreshDataTrigger} />}
-      {activeView === 'technicians' && <TechniciansDatabase isSidebarHovered={isSidebarHovered} />}
-      {activeView === 'tickets' && <TicketsDatabase  isSidebarHovered={isSidebarHovered} />}
+      {activeView === 'technicians' && <TechniciansDatabase onChangeView={(view: any) => setActiveView(view)} isSidebarHovered={isSidebarHovered} />}
+      {activeView === 'tickets' && <TicketsDatabase isSidebarHovered={isSidebarHovered} />}
       {activeView === 'calendar' && <CalendarView isSidebarHovered={isSidebarHovered} />}
-      {activeView === 'equipment' && <EquipmentManager isSidebarHovered={isSidebarHovered} />}
+      {activeView === 'equipment' && <EquipmentManager onChangeView={(view: any) => setActiveView(view)} isSidebarHovered={isSidebarHovered} />}
       {activeView === 'clients' && <ClientsDatabase isSidebarHovered={isSidebarHovered} />}
       
       {activeView === 'analytics' && (
         <AnalyticsDashboard 
-          onChangeView={setActiveView} 
+          onChangeView={(view: any) => setActiveView(view)} 
           isSidebarHovered={isSidebarHovered} 
         />
       )}

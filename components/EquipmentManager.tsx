@@ -180,9 +180,10 @@ const parseCSV = (text: string, delimiter: string): string[][] => {
 
 interface EquipmentManagerProps {
   isSidebarHovered?: boolean;
+  onChangeView?: (view: string) => void;
 }
 
-export default function EquipmentManager({ isSidebarHovered = false }: EquipmentManagerProps) {
+export default function EquipmentManager({ isSidebarHovered = false, onChangeView }: EquipmentManagerProps) {
   const [activeTab, setActiveTab] = useState<'central' | 'mobile' | 'logs'>('central');
   const [isLoading, setIsLoading] = useState(true);
 

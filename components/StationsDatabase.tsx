@@ -657,8 +657,8 @@ export default function StationsDatabase({ onFocusStation, isSidebarHovered = fa
             )}
           </div>
         );
-      case 'region': {
-        const regions = parseMultipleValues(station.region);
+        case 'region': {
+          const regions = parseMultipleValues(station.region ?? null);
         if (regions.length === 0) {
           return <span className="inline-flex px-2 py-0.5 bg-red-50 text-red-600 rounded text-[9px] font-bold border border-red-200 uppercase tracking-widest whitespace-nowrap">Poza regionem</span>;
         }

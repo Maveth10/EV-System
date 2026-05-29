@@ -19,6 +19,7 @@ type Part = {
   notes?: string | null;
   is_muted?: boolean;
   mobile_muted?: boolean;
+  stock?: number; // Frontend-only (wirtualna)
 };
 type Technician = { id: string; name: string; car_plate?: string | null; car_category?: string | null; sep_expiry?: string | null; contract_expiry?: string | null; color?: string; };
 type TechInventory = { id: string; technician_id: string; part_id: string; quantity: number; is_muted?: boolean; };
@@ -27,7 +28,7 @@ type Log = { id: string; part_id: string; technician_id: string; operation_type:
 type SearchQuery = { id: string; text: string; logic: 'AND' | 'OR' | 'NOT' };
 type CustomTabEq = { id: string; name: string; filterQueries: SearchQuery[] };
 
-// Dynamiczne kolumny (Klasyczne klasy Tabelaryczne z automatycznym dopasowaniem)
+// Dynamiczne kolumny
 type ColumnKey = 'select' | 'actions' | 'sku' | 'name' | 'category' | 'status' | 'stock';
 interface ColumnDef { key: ColumnKey; label: string; visible: boolean; sortableKey?: keyof Part | 'stock'; thClass: string; tdClass: string; }
 
@@ -69,14 +70,15 @@ const IconTool = () => <svg className="w-3.5 h-3.5 inline-block mr-1 opacity-70"
 const IconDrop = () => <svg className="w-3.5 h-3.5 inline-block mr-1 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>;
 const IconImport = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
 const IconAlert = () => <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
-const IconPlus = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>;
+const IconPlusCenter = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+const IconPlus = () => <svg className="w-4 h-4 inline-block mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>;
 const IconEdit = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
 const IconCalendar = () => <svg className="w-3.5 h-3.5 text-slate-400 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
 const IconShield = () => <svg className="w-3.5 h-3.5 text-slate-400 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
 const IconBell = () => <svg className="w-4 h-4 text-slate-300 hover:text-red-500 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
 const IconBellOff = () => <svg className="w-4 h-4 text-red-500 hover:text-slate-400 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8.7 3A6 6 0 0 1 18 8a21.3 21.3 0 0 0 .6 5M17 17H3s3-2 3-9a4.67 4.67 0 0 1 .3-1.7M10.3 21a1.94 1.94 0 0 0 3.4 0"/><line x1="2" y1="2" x2="22" y2="22"/></svg>;
 const IconFilter = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>;
-const IconTrash = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
+const IconTrash = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
 const IconInfo = () => <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>;
 const IconSort = () => <svg className="w-3.5 h-3.5 inline-block ml-1 opacity-40 hover:opacity-100 transition-opacity" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>;
 const IconColumns = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>;
@@ -194,6 +196,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
   const [activeFilter, setActiveFilter] = useState<string>('ALL');
   const [customTabs, setCustomTabs] = useState<CustomTabEq[]>([]);
   const [isCustomTabModalOpen, setIsCustomTabModalOpen] = useState(false);
+  const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [newCustomTab, setNewCustomTab] = useState<{ name: string, filterQueries: SearchQuery[] }>({ name: '', filterQueries: [{ id: 'c_init', text: '', logic: 'AND' }] });
 
   // Konfiguracja Kolumn
@@ -231,42 +234,90 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
   const [importStatus, setImportStatus] = useState('');
   const [isImporting, setIsImporting] = useState(false);
 
-  const tabsScrollRef = useRef<HTMLDivElement>(null);
+  // DRAG & DROP Wskaźników KPI / ZAKŁADEK
+  const defaultTabIds = ['default_all', 'default_mobile', 'default_low_stock', 'default_expiring', 'default_muted'];
+  const [tabOrder, setTabOrder] = useState<string[]>([]);
+  const draggedTabRef = useRef<string | null>(null);
+  const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
 
-  // Implementacja Smart Wheel Scroll dla paska zakładek
+  // Refs dla scrolla
+  const tabsScrollRef = useRef<HTMLDivElement>(null);
+  const scrollIntervalRef = useRef<number | null>(null);
+
+  // --- WODOTRYSK: EDGE-SCROLL DLA PASKA ZAKŁADEK ---
+  const stopEdgeScroll = useCallback(() => {
+    if (scrollIntervalRef.current) {
+      cancelAnimationFrame(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+    }
+  }, []);
+
+  const startEdgeScroll = useCallback((direction: 'left' | 'right') => {
+    stopEdgeScroll();
+    const scrollContainer = tabsScrollRef.current;
+    if (!scrollContainer) return;
+
+    const performScroll = () => {
+      const speed = 10;
+      if (direction === 'left') scrollContainer.scrollLeft -= speed;
+      else scrollContainer.scrollLeft += speed;
+      scrollIntervalRef.current = requestAnimationFrame(performScroll);
+    };
+    scrollIntervalRef.current = requestAnimationFrame(performScroll);
+  }, [stopEdgeScroll]);
+
+  // --- WODOTRYSK: SMART SCROLL (KÓŁKO MYSZY PRZESUWA W POZIOMIE TYLKO NAD KAFLAMI) ---
   useEffect(() => {
     const el = tabsScrollRef.current;
     if (!el) return;
 
     const handleWheel = (e: WheelEvent) => {
-      const isScrollable = el.scrollWidth > el.clientWidth;
-      if (!isScrollable || e.deltaY === 0) return;
+      // Ignoruj naturalny ruch w poziomie (Touchpady gładzika) - system poradzi z tym sobie sam
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
 
-      const atLeftEdge = el.scrollLeft === 0 && e.deltaY < 0;
-      const atRightEdge = Math.ceil(el.scrollLeft + el.clientWidth) >= el.scrollWidth && e.deltaY > 0;
-
-      if (!atLeftEdge && !atRightEdge) {
-        e.preventDefault();
-        el.scrollLeft += e.deltaY;
+      // Zablokuj domyślne zachowanie (przewijanie całej strony w dół), gdy myszka jest na liście kafli!
+      if (Math.abs(e.deltaY) > 0) {
+        e.preventDefault(); 
+        el.scrollLeft += e.deltaY * 1.5; // Zamień ruch "góra/dół" na płynne pchanie w boki
       }
     };
 
+    // passive: false to wymóg współczesnych przeglądarek, aby e.preventDefault działało na wheel
     el.addEventListener('wheel', handleWheel, { passive: false });
-    return () => el.removeEventListener('wheel', handleWheel);
-  }, []);
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+      stopEdgeScroll();
+    };
+  }, [stopEdgeScroll]);
 
   // Ładowanie ustawień i zakładek
   useEffect(() => {
+    let parsedCustom: CustomTabEq[] = [];
     const savedTabs = localStorage.getItem('ekoen_eq_custom_tabs');
     if (savedTabs) {
       try { 
-        const parsed = JSON.parse(savedTabs);
-        setCustomTabs(parsed);
+        parsedCustom = JSON.parse(savedTabs);
+        setCustomTabs(parsedCustom);
       } catch (e) {}
+    }
+
+    const savedOrder = localStorage.getItem('ekoen_eq_tab_order');
+    const expectedIds = [...defaultTabIds, ...parsedCustom.map(t => t.id)];
+    
+    if (savedOrder) {
+      try { 
+        let order = JSON.parse(savedOrder);
+        const finalOrder = order.filter((id: string) => expectedIds.includes(id));
+        expectedIds.forEach((id: string) => { if (!finalOrder.includes(id)) finalOrder.push(id); });
+        setTabOrder(finalOrder);
+      } catch(e) { setTabOrder(expectedIds); }
+    } else {
+      setTabOrder(expectedIds);
     }
 
     const savedThreshold = localStorage.getItem('ekoen_eq_low_stock_threshold');
     if (savedThreshold) setLowStockThreshold(parseInt(savedThreshold, 10));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleUpdateThreshold = (val: number) => {
@@ -351,6 +402,9 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
       payload.main_stock = 1;
     }
 
+    // USUNIĘCIE WŁAŚCIWOŚCI WIRTUALNYCH
+    delete payload.stock;
+
     const { error } = await supabase.from('parts').insert([payload]);
     if (error) {
       alert(`Błąd: ${error.message}`);
@@ -395,6 +449,9 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
     if (isUnique) {
       payload.main_stock = 1;
     }
+
+    // USUNIĘCIE WŁAŚCIWOŚCI WIRTUALNYCH (Zapobiega "Could not find stock column")
+    delete payload.stock;
 
     const { error } = await supabase.from('parts').update(payload).eq('id', editingPart.id);
     if (error) alert(`Błąd: ${error.message}`);
@@ -518,17 +575,42 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
   };
 
   // --- LOGIKA SMART SEARCH & CUSTOM TABS ---
+  const handleEditTab = (tab: CustomTabEq) => {
+    setEditingTabId(tab.id);
+    setNewCustomTab({
+      name: tab.name,
+      filterQueries: tab.filterQueries.length > 0 ? tab.filterQueries : [{ id: Math.random().toString(), text: '', logic: 'AND' }]
+    });
+    setIsCustomTabModalOpen(true);
+  };
+
   const handleSaveCustomTab = (e: React.FormEvent) => {
     e.preventDefault();
-    const newTab: CustomTabEq = {
-      id: Math.random().toString(36).substring(7),
-      name: newCustomTab.name,
-      filterQueries: newCustomTab.filterQueries.filter(q => q.text.trim() !== '')
-    };
-    const updatedTabs = [...customTabs, newTab];
-    setCustomTabs(updatedTabs);
-    localStorage.setItem('ekoen_eq_custom_tabs', JSON.stringify(updatedTabs));
+    const validQueries = newCustomTab.filterQueries.filter(q => q.text.trim() !== '');
+
+    if (editingTabId) {
+      const updatedTabs = customTabs.map(t => 
+        t.id === editingTabId ? { ...t, name: newCustomTab.name, filterQueries: validQueries } : t
+      );
+      setCustomTabs(updatedTabs);
+      localStorage.setItem('ekoen_eq_custom_tabs', JSON.stringify(updatedTabs));
+    } else {
+      const newTab: CustomTabEq = {
+        id: Math.random().toString(36).substring(7),
+        name: newCustomTab.name,
+        filterQueries: validQueries
+      };
+      const updatedTabs = [...customTabs, newTab];
+      setCustomTabs(updatedTabs);
+      localStorage.setItem('ekoen_eq_custom_tabs', JSON.stringify(updatedTabs));
+      
+      const newOrder = [...tabOrder, newTab.id];
+      setTabOrder(newOrder);
+      localStorage.setItem('ekoen_eq_tab_order', JSON.stringify(newOrder));
+    }
+    
     setIsCustomTabModalOpen(false);
+    setEditingTabId(null);
     setNewCustomTab({ name: '', filterQueries: [{ id: Math.random().toString(), text: '', logic: 'AND' }] });
   };
 
@@ -536,7 +618,55 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
     const updatedTabs = customTabs.filter(t => t.id !== id);
     setCustomTabs(updatedTabs);
     localStorage.setItem('ekoen_eq_custom_tabs', JSON.stringify(updatedTabs));
+    
+    const newOrder = tabOrder.filter(tId => tId !== id);
+    setTabOrder(newOrder);
+    localStorage.setItem('ekoen_eq_tab_order', JSON.stringify(newOrder));
+
     if (activeFilter === `CUSTOM_${id}`) setActiveFilter('ALL');
+  };
+
+  const handleTabDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+    draggedTabRef.current = id;
+    setTimeout(() => setDraggedTabId(id), 0);
+  };
+
+  const handleTabDragOver = (e: React.DragEvent) => {
+    e.preventDefault(); 
+    e.dataTransfer.dropEffect = 'move';
+    
+    const container = tabsScrollRef.current;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      if (x < 80) container.scrollLeft -= 15;
+      else if (x > rect.width - 80) container.scrollLeft += 15;
+    }
+  };
+
+  const handleTabDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    const sourceId = draggedTabRef.current || e.dataTransfer.getData('text/plain');
+    
+    if (!sourceId || sourceId === targetId) {
+       setDraggedTabId(null);
+       return;
+    }
+
+    const sourceIndex = tabOrder.indexOf(sourceId);
+    const targetIndex = tabOrder.indexOf(targetId);
+
+    if (sourceIndex !== -1 && targetIndex !== -1) {
+      const newOrder = [...tabOrder];
+      const [movedTab] = newOrder.splice(sourceIndex, 1);
+      newOrder.splice(targetIndex, 0, movedTab);
+      setTabOrder(newOrder);
+      localStorage.setItem('ekoen_eq_tab_order', JSON.stringify(newOrder));
+    }
+    setDraggedTabId(null);
+    draggedTabRef.current = null;
   };
 
   const evaluateCondition = useCallback((p: Part, q: SearchQuery) => {
@@ -756,7 +886,7 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
     return techInventory.filter(inv => brokenItemIds.includes(inv.part_id) && inv.quantity > 0).map(inv => inv.technician_id);
   }, [parts, techInventory]);
 
-  // KPI Calculations (Dynamicznie zależne od Tab)
+  // KPI Calculations
   const totalPartsInField = useMemo(() => techInventory.reduce((acc, curr) => acc + (curr.quantity || 0), 0), [techInventory]);
   
   const lowStockAlerts = useMemo(() => {
@@ -1051,6 +1181,109 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
 
   const activeCols = activeTab === 'central' ? centralColumns : mobileColumns;
 
+  // --- RENDEROWANIE POJEDYNCZEJ ZAKŁADKI (W TYM CUSTOM) ---
+  const renderTab = (tabId: string) => {
+    const isDragged = draggedTabId === tabId;
+    const baseClasses = `min-w-[240px] shrink-0 bg-white/80 backdrop-blur-md rounded-2xl p-4 shadow-sm flex items-center justify-between cursor-grab active:cursor-grabbing transition-all relative group box-border ${isDragged ? 'opacity-40 scale-95' : ''}`;
+
+    if (tabId === 'default_all') {
+      const isActive = activeFilter === 'ALL' && activeTab === 'central';
+      return (
+        <div key={tabId} draggable onDragStart={(e) => handleTabDragStart(e, tabId)} onDragOver={handleTabDragOver} onDrop={(e) => handleTabDrop(e, tabId)} onClick={() => { setActiveTab('central'); setActiveFilter('ALL'); }} className={`${baseClasses} border ${isActive ? 'border-[#58b347] ring-2 ring-[#58b347]/20 bg-[#58b347]/5' : 'border-white/60 hover:bg-white'}`}>
+          <div className="pointer-events-none mt-1">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Katalog (Mag. Centralny)</p>
+            <p className="text-2xl font-bold text-slate-700">{parts.length}</p>
+          </div>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center pointer-events-none mt-1 ${isActive ? 'bg-[#58b347] text-white' : 'bg-[#58b347]/10 text-[#58b347]'}`}>
+            <IconPackage />
+          </div>
+        </div>
+      );
+    }
+    
+    if (tabId === 'default_mobile') {
+      const isActive = activeTab === 'mobile' && activeFilter === 'ALL';
+      return (
+        <div key={tabId} draggable onDragStart={(e) => handleTabDragStart(e, tabId)} onDragOver={handleTabDragOver} onDrop={(e) => handleTabDrop(e, tabId)} onClick={() => { setActiveTab('mobile'); setActiveFilter('ALL'); }} className={`${baseClasses} border ${isActive ? 'border-[#58b347] ring-2 ring-[#58b347]/20 bg-[#58b347]/5' : 'border-white/60 hover:bg-white'}`}>
+          <div className="pointer-events-none mt-1">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Sprzęt w terenie</p>
+            <p className="text-2xl font-bold text-slate-700">{totalPartsInField}</p>
+          </div>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center pointer-events-none mt-1 ${isActive ? 'bg-[#58b347] text-white' : 'bg-[#58b347]/10 text-[#58b347]'}`}>
+            <IconTruck />
+          </div>
+        </div>
+      );
+    }
+
+    if (tabId === 'default_low_stock') {
+      const isActive = activeFilter === 'LOW_STOCK';
+      return (
+        <div key={tabId} draggable onDragStart={(e) => handleTabDragStart(e, tabId)} onDragOver={handleTabDragOver} onDrop={(e) => handleTabDrop(e, tabId)} onClick={() => setActiveFilter(prev => prev === 'LOW_STOCK' ? 'ALL' : 'LOW_STOCK')} className={`${baseClasses} border ${isActive ? 'border-red-500 ring-2 ring-red-500/20 bg-red-50/50' : lowStockAlerts > 0 ? 'border-red-200 hover:bg-red-50/30' : 'border-white/60 hover:bg-white'}`}>
+          <div className="pointer-events-none mt-1">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Krytyczne braki (≤ {lowStockThreshold})</p>
+            <p className={`text-2xl font-bold ${lowStockAlerts > 0 ? 'text-red-600 animate-pulse' : 'text-slate-700'}`}>{lowStockAlerts}</p>
+          </div>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center pointer-events-none mt-1 ${lowStockAlerts > 0 ? 'bg-red-50 text-red-500' : 'bg-slate-50 text-slate-400'}`}>
+            <IconAlert />
+          </div>
+        </div>
+      );
+    }
+
+    if (tabId === 'default_expiring') {
+      const isActive = activeFilter === 'EXPIRING';
+      return (
+        <div key={tabId} draggable onDragStart={(e) => handleTabDragStart(e, tabId)} onDragOver={handleTabDragOver} onDrop={(e) => handleTabDrop(e, tabId)} onClick={() => setActiveFilter(prev => prev === 'EXPIRING' ? 'ALL' : 'EXPIRING')} className={`${baseClasses} border ${isActive ? 'border-orange-500 ring-2 ring-orange-500/20 bg-orange-50/50' : expiringPartsCount > 0 ? 'border-orange-200 hover:bg-orange-50/30' : 'border-white/60 hover:bg-white'}`}>
+          <div className="pointer-events-none mt-1">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Wygasające Przeglądy</p>
+            <p className={`text-2xl font-bold ${expiringPartsCount > 0 ? 'text-orange-600' : 'text-slate-700'}`}>{expiringPartsCount}</p>
+          </div>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center pointer-events-none mt-1 ${expiringPartsCount > 0 ? 'bg-orange-100 text-orange-500' : 'bg-slate-50 text-slate-400'}`}>
+            <IconCalendar />
+          </div>
+        </div>
+      );
+    }
+
+    if (tabId === 'default_muted') {
+      const isActive = activeFilter === 'MUTED';
+      return (
+        <div key={tabId} draggable onDragStart={(e) => handleTabDragStart(e, tabId)} onDragOver={handleTabDragOver} onDrop={(e) => handleTabDrop(e, tabId)} onClick={() => setActiveFilter(prev => prev === 'MUTED' ? 'ALL' : 'MUTED')} className={`${baseClasses} border ${isActive ? 'border-slate-500 ring-2 ring-slate-500/20 bg-slate-50/50' : mutedAlertsCount > 0 ? 'border-slate-200 hover:border-slate-300' : 'border-white/60 hover:bg-white'}`}>
+          <div className="pointer-events-none mt-1">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Wyciszone alerty</p>
+            <p className="text-2xl font-bold text-slate-700">{mutedAlertsCount}</p>
+          </div>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center pointer-events-none mt-1 ${isActive ? 'bg-slate-200 text-slate-600' : 'bg-slate-50 text-slate-400'}`}>
+            <IconBellOff />
+          </div>
+        </div>
+      );
+    }
+
+    const tabInfo = customTabs.find(t => t.id === tabId);
+    if (tabInfo) {
+      const isActive = activeFilter === `CUSTOM_${tabInfo.id}`;
+      return (
+        <div key={tabId} draggable onDragStart={(e) => handleTabDragStart(e, tabId)} onDragOver={handleTabDragOver} onDrop={(e) => handleTabDrop(e, tabId)} onClick={() => setActiveFilter(prev => prev === `CUSTOM_${tabInfo.id}` ? 'ALL' : `CUSTOM_${tabInfo.id}`)} className={`${baseClasses} border ${isActive ? 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/50' : 'border-slate-200 hover:border-slate-300'}`}>
+          <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-auto bg-white/90 backdrop-blur shadow-sm rounded-md border border-slate-100 px-1 py-0.5">
+            <button onClick={(e) => { e.stopPropagation(); handleEditTab(tabInfo); }} className="text-slate-400 hover:text-blue-500 transition-colors p-1" title="Edytuj zakładkę"><IconEdit /></button>
+            <button onClick={(e) => { e.stopPropagation(); handleDeleteCustomTab(tabId); }} className="text-slate-400 hover:text-red-500 transition-colors p-1" title="Usuń zakładkę"><IconTrash /></button>
+          </div>
+          <div className="pointer-events-none mt-1">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{tabInfo.name}</p>
+            <p className="text-2xl font-bold text-slate-700">{getCustomTabCount(tabInfo)}</p>
+          </div>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center pointer-events-none mt-1 ${isActive ? 'bg-blue-100 text-blue-500' : 'bg-slate-50 text-slate-400'}`}>
+            <IconFilter />
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className={`absolute inset-0 bg-slate-100/60 backdrop-blur-2xl border-l border-white/20 z-40 flex flex-col font-sans transition-[left] duration-300 ease-out shadow-[-10px_0_30px_rgba(0,0,0,0.05)] overflow-y-auto overflow-x-hidden ${isSidebarHovered ? 'left-[256px]' : 'left-[72px]'} ${customScrollbarClasses}`}>
       
@@ -1074,104 +1307,41 @@ export default function EquipmentManager({ isSidebarHovered = false }: Equipment
         ) : (
           <div className="min-h-max w-full max-w-[1600px] mx-auto p-6 flex flex-col gap-6">
             
-            {/* KPI Dashboard + Zakładki */}
-            <div ref={tabsScrollRef} className={`flex overflow-x-auto gap-6 pb-2 snap-x items-stretch shrink-0 select-none ${customScrollbarClasses}`}>
-              <div 
-                onClick={() => { setActiveTab('central'); setActiveFilter('ALL'); }}
-                className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeFilter === 'ALL' && activeTab === 'central' ? 'border-[#58b347] ring-2 ring-[#58b347]/20 bg-[#58b347]/5' : 'border-white/60 hover:bg-white cursor-pointer'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between transition-all`}
-              >
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Katalog (Mag. Centralny)</p>
-                  <p className="text-3xl font-bold text-slate-700">{parts.length}</p>
-                </div>
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${activeFilter === 'ALL' && activeTab === 'central' ? 'bg-[#58b347] text-white' : 'bg-[#58b347]/10 text-[#58b347]'}`}>
-                  <IconPackage />
-                </div>
-              </div>
+            {/* KARTY KPI + CUSTOMOWE ZAKŁADKI Z EDGE SCROLLEM */}
+            <div className="relative group/scroll">
               
+              {/* STREFA EDGE-SCROLL LEWA */}
               <div 
-                onClick={() => { setActiveTab('mobile'); setActiveFilter('ALL'); }}
-                className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeTab === 'mobile' && activeFilter === 'ALL' ? 'border-[#58b347] ring-2 ring-[#58b347]/20 bg-[#58b347]/5' : 'border-white/60 hover:bg-white cursor-pointer'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between transition-all`}
-              >
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Sprzęt w terenie</p>
-                  <p className="text-3xl font-bold text-slate-700">{totalPartsInField}</p>
-                </div>
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${activeTab === 'mobile' && activeFilter === 'ALL' ? 'bg-[#58b347] text-white' : 'bg-[#58b347]/10 text-[#58b347]'}`}>
-                  <IconTruck />
-                </div>
-              </div>
+                onMouseEnter={() => startEdgeScroll('left')} 
+                onMouseLeave={stopEdgeScroll}
+                className="absolute left-0 top-0 bottom-2 w-16 z-30 cursor-w-resize bg-gradient-to-r from-slate-200/50 to-transparent opacity-0 group-hover/scroll:opacity-100 transition-opacity duration-300 rounded-l-2xl"
+              />
 
-              <div 
-                onClick={() => setActiveFilter(prev => prev === 'LOW_STOCK' ? 'ALL' : 'LOW_STOCK')}
-                className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeFilter === 'LOW_STOCK' ? 'border-red-500 ring-2 ring-red-500/20 bg-red-50/50' : lowStockAlerts > 0 ? 'border-red-200 cursor-pointer hover:bg-red-50/30' : 'border-white/60'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between cursor-pointer transition-all`}
-              >
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Krytyczne braki (≤ {lowStockThreshold})</p>
-                  <p className={`text-3xl font-bold ${lowStockAlerts > 0 ? 'text-red-600 animate-pulse' : 'text-slate-700'}`}>{lowStockAlerts}</p>
-                </div>
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${lowStockAlerts > 0 ? 'bg-red-50 text-red-500' : 'bg-slate-50 text-slate-400'}`}>
-                  <IconAlert />
-                </div>
-              </div>
+              {/* KONTENER ZAKŁADEK */}
+              <div ref={tabsScrollRef} className={`flex overflow-x-auto gap-6 pb-2 items-stretch shrink-0 select-none ${customScrollbarClasses} relative z-10`}>
+                
+                {tabOrder.map(id => renderTab(id))}
 
-              <div 
-                onClick={() => setActiveFilter(prev => prev === 'EXPIRING' ? 'ALL' : 'EXPIRING')}
-                className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeFilter === 'EXPIRING' ? 'border-orange-500 ring-2 ring-orange-500/20 bg-orange-50/50' : expiringPartsCount > 0 ? 'border-orange-200 hover:bg-orange-50/30' : 'border-white/60'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between cursor-pointer transition-all`}
-              >
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Wygasające Przeglądy/OC</p>
-                  <p className={`text-3xl font-bold ${expiringPartsCount > 0 ? 'text-orange-600 animate-pulse' : 'text-slate-700'}`}>{expiringPartsCount}</p>
-                </div>
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${expiringPartsCount > 0 ? 'bg-orange-100 text-orange-500' : 'bg-slate-50 text-slate-400'}`}>
-                  <IconCalendar />
-                </div>
-              </div>
-
-              <div 
-                onClick={() => setActiveFilter(prev => prev === 'MUTED' ? 'ALL' : 'MUTED')}
-                className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeFilter === 'MUTED' ? 'border-slate-500 ring-2 ring-slate-500/20 bg-slate-50/50' : mutedAlertsCount > 0 ? 'border-slate-200 hover:border-slate-300 cursor-pointer' : 'border-white/60 cursor-pointer'} rounded-2xl p-5 shadow-sm flex items-center justify-between transition-all`}
-              >
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Wyciszone alerty</p>
-                  <p className="text-3xl font-bold text-slate-700">{mutedAlertsCount}</p>
-                </div>
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${activeFilter === 'MUTED' ? 'bg-slate-200 text-slate-600' : 'bg-slate-50 text-slate-400'}`}>
-                  <IconBellOff />
-                </div>
-              </div>
-
-              {/* RENDER CUSTOMOWYCH ZAKŁADEK */}
-              {customTabs.map(tab => (
                 <div 
-                  key={tab.id}
-                  onClick={() => setActiveFilter(prev => prev === `CUSTOM_${tab.id}` ? 'ALL' : `CUSTOM_${tab.id}`)}
-                  className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeFilter === `CUSTOM_${tab.id}` ? 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/50' : 'border-slate-200 hover:border-slate-300'} rounded-2xl p-5 shadow-sm flex items-center justify-between cursor-pointer transition-all relative group`}
+                  onClick={() => {
+                    setEditingTabId(null);
+                    setNewCustomTab({ name: '', filterQueries: [{ id: Math.random().toString(), text: '', logic: 'AND' }] });
+                    setIsCustomTabModalOpen(true);
+                  }}
+                  className="min-w-[150px] shrink-0 bg-white/50 hover:bg-slate-50 backdrop-blur-md border-2 border-dashed border-slate-300 hover:border-[#58b347] rounded-2xl flex flex-col items-center justify-center text-slate-400 hover:text-[#58b347] cursor-pointer transition-all group p-4 h-[96px] relative"
                 >
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); handleDeleteCustomTab(tab.id); }} 
-                    className="absolute top-3 right-3 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Usuń zakładkę"
-                  >
-                    <IconTrash />
-                  </button>
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{tab.name}</p>
-                    <p className="text-3xl font-bold text-slate-700">{getCustomTabCount(tab)}</p>
-                  </div>
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${activeFilter === `CUSTOM_${tab.id}` ? 'bg-blue-100 text-blue-500' : 'bg-slate-50 text-slate-400'}`}>
-                    <IconFilter />
-                  </div>
+                  <div className="bg-white rounded-full p-2 mb-1.5 shadow-sm group-hover:scale-110 transition-transform"><IconPlusCenter /></div>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-center">Nowy Filtr</span>
                 </div>
-              ))}
-
-              <div 
-                onClick={() => setIsCustomTabModalOpen(true)}
-                className="min-w-[150px] shrink-0 snap-start bg-slate-50/50 border-2 border-dashed border-slate-300 hover:border-[#58b347] hover:bg-[#58b347]/5 rounded-2xl flex flex-col items-center justify-center text-slate-400 hover:text-[#58b347] cursor-pointer transition-all group p-5"
-              >
-                <div className="bg-white rounded-full p-2 mb-2 shadow-sm group-hover:scale-110 transition-transform"><IconPlus /></div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-center">Nowy Filtr</span>
+                <div className="w-2 shrink-0 opacity-0 pointer-events-none">.</div>
               </div>
+
+              {/* STREFA EDGE-SCROLL PRAWA */}
+              <div 
+                onMouseEnter={() => startEdgeScroll('right')} 
+                onMouseLeave={stopEdgeScroll}
+                className="absolute right-0 top-0 bottom-2 w-16 z-30 cursor-e-resize bg-gradient-to-l from-slate-200/50 to-transparent opacity-0 group-hover/scroll:opacity-100 transition-opacity duration-300 rounded-r-2xl"
+              />
             </div>
 
             {/* ZAAWANSOWANY PASEK FILTROWANIA (PIONOWY INTEGRALNY) */}

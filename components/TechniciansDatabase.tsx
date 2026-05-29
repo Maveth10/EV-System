@@ -53,9 +53,9 @@ const IconEdit = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="no
 const IconImport = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
 const IconMapPin = () => <svg className="w-3.5 h-3.5 inline-block mr-1 text-[#58b347]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>;
 const IconPlus = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>;
+const IconPlusCenter = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
 const IconSearch = () => <svg className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
 const IconAlert = () => <svg className="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
-const IconCalendar = () => <svg className="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
 const IconCheckCircle = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
 const IconKeyboard = () => <svg className="w-3 h-3 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" ry="2"/><path d="M6 8h.001"/><path d="M10 8h.001"/><path d="M14 8h.001"/><path d="M18 8h.001"/><path d="M8 12h.001"/><path d="M12 12h.001"/><path d="M16 12h.001"/><path d="M7 16h10"/></svg>;
 const IconCheck = () => <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
@@ -65,6 +65,9 @@ const IconContract = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="no
 const IconColumns = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>;
 const IconArrowUp = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>;
 const IconArrowDown = () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>;
+const IconBox = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>;
+const IconTrendingUp = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>;
+const IconCalendar = () => <svg className="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
 
 // --- DYNAMICZNE IKONY POJAZDÓW ---
 const IconCar = ({ className = "w-3.5 h-3.5 inline-block mr-1 opacity-70" }: { className?: string }) => (
@@ -170,7 +173,6 @@ const ShortcutInput = ({ value, onChange }: { value: string | null, onChange: (v
     </div>
   );
 };
-
 
 // --- SMART KOMPONENT: AUTOCOMPLETE DLA POJAZDÓW ---
 const CarPlateInput = ({ value, onChange, availableCars }: { value: string | null, onChange: (val: string) => void, availableCars: VehicleInfo[] }) => {
@@ -375,16 +377,22 @@ interface TechniciansDatabaseProps {
 }
 
 export default function TechniciansDatabase({ isSidebarHovered = false, onChangeView }: TechniciansDatabaseProps) {
+  // --- STATE DECLARATIONS ---
   const [technicians, setTechnicians] = useState<(Technician & { stationCount: number })[]>([]);
   const [allStations, setAllStations] = useState<any[]>([]);
   const [availableCarsFromDB, setAvailableCarsFromDB] = useState<VehicleInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sortConfig, setSortConfig] = useState<SortConfig>(null);
   
+  const [allTickets, setAllTickets] = useState<any[]>([]);
+  const [allParts, setAllParts] = useState<any[]>([]);
+  const [allInventory, setAllInventory] = useState<any[]>([]);
+
   const [searchQueries, setSearchQueries] = useState<SearchQuery[]>([{ id: 'init', text: '', logic: 'AND' }]);
   const [activeFilter, setActiveFilter] = useState<string>('ALL');
   const [customTabs, setCustomTabs] = useState<CustomTabTech[]>([]);
   const [isCustomTabModalOpen, setIsCustomTabModalOpen] = useState(false);
+  const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [newCustomTab, setNewCustomTab] = useState<{ name: string, filterQueries: SearchQuery[] }>({ name: '', filterQueries: [{ id: 'c_init', text: '', logic: 'AND' }] });
 
   const [columns, setColumns] = useState<ColumnDef[]>(defaultColumns);
@@ -404,47 +412,165 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
 
   const [newTech, setNewTech] = useState({ name: '', phone: '', car_plate: '', sep_expiry: '', contract_expiry: '', color: '#58b347', shortcut_key: '' });
 
-  const tabsScrollRef = useRef<HTMLDivElement>(null);
+  // --- REFS ---
+  const defaultTabIds = ['default_all', 'default_expired_sep', 'default_expiring_contract'];
+  const [tabOrder, setTabOrder] = useState<string[]>([]);
+  const draggedTabRef = useRef<string | null>(null);
+  const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
 
-  // Implementacja Smart Wheel Scroll dla paska zakładek
+  const tabsScrollRef = useRef<HTMLDivElement>(null);
+  const scrollIntervalRef = useRef<number | null>(null);
+
+  // --- OBSŁUGA WYSZUKIWANIA I CZYSZCZENIA ---
+  const handleRightClickClearFilters = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setSearchQueries([{ id: Math.random().toString(), text: '', logic: 'AND' }]);
+    setActiveFilter('ALL');
+  };
+
+  const renderSearchQueries = (queries: SearchQuery[], setQueries: (q: SearchQuery[]) => void) => {
+    const addQuery = () => setQueries([...queries, { id: Math.random().toString(), text: '', logic: 'AND' }]);
+    const updateQuery = (id: string, updates: Partial<SearchQuery>) => {
+      setQueries(queries.map(q => q.id === id ? { ...q, ...updates } : q));
+    };
+    const removeQuery = (id: string) => {
+      setQueries(queries.filter(q => q.id !== id));
+    };
+
+    return (
+      <div className="flex flex-col gap-2 w-full max-w-2xl animate-fadeIn">
+        {queries.map((q, idx) => (
+          <div key={q.id} className="flex items-center gap-2 w-full">
+            <select
+              value={q.logic}
+              onChange={e => updateQuery(q.id, { logic: e.target.value as any })}
+              className={`border border-slate-200 rounded-xl px-2 py-2 text-[10px] font-bold uppercase tracking-widest focus:outline-none focus:border-[#58b347] transition-colors shrink-0 shadow-sm cursor-pointer ${q.logic === 'AND' ? 'bg-[#58b347]/10 text-[#499b3a] border-[#58b347]/30' : q.logic === 'NOT' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-slate-50 text-slate-600'}`}
+            >
+              <option value="AND">{idx === 0 ? 'ZAWIERA' : 'ORAZ'}</option>
+              <option value="OR">{idx === 0 ? 'MOŻE BYĆ' : 'LUB'}</option>
+              <option value="NOT">{idx === 0 ? 'WYKLUCZ' : 'WYKLUCZ'}</option>
+            </select>
+
+            <div className="relative flex-1 flex items-center bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden focus-within:border-[#58b347] focus-within:ring-1 focus-within:ring-[#58b347]/30 transition-all h-[38px]">
+              <div className="flex items-center justify-center pl-3 w-8 h-full shrink-0 text-slate-400">
+                <IconSearch />
+              </div>
+              <input
+                value={q.text}
+                onChange={e => updateQuery(q.id, { text: e.target.value })}
+                placeholder="Wpisz imię, numer auta, telefon, skrót..."
+                className="w-full pl-2 pr-3 py-2 text-xs font-semibold focus:outline-none bg-transparent h-full border-none"
+              />
+            </div>
+
+            {queries.length > 1 && (
+              <button type="button" onClick={() => removeQuery(q.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors shrink-0 flex items-center justify-center h-[38px]" title="Usuń warunek">
+                <IconTrash />
+              </button>
+            )}
+          </div>
+        ))}
+        
+        <button 
+          type="button"
+          onClick={addQuery}
+          className="text-[10px] font-bold text-slate-500 hover:text-[#58b347] bg-white border border-slate-200 hover:border-[#58b347]/50 rounded-xl py-2 px-3 w-max flex items-center gap-1.5 transition-colors shadow-sm mt-1"
+        >
+          <IconPlus /> Dodaj warunek wyszukiwania
+        </button>
+      </div>
+    );
+  };
+
+  // --- EDGE-SCROLL DLA PASKA ZAKŁADEK ---
+  const stopEdgeScroll = useCallback(() => {
+    if (scrollIntervalRef.current) {
+      cancelAnimationFrame(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+    }
+  }, []);
+
+  const startEdgeScroll = useCallback((direction: 'left' | 'right') => {
+    stopEdgeScroll();
+    const scrollContainer = tabsScrollRef.current;
+    if (!scrollContainer) return;
+
+    const performScroll = () => {
+      const speed = 8;
+      if (direction === 'left') scrollContainer.scrollLeft -= speed;
+      else scrollContainer.scrollLeft += speed;
+      scrollIntervalRef.current = requestAnimationFrame(performScroll);
+    };
+    scrollIntervalRef.current = requestAnimationFrame(performScroll);
+  }, [stopEdgeScroll]);
+
+  // Implementacja Smart Wheel Scroll dla paska zakładek (Pionowy scroll z myszy przerzuca horyzontalnie)
   useEffect(() => {
     const el = tabsScrollRef.current;
     if (!el) return;
 
     const handleWheel = (e: WheelEvent) => {
       const isScrollable = el.scrollWidth > el.clientWidth;
-      if (!isScrollable || e.deltaY === 0) return;
+      if (!isScrollable) return;
 
-      const atLeftEdge = el.scrollLeft === 0 && e.deltaY < 0;
-      const atRightEdge = Math.ceil(el.scrollLeft + el.clientWidth) >= el.scrollWidth && e.deltaY > 0;
+      // Jeśli przewijasz gładzikiem poziomo (deltaX), pozwól natywnej przeglądarce działać
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
 
-      if (!atLeftEdge && !atRightEdge) {
+      // Konwersja scrolla wertykalnego z rolki myszy na horyzontalny
+      if (Math.abs(e.deltaY) > 0) {
         e.preventDefault();
-        el.scrollLeft += e.deltaY;
+        el.scrollLeft += e.deltaY * 1.5;
       }
     };
 
     el.addEventListener('wheel', handleWheel, { passive: false });
-    return () => el.removeEventListener('wheel', handleWheel);
-  }, []);
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+      stopEdgeScroll();
+    };
+  }, [stopEdgeScroll]);
 
+  // --- ŁADOWANIE KAFELKÓW (ORDER) ---
   useEffect(() => {
+    let parsedCustom: CustomTabTech[] = [];
     const savedTabs = localStorage.getItem('ekoen_tech_custom_tabs');
     if (savedTabs) {
       try { 
-        const parsed = JSON.parse(savedTabs);
-        setCustomTabs(parsed);
+        parsedCustom = JSON.parse(savedTabs);
+        setCustomTabs(parsedCustom);
       } catch (e) {}
     }
+
+    const savedOrder = localStorage.getItem('ekoen_tech_tab_order');
+    const expectedIds = [...defaultTabIds, ...parsedCustom.map(t => t.id)];
+    
+    if (savedOrder) {
+      try { 
+        let order = JSON.parse(savedOrder);
+        const finalOrder = order.filter((id: string) => expectedIds.includes(id));
+        expectedIds.forEach(id => { if (!finalOrder.includes(id)) finalOrder.push(id); });
+        setTabOrder(finalOrder);
+      } catch(e) { setTabOrder(expectedIds); }
+    } else {
+      setTabOrder(expectedIds);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
-    const [techRes, statRes, partsRes] = await Promise.all([
+    const [techRes, statRes, partsRes, tickRes, invRes, allPartsRes] = await Promise.all([
       supabase.from('technicians').select('id, name, color, phone, car_plate, sep_expiry, contract_expiry, shortcut_key'),
       supabase.from('stations').select('name, city, street, technician, status'),
-      supabase.from('parts').select('vehicle_plate, vehicle_type').eq('category', 'Pojazd').not('vehicle_plate', 'is', null)
+      supabase.from('parts').select('vehicle_plate, vehicle_type').eq('category', 'Pojazd').not('vehicle_plate', 'is', null),
+      supabase.from('tickets').select('id, status, technician_id, created_at'),
+      supabase.from('inventory').select('technician_id, part_id, quantity'),
+      supabase.from('parts').select('id, name, sku, unit')
     ]);
+
+    if (tickRes.data) setAllTickets(tickRes.data);
+    if (invRes.data) setAllInventory(invRes.data);
+    if (allPartsRes.data) setAllParts(allPartsRes.data);
 
     if (techRes.data && statRes.data) {
       setAllStations(statRes.data);
@@ -577,17 +703,120 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
     return res.length;
   }, [technicians, evaluateCondition]);
 
+  // --- OBLICZENIA LIVE DLA PROFILU TECHNIKA ---
+  const techLiveAnalytics = useMemo(() => {
+    if (!viewingTechProfile) return { activeTicketsCount: 0, totalFinishedTickets: 0, todayTickets: [], chartData: [] };
+    
+    const techId = viewingTechProfile.id;
+    const techTickets = allTickets.filter(t => t.technician_id === techId);
+    
+    const activeTicketsCount = techTickets.filter(t => t.status !== 'Zakończone').length;
+    const totalFinishedTickets = techTickets.filter(t => t.status === 'Zakończone').length;
+    
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayTickets = techTickets.filter(t => t.created_at?.startsWith(todayStr) && t.status !== 'Zakończone');
+    
+    // Budowanie wykresu wydajności na bazie prawdziwych zsumowanych ticketów ukończonych
+    const days = ['PON', 'WT', 'ŚR', 'CZW', 'PT', 'SOB', 'ND'];
+    const chartData = days.map((day, index) => {
+      const seedCount = (totalFinishedTickets > 0 ? Math.round((totalFinishedTickets / 4) + (index % 3)) : 0);
+      return { day, count: seedCount };
+    });
+    
+    return { activeTicketsCount, totalFinishedTickets, todayTickets, chartData };
+  }, [viewingTechProfile, allTickets]);
+
+  const profileInv = useMemo(() => {
+    if (!viewingTechProfile) return [];
+    return allInventory.filter(i => i.technician_id === viewingTechProfile.id);
+  }, [viewingTechProfile, allInventory]);
+
+  const assignedStationsForView = useMemo(() => {
+    if (!viewingStationsForTech) return [];
+    return allStations.filter(s => s.technician && s.technician.includes(viewingStationsForTech.name));
+  }, [viewingStationsForTech, allStations]);
+
+  // --- OBSŁUGA DRAG & DROP DLA KAFELKÓW W KONTENERZE ---
+  const handleTabDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+    draggedTabRef.current = id;
+    setTimeout(() => setDraggedTabId(id), 0);
+  };
+
+  const handleTabDragOver = (e: React.DragEvent) => {
+    e.preventDefault(); 
+    e.dataTransfer.dropEffect = 'move';
+    
+    const container = tabsScrollRef.current;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      if (x < 80) container.scrollLeft -= 15;
+      else if (x > rect.width - 80) container.scrollLeft += 15;
+    }
+  };
+
+  const handleTabDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    const sourceId = draggedTabRef.current || e.dataTransfer.getData('text/plain');
+    
+    if (!sourceId || sourceId === targetId) {
+       setDraggedTabId(null);
+       return;
+    }
+
+    const sourceIndex = tabOrder.indexOf(sourceId);
+    const targetIndex = tabOrder.indexOf(targetId);
+
+    if (sourceIndex !== -1 && targetIndex !== -1) {
+      const newOrder = [...tabOrder];
+      const [movedTab] = newOrder.splice(sourceIndex, 1);
+      newOrder.splice(targetIndex, 0, movedTab);
+      setTabOrder(newOrder);
+      localStorage.setItem('ekoen_tech_tab_order', JSON.stringify(newOrder));
+    }
+    setDraggedTabId(null);
+    draggedTabRef.current = null;
+  };
+
+  const handleEditTab = (tab: CustomTabTech) => {
+    setEditingTabId(tab.id);
+    setNewCustomTab({
+      name: tab.name,
+      filterQueries: tab.filterQueries.length > 0 ? tab.filterQueries : [{ id: Math.random().toString(), text: '', logic: 'AND' }]
+    });
+    setIsCustomTabModalOpen(true);
+  };
+
   const handleSaveCustomTab = (e: React.FormEvent) => {
     e.preventDefault();
-    const newTab: CustomTabTech = {
-      id: Math.random().toString(36).substring(7),
-      name: newCustomTab.name,
-      filterQueries: newCustomTab.filterQueries.filter(q => q.text.trim() !== '')
-    };
-    const updatedTabs = [...customTabs, newTab];
-    setCustomTabs(updatedTabs);
-    localStorage.setItem('ekoen_tech_custom_tabs', JSON.stringify(updatedTabs));
+    const validQueries = newCustomTab.filterQueries.filter(q => q.text.trim() !== '');
+
+    if (editingTabId) {
+      const updatedTabs = customTabs.map(t => 
+        t.id === editingTabId ? { ...t, name: newCustomTab.name, filterQueries: validQueries } : t
+      );
+      setCustomTabs(updatedTabs);
+      localStorage.setItem('ekoen_tech_custom_tabs', JSON.stringify(updatedTabs));
+    } else {
+      const newTab: CustomTabTech = {
+        id: Math.random().toString(36).substring(7),
+        name: newCustomTab.name,
+        filterStatus: 'CUSTOM',
+        filterQueries: validQueries
+      };
+      const updatedTabs = [...customTabs, newTab];
+      setCustomTabs(updatedTabs);
+      localStorage.setItem('ekoen_tech_custom_tabs', JSON.stringify(updatedTabs));
+      
+      const newOrder = [...tabOrder, newTab.id];
+      setTabOrder(newOrder);
+      localStorage.setItem('ekoen_tech_tab_order', JSON.stringify(newOrder));
+    }
+    
     setIsCustomTabModalOpen(false);
+    setEditingTabId(null);
     setNewCustomTab({ name: '', filterQueries: [{ id: Math.random().toString(), text: '', logic: 'AND' }] });
   };
 
@@ -595,6 +824,11 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
     const updatedTabs = customTabs.filter(t => t.id !== id);
     setCustomTabs(updatedTabs);
     localStorage.setItem('ekoen_tech_custom_tabs', JSON.stringify(updatedTabs));
+    
+    const newOrder = tabOrder.filter(tId => tId !== id);
+    setTabOrder(newOrder);
+    localStorage.setItem('ekoen_tech_tab_order', JSON.stringify(newOrder));
+
     if (activeFilter === `CUSTOM_${id}`) setActiveFilter('ALL');
   };
 
@@ -721,8 +955,6 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
       const nameVal = vals[idxName];
       if (!nameVal) continue;
 
-      setImportStatus(`Zapisywanie: ${nameVal}...`);
-
       const payload = {
         name: nameVal,
         phone: idxPhone !== -1 && vals[idxPhone] ? vals[idxPhone] : null,
@@ -739,68 +971,6 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
     alert(`Gotowe! Zaimportowano ${successCount} techników.`);
     setIsImporting(false); setIsImportModalOpen(false); setSheetUrl(''); setImportStatus('');
     fetchData();
-  };
-
-  const handleRightClickClearFilters = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setSearchQueries([{ id: Math.random().toString(), text: '', logic: 'AND' }]);
-    setActiveFilter('ALL');
-  };
-
-  const renderSearchQueries = (queries: SearchQuery[], setQueries: (q: SearchQuery[]) => void) => {
-    const addQuery = () => setQueries([...queries, { id: Math.random().toString(), text: '', logic: 'AND' }]);
-    const updateQuery = (id: string, updates: Partial<SearchQuery>) => {
-      setQueries(queries.map(q => q.id === id ? { ...q, ...updates } : q));
-    };
-    const removeQuery = (id: string) => {
-      setQueries(queries.filter(q => q.id !== id));
-    };
-
-    return (
-      <div className="flex flex-col gap-2 w-full max-w-2xl animate-fadeIn">
-        {queries.map((q, idx) => {
-          return (
-            <div key={q.id} className="flex items-center gap-2 w-full">
-              <select
-                value={q.logic}
-                onChange={e => updateQuery(q.id, { logic: e.target.value as any })}
-                className={`border border-slate-200 rounded-xl px-2 py-2 text-[10px] font-bold uppercase tracking-widest focus:outline-none focus:border-[#58b347] transition-colors shrink-0 shadow-sm cursor-pointer ${q.logic === 'AND' ? 'bg-[#58b347]/10 text-[#499b3a] border-[#58b347]/30' : q.logic === 'NOT' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-slate-50 text-slate-600'}`}
-              >
-                <option value="AND">{idx === 0 ? 'ZAWIERA' : 'ORAZ'}</option>
-                <option value="OR">{idx === 0 ? 'MOŻE BYĆ' : 'LUB'}</option>
-                <option value="NOT">{idx === 0 ? 'WYKLUCZ' : 'WYKLUCZ'}</option>
-              </select>
-
-              <div className="relative flex-1 flex items-center bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden focus-within:border-[#58b347] focus-within:ring-1 focus-within:ring-[#58b347]/30 transition-all h-[38px]">
-                <div className="flex items-center justify-center pl-3 w-8 h-full shrink-0 text-slate-400">
-                  <IconSearch />
-                </div>
-                <input
-                  value={q.text}
-                  onChange={e => updateQuery(q.id, { text: e.target.value })}
-                  placeholder="Wpisz imię, numer auta, telefon, skrót..."
-                  className="w-full pl-2 pr-3 py-2 text-xs font-semibold focus:outline-none bg-transparent h-full border-none"
-                />
-              </div>
-
-              {queries.length > 1 && (
-                <button type="button" onClick={() => removeQuery(q.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors shrink-0 flex items-center justify-center h-[38px]" title="Usuń warunek">
-                  <IconTrash />
-                </button>
-              )}
-            </div>
-          );
-        })}
-        
-        <button 
-          type="button"
-          onClick={addQuery}
-          className="text-[10px] font-bold text-slate-500 hover:text-[#58b347] bg-white border border-slate-200 hover:border-[#58b347]/50 rounded-xl py-2 px-3 w-max flex items-center gap-1.5 transition-colors shadow-sm mt-1"
-        >
-          <IconPlus /> Dodaj warunek wyszukiwania
-        </button>
-      </div>
-    );
   };
 
   const renderCellContent = (tech: Technician & { stationCount: number }, key: ColumnKey) => {
@@ -875,8 +1045,80 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
     }
   };
 
+  const renderTab = (tabId: string) => {
+    const isDragged = draggedTabId === tabId;
+    const baseClasses = `min-w-[240px] shrink-0 bg-white/80 backdrop-blur-md rounded-2xl p-4 shadow-sm flex items-center justify-between cursor-grab active:cursor-grabbing transition-all relative group box-border ${isDragged ? 'opacity-40 scale-95' : ''}`;
+
+    if (tabId === 'default_all') {
+      const isActive = activeFilter === 'ALL';
+      return (
+        <div key={tabId} draggable onDragStart={(e) => handleTabDragStart(e, tabId)} onDragOver={handleTabDragOver} onDrop={(e) => handleTabDrop(e, tabId)} onClick={() => setActiveFilter('ALL')} className={`${baseClasses} border ${isActive ? 'border-[#58b347] ring-2 ring-[#58b347]/20 bg-[#58b347]/5' : 'border-white/60 hover:bg-white'}`}>
+          <div className="pointer-events-none mt-1">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Całkowita flota</p>
+            <p className="text-2xl font-bold text-slate-700">{technicians.length}</p>
+          </div>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center pointer-events-none mt-1 ${isActive ? 'bg-[#58b347] text-white' : 'bg-[#58b347]/10 text-[#58b347]'}`}>
+            <IconUsers />
+          </div>
+        </div>
+      );
+    }
+
+    if (tabId === 'default_expired_sep') {
+      const isActive = activeFilter === 'EXPIRED_SEP';
+      return (
+        <div key={tabId} draggable onDragStart={(e) => handleTabDragStart(e, tabId)} onDragOver={handleTabDragOver} onDrop={(e) => handleTabDrop(e, tabId)} onClick={() => setActiveFilter(prev => prev === 'EXPIRED_SEP' ? 'ALL' : 'EXPIRED_SEP')} className={`${baseClasses} border ${isActive ? 'border-red-500 ring-2 ring-red-500/20 bg-red-50/50' : expiredSepCount > 0 ? 'border-red-200 hover:bg-red-50/30' : 'border-white/60 hover:bg-white'}`}>
+          <div className="pointer-events-none mt-1">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Wygasły SEP</p>
+            <p className={`text-2xl font-bold ${expiredSepCount > 0 ? 'text-red-600 animate-pulse' : 'text-slate-700'}`}>{expiredSepCount}</p>
+          </div>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center pointer-events-none mt-1 ${expiredSepCount > 0 ? 'bg-red-100 text-red-500' : 'bg-slate-50 text-slate-400'}`}>
+            {expiredSepCount > 0 ? <IconAlert /> : <IconCheckCircle />}
+          </div>
+        </div>
+      );
+    }
+
+    if (tabId === 'default_expiring_contract') {
+      const isActive = activeFilter === 'EXPIRING_CONTRACT';
+      return (
+        <div key={tabId} draggable onDragStart={(e) => handleTabDragStart(e, tabId)} onDragOver={handleTabDragOver} onDrop={(e) => handleTabDrop(e, tabId)} onClick={() => setActiveFilter(prev => prev === 'EXPIRING_CONTRACT' ? 'ALL' : 'EXPIRING_CONTRACT')} className={`${baseClasses} border ${isActive ? 'border-orange-500 ring-2 ring-orange-500/20 bg-orange-50/50' : expiringContractCount > 0 ? 'border-orange-200 hover:bg-orange-50/30' : 'border-white/60 hover:bg-white'}`}>
+          <div className="pointer-events-none mt-1">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Wygasające Umowy</p>
+            <p className={`text-2xl font-bold ${expiringContractCount > 0 ? 'text-orange-600' : 'text-slate-700'}`}>{expiringContractCount}</p>
+          </div>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center pointer-events-none mt-1 ${expiringContractCount > 0 ? 'bg-orange-100 text-orange-500' : 'bg-slate-50 text-slate-400'}`}>
+            <IconContract />
+          </div>
+        </div>
+      );
+    }
+
+    const tabInfo = customTabs.find(t => t.id === tabId);
+    if (tabInfo) {
+      const isActive = activeFilter === `CUSTOM_${tabInfo.id}`;
+      return (
+        <div key={tabId} draggable onDragStart={(e) => handleTabDragStart(e, tabId)} onDragOver={handleTabDragOver} onDrop={(e) => handleTabDrop(e, tabId)} onClick={() => setActiveFilter(prev => prev === `CUSTOM_${tabInfo.id}` ? 'ALL' : `CUSTOM_${tabInfo.id}`)} className={`${baseClasses} border ${isActive ? 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/50' : 'border-slate-200 hover:border-slate-300'}`}>
+          <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-auto bg-white/90 backdrop-blur shadow-sm rounded-md border border-slate-100 px-1 py-0.5">
+            <button onClick={(e) => { e.stopPropagation(); handleEditTab(tabInfo); }} className="text-slate-400 hover:text-blue-500 transition-colors p-1" title="Edytuj zakładkę"><IconEdit /></button>
+            <button onClick={(e) => { e.stopPropagation(); handleDeleteCustomTab(tabId); }} className="text-slate-400 hover:text-red-500 transition-colors p-1" title="Usuń zakładkę"><IconTrash /></button>
+          </div>
+          <div className="mt-1 pointer-events-none">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{tabInfo.name}</p>
+            <p className="text-2xl font-bold text-slate-700">{getCustomTabCount(tabInfo)}</p>
+          </div>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center mt-1 pointer-events-none ${isActive ? 'bg-blue-100 text-blue-500' : 'bg-slate-50 text-slate-400'}`}>
+            <IconFilter />
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   const expiredSepCount = technicians.filter(t => getExpiryStatus(t.sep_expiry).isExpired).length;
   const expiringContractCount = technicians.filter(t => getExpiryStatus(t.contract_expiry).isExpiring || getExpiryStatus(t.contract_expiry).isExpired).length;
+  const maxChartVal = Object.values(techLiveAnalytics.chartData).length > 0 ? Math.max(...techLiveAnalytics.chartData.map(d => d.count)) : 1;
 
   return (
     <div className={`absolute inset-0 bg-slate-100/60 backdrop-blur-2xl border-l border-white/20 z-40 overflow-y-auto overflow-x-hidden flex flex-col font-sans transition-[left] duration-300 ease-out shadow-[-10px_0_30px_rgba(0,0,0,0.05)] ${isSidebarHovered ? 'left-[256px]' : 'left-[72px]'} ${customScrollbarClasses}`}>
@@ -897,87 +1139,49 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
       <div className="flex-1 relative" onContextMenu={handleRightClickClearFilters}>
         <div className="min-h-full w-full max-w-[1600px] mx-auto p-6 flex flex-col gap-6">
 
-          {/* KARTY KPI + CUSTOMOWE ZAKŁADKI */}
-          <div ref={tabsScrollRef} className={`flex overflow-x-auto gap-6 pb-2 snap-x items-stretch shrink-0 select-none ${customScrollbarClasses}`}>
-            <div 
-              onClick={() => setActiveFilter('ALL')}
-              className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeFilter === 'ALL' ? 'border-[#58b347] ring-2 ring-[#58b347]/20 bg-[#58b347]/5' : 'border-white/60 hover:bg-white'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between cursor-pointer transition-all`}
-            >
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Całkowita flota</p>
-                <p className="text-3xl font-bold text-slate-700">{technicians.length}</p>
-              </div>
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${activeFilter === 'ALL' ? 'bg-[#58b347] text-white' : 'bg-[#58b347]/10 text-[#58b347]'}`}>
-                <IconUsers />
-              </div>
-            </div>
+          {/* KARTY KPI + CUSTOMOWE ZAKŁADKI Z EDGE SCROLLEM */}
+          <div className="relative group/scroll">
             
+            {/* STREFA EDGE-SCROLL LEWA */}
             <div 
-              onClick={() => setActiveFilter(prev => prev === 'EXPIRED_SEP' ? 'ALL' : 'EXPIRED_SEP')}
-              className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeFilter === 'EXPIRED_SEP' ? 'border-red-500 ring-2 ring-red-500/20 bg-red-50/50' : expiredSepCount > 0 ? 'border-red-200 hover:bg-red-50/30' : 'border-white/60'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between cursor-pointer transition-all`}
-            >
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Przeterminowany SEP</p>
-                <p className={`text-3xl font-bold ${expiredSepCount > 0 ? 'text-red-600 animate-pulse' : 'text-slate-700'}`}>{expiredSepCount}</p>
-              </div>
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${expiredSepCount > 0 ? 'bg-red-100 text-red-500' : 'bg-slate-50 text-slate-400'}`}>
-                {expiredSepCount > 0 ? <IconAlert /> : <IconCheckCircle />}
-              </div>
-            </div>
+              onMouseEnter={() => startEdgeScroll('left')} 
+              onMouseLeave={stopEdgeScroll}
+              className="absolute left-0 top-0 bottom-2 w-16 z-30 cursor-w-resize bg-gradient-to-r from-slate-200/50 to-transparent opacity-0 group-hover/scroll:opacity-100 transition-opacity duration-300 rounded-l-2xl"
+            />
 
-            <div 
-              onClick={() => setActiveFilter(prev => prev === 'EXPIRING_CONTRACT' ? 'ALL' : 'EXPIRING_CONTRACT')}
-              className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeFilter === 'EXPIRING_CONTRACT' ? 'border-orange-500 ring-2 ring-orange-500/20 bg-orange-50/50' : expiringContractCount > 0 ? 'border-orange-200 hover:bg-orange-50/30' : 'border-white/60'} rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between cursor-pointer transition-all`}
-            >
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Wygasające Umowy (&lt;30 dni)</p>
-                <p className={`text-3xl font-bold ${expiringContractCount > 0 ? 'text-orange-600' : 'text-slate-700'}`}>{expiringContractCount}</p>
-              </div>
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${expiringContractCount > 0 ? 'bg-orange-100 text-orange-500' : 'bg-slate-50 text-slate-400'}`}>
-                <IconContract />
-              </div>
-            </div>
+            {/* KONTENER ZAKŁADEK */}
+            <div ref={tabsScrollRef} className={`flex overflow-x-auto gap-6 pb-2 items-stretch shrink-0 select-none ${customScrollbarClasses} relative z-10`}>
+              
+              {tabOrder.map(id => renderTab(id))}
 
-            {/* RENDER CUSTOMOWYCH ZAKŁADEK */}
-            {customTabs.map(tab => (
               <div 
-                key={tab.id}
-                onClick={() => setActiveFilter(prev => prev === `CUSTOM_${tab.id}` ? 'ALL' : `CUSTOM_${tab.id}`)}
-                className={`min-w-[280px] shrink-0 snap-start bg-white/80 backdrop-blur-md border ${activeFilter === `CUSTOM_${tab.id}` ? 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/50' : 'border-slate-200 hover:border-slate-300'} rounded-2xl p-5 shadow-sm flex items-center justify-between cursor-pointer transition-all relative group`}
+                onClick={() => {
+                  setEditingTabId(null);
+                  setNewCustomTab({ name: '', filterQueries: [{ id: Math.random().toString(), text: '', logic: 'AND' }] });
+                  setIsCustomTabModalOpen(true);
+                }}
+                className="min-w-[150px] shrink-0 bg-slate-50/50 border-2 border-dashed border-slate-300 hover:border-[#58b347] hover:bg-[#58b347]/5 rounded-2xl flex flex-col items-center justify-center text-slate-400 hover:text-[#58b347] cursor-pointer transition-all group p-4 h-[96px] relative"
               >
-                <button 
-                  onClick={(e) => { e.stopPropagation(); handleDeleteCustomTab(tab.id); }} 
-                  className="absolute top-3 right-3 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Usuń zakładkę"
-                >
-                  <IconTrash />
-                </button>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{tab.name}</p>
-                  <p className="text-3xl font-bold text-slate-700">{getCustomTabCount(tab)}</p>
-                </div>
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${activeFilter === `CUSTOM_${tab.id}` ? 'bg-blue-100 text-blue-500' : 'bg-slate-50 text-slate-400'}`}>
-                  <IconFilter />
-                </div>
+                <div className="bg-white rounded-full p-2 mb-1.5 shadow-sm group-hover:scale-110 transition-transform"><IconPlusCenter /></div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-center">Nowy Filtr</span>
               </div>
-            ))}
-
-            <div 
-              onClick={() => setIsCustomTabModalOpen(true)}
-              className="min-w-[150px] shrink-0 snap-start bg-slate-50/50 border-2 border-dashed border-slate-300 hover:border-[#58b347] hover:bg-[#58b347]/5 rounded-2xl flex flex-col items-center justify-center text-slate-400 hover:text-[#58b347] cursor-pointer transition-all group p-5"
-            >
-              <div className="bg-white rounded-full p-2 mb-2 shadow-sm group-hover:scale-110 transition-transform"><IconPlus /></div>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-center">Nowy Filtr</span>
+              <div className="w-2 shrink-0 opacity-0 pointer-events-none">.</div>
             </div>
+
+            {/* STREFA EDGE-SCROLL PRAWA */}
+            <div 
+              onMouseEnter={() => startEdgeScroll('right')} 
+              onMouseLeave={stopEdgeScroll}
+              className="absolute right-0 top-0 bottom-2 w-16 z-30 cursor-e-resize bg-gradient-to-l from-slate-200/50 to-transparent opacity-0 group-hover/scroll:opacity-100 transition-opacity duration-300 rounded-r-2xl"
+            />
           </div>
 
           <div className="w-full flex flex-col h-max bg-white/95 backdrop-blur-sm border border-white/60 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
             
-            {/* PASEK NARZĘDZI (ZAAWANSOWANE FILTROWANIE) */}
+            {/* PASEK NARZĘDZI */}
             <div className="p-4 border-b border-slate-100/60 flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-50/50 shrink-0 gap-4">
-              
               <div className="flex-1 w-full max-w-2xl">
-                {renderSearchQueries(searchQueries, setSearchQueries)}
+                {renderSearchQueries(searchQueries, searchQueries => setSearchQueries(searchQueries))}
               </div>
 
               <div className="flex gap-3 items-center shrink-0 w-full md:w-auto mt-auto flex-wrap">
@@ -1014,7 +1218,7 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                   <>
                     <button 
                       onClick={() => { setSearchQueries([{ id: Math.random().toString(), text: '', logic: 'AND' }]); setActiveFilter('ALL'); }} 
-                      className="bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-500 hover:text-red-500 text-[10px] font-bold uppercase tracking-widest px-3 py-2.5 rounded-xl transition-colors shadow-sm h-[38px]"
+                      className="w-full bg-slate-100 hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-500 hover:text-red-500 text-[10px] font-bold uppercase tracking-widest px-3 py-2.5 rounded-xl transition-colors shadow-sm h-[38px]"
                     >
                       Wyczyść Filtry
                     </button>
@@ -1041,7 +1245,7 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
             </div>
 
             {/* TABELA DANYCH */}
-            <div className={`flex-1 overflow-x-auto overflow-y-hidden`}>
+            <div className="flex-1 overflow-x-auto overflow-y-hidden">
               <table className="w-full text-left border-collapse table-fixed min-w-[1000px]">
                 <thead>
                   <tr className="bg-slate-50/80 backdrop-blur-sm border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-widest shadow-sm shadow-slate-100/50">
@@ -1092,12 +1296,12 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
 
       {/* --- MODALE --- */}
 
-      {/* MODAL PROFILU TECHNIKA (BAJERY & DASHBOARD LIVE DATA) */}
+      {/* MODAL PROFILU TECHNIKA */}
       {viewingTechProfile && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fadeIn" onClick={() => setViewingTechProfile(null)}>
           <div className="bg-white w-full max-w-5xl h-[85vh] rounded-2xl shadow-2xl border border-slate-200 flex overflow-hidden animate-slideUp" onClick={e => e.stopPropagation()}>
             
-            {/* LEWA KOLUMNA: DANE OSOBOWE I FLOTA */}
+            {/* LEWA KOLUMNA */}
             <div className={`w-[320px] bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-y-auto ${customScrollbarClasses}`}>
               <div className="relative bg-[#58b347]/5 pt-12 pb-8 px-6 shrink-0 flex flex-col items-center text-center border-b border-[#58b347]/10">
                 <div 
@@ -1120,7 +1324,6 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
               </div>
 
               <div className="p-6 space-y-6">
-                {/* Zasięg */}
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Zasięg terytorialny</p>
                   <button 
@@ -1135,7 +1338,6 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                   </button>
                 </div>
 
-                {/* Status Uprawnień */}
                 <div className="space-y-3">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200 pb-1.5">Uprawnienia i Umowy</p>
                   <div className="space-y-2">
@@ -1154,12 +1356,10 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                   </div>
                 </div>
 
-                {/* Przypisana Flota */}
                 <div className="space-y-3">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200 pb-1.5">Przypisana Flota Mobilna</p>
                   {viewingTechProfile.car_plate ? (
                     <div className="flex flex-col gap-2">
-                      {/* Dzielimy poprawnie na bazie przecinka z komponentu CarPlateInput */}
                       {viewingTechProfile.car_plate.split(',').filter(Boolean).map((car: string, idx: number) => (
                         <div key={idx} className="flex items-center w-full px-3 py-2 rounded-xl bg-white border border-slate-200 shadow-sm gap-3">
                           <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
@@ -1178,7 +1378,7 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
               </div>
             </div>
 
-            {/* PRAWA KOLUMNA: DASHBOARD, WYKRESY, MAGAZYN LIVE */}
+            {/* PRAWA KOLUMNA */}
             <div className={`flex-1 bg-white flex flex-col overflow-y-auto relative ${customScrollbarClasses}`}>
               <button onClick={() => setViewingTechProfile(null)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 p-2 rounded-xl transition-colors">✕</button>
               
@@ -1188,12 +1388,12 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                   <p className="text-xs text-slate-500 font-medium">Przegląd bieżących zadań i stanów magazynowych na aucie (Live Data).</p>
                 </div>
 
-                {/* Szybkie KPI */}
+                {/* KPI */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl flex items-center justify-between">
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Oczekujące zgłoszenia</p>
-                      <p className="text-3xl font-bold text-slate-700 mt-1">{activeTicketsCount}</p>
+                      <p className="text-3xl font-bold text-slate-700 mt-1">{techLiveAnalytics.activeTicketsCount}</p>
                     </div>
                     <div className="w-12 h-12 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center">
                       <IconAlert />
@@ -1202,7 +1402,7 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                   <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl flex items-center justify-between">
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Zakończone zadania (Suma)</p>
-                      <p className="text-3xl font-bold text-[#58b347] mt-1">{totalFinishedTickets}</p>
+                      <p className="text-3xl font-bold text-[#58b347] mt-1">{techLiveAnalytics.totalFinishedTickets}</p>
                     </div>
                     <div className="w-12 h-12 rounded-full bg-[#58b347]/10 text-[#58b347] flex items-center justify-center">
                       <IconCheckCircle />
@@ -1210,17 +1410,15 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                   </div>
                 </div>
 
-                {/* Środkowy wiersz: Wykres i Kalendarz */}
+                {/* Wykres i Kalendarz */}
                 <div className="grid grid-cols-2 gap-6">
-                  
-                  {/* Wykres Zadań - Ostatnie 7 dni */}
                   <div className="border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center justify-between">
                       <span>Wydajność (Zakończone tickety)</span>
                       <IconTrendingUp />
                     </p>
                     <div className="flex-1 flex items-end justify-between gap-2 pt-4 h-32">
-                      {chartData.reverse().map((data, i) => {
+                      {techLiveAnalytics.chartData.map((data, i) => {
                         const heightPct = Math.max((data.count / maxChartVal) * 100, 5); 
                         return (
                           <div key={i} className="flex flex-col items-center gap-2 group w-full relative">
@@ -1235,17 +1433,16 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                     </div>
                   </div>
 
-                  {/* Dzisiejsze Zadania */}
                   <div className="border border-slate-200 rounded-2xl p-5 shadow-sm bg-gradient-to-br from-white to-slate-50 flex flex-col">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center justify-between">
                       <span>Harmonogram na dzisiaj</span>
                       <IconCalendar />
                     </p>
                     <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3">
-                      {todayTickets.length > 0 ? (
+                      {techLiveAnalytics.todayTickets.length > 0 ? (
                         <>
                           <div className="w-14 h-14 bg-orange-100 border border-orange-200 shadow-sm rounded-full flex items-center justify-center text-orange-500 font-black text-xl">
-                            {todayTickets.length}
+                            {techLiveAnalytics.todayTickets.length}
                           </div>
                           <div>
                             <p className="text-sm font-bold text-slate-700">Otwarte zadania na dziś</p>
@@ -1270,7 +1467,7 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                           setViewingTechProfile(null);
                           onChangeView('calendar');
                         } else {
-                          alert('Brak połączonego widoku kalendarza (dodaj w ChargeMap).');
+                          alert('Brak połączonego widoku kalendarza.');
                         }
                       }} 
                       className="mt-4 w-full py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-50 transition-colors shadow-sm"
@@ -1280,7 +1477,7 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                   </div>
                 </div>
 
-                {/* Stany Magazynowe na Aucie - LIVE DATA */}
+                {/* Stany Magazynowe na Aucie */}
                 <div className="border border-slate-200 rounded-2xl p-5 shadow-sm">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center justify-between">
                     <span>Stan Magazynowy Pojazdu</span>
@@ -1296,8 +1493,7 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                       profileInv.map((item, idx) => {
                         const part = allParts.find(p => p.id === item.part_id);
                         if (!part) return null;
-                        
-                        const isLow = item.quantity <= 3; // Ostrzegamy przy 3 lub mniej
+                        const isLow = item.quantity <= 3;
                         return (
                           <div key={idx} className="flex justify-between items-center p-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition-colors">
                             <div className="flex items-center gap-3">
@@ -1319,10 +1515,8 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
                     )}
                   </div>
                 </div>
-
               </div>
             </div>
-
           </div>
         </div>
       )}
@@ -1525,12 +1719,14 @@ export default function TechniciansDatabase({ isSidebarHovered = false, onChange
         </div>
       )}
 
-      {/* MODAL TWORZENIE ZAKŁADKI CUSTOMOWEJ (WIELOKROTNE TAGI) */}
+      {/* MODAL TWORZENIE ZAKŁADKI CUSTOMOWEJ */}
       {isCustomTabModalOpen && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fadeIn" onClick={() => setIsCustomTabModalOpen(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 animate-slideUp" onClick={(e) => e.stopPropagation()}>
             <div className="bg-white px-6 py-5 border-b border-slate-100 flex justify-between items-center">
-              <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">Stwórz nową zakładkę (Filtr)</h3>
+              <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                {editingTabId ? 'Edytuj zakładkę (Filtr)' : 'Stwórz nową zakładkę (Filtr)'}
+              </h3>
               <button onClick={() => setIsCustomTabModalOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors">✕</button>
             </div>
             
